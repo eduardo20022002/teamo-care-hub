@@ -1,5 +1,6 @@
 // Server-only helpers for sharing (C7). Never import from client code.
 import { createHash, randomBytes, createHmac, timingSafeEqual } from "crypto";
+import nodemailer from "nodemailer";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export type ShareItemType = "record" | "document_record" | "document_child";
@@ -145,9 +146,18 @@ export async function logShareEvent(
   }
 }
 
-// ---------- Resend ----------
+// ---------- Gmail SMTP ----------
 
-const RESEND_FROM = "TEAmo <onboarding@resend.dev>";
+function createGmailTransport() {
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+  if (!user) throw new Error("GMAIL_USER not configured");
+  if (!pass) throw new Error("GMAIL_APP_PASSWORD not configured");
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: { user, pass },
+  });
+}
 
 export async function sendOtpEmail(params: {
   to: string;
@@ -157,10 +167,9 @@ export async function sendOtpEmail(params: {
   expiresInMinutes: number;
   shareExpiresAt: string;
 }): Promise<{ ok: boolean; error?: string }> {
-  const LOVABLE_API_KEY = process.env.LOVABLE_API_KEY;
-  const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  if (!LOVABLE_API_KEY) return { ok: false, error: "LOVABLE_API_KEY not configured" };
-  if (!RESEND_API_KEY) return { ok: false, error: "RESEND_API_KEY not configured" };
+  const gmailUser = process.env.GMAIL_USER;
+  if (!gmailUser) return { ok: false, error: "GMAIL_USER not configured" };
+  if (!process.env.GMAIL_APP_PASSWORD) return { ok: false, error: "GMAIL_APP_PASSWORD not configured" };
 
   const subject = `Seu código de acesso TEAmo: ${params.otp}`;
   const html = `
@@ -200,24 +209,13 @@ export async function sendOtpEmail(params: {
 </html>`;
 
   try {
-    const res = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "X-Connection-Api-Key": RESEND_API_KEY,
-      },
-      body: JSON.stringify({
-        from: RESEND_FROM,
-        to: [params.to],
-        subject,
-        html,
-      }),
+    const transporter = createGmailTransport();
+    await transporter.sendMail({
+      from: `TEAmo <${gmailUser}>`,
+      to: params.to,
+      subject,
+      html,
     });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      return { ok: false, error: `Resend ${res.status}: ${text.slice(0, 200)}` };
-    }
     return { ok: true };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
