@@ -22,6 +22,9 @@ export interface SearchHit {
 
 export interface SearchSourceOpts {
   childId?: string;
+  dateFrom?: string; // YYYY-MM-DD
+  dateTo?: string; // YYYY-MM-DD
+  category?: AttendanceCategoryValue;
 }
 
 export interface SearchSource {
@@ -44,15 +47,26 @@ function truncate(s: string, max = 80): string {
   return trimmed.length <= max ? trimmed : trimmed.slice(0, max - 1) + "…";
 }
 
+function dateInRange(date: string, from?: string, to?: string): boolean {
+  // Compara apenas a parte YYYY-MM-DD
+  const d = date.slice(0, 10);
+  if (from && d < from) return false;
+  if (to && d > to) return false;
+  return true;
+}
+
 // ===== Fonte: Registros =====
 const recordsSource: SearchSource = {
   kind: "record",
-  async search(query, { childId }) {
+  async search(query, { childId, dateFrom, dateTo, category }) {
     const records = await listAttendanceRecords();
     const q = normalizeForSearch(query);
     return records
       .filter((r) => !childId || r.child_id === childId)
+      .filter((r) => !category || r.category === category)
+      .filter((r) => dateInRange(r.record_date, dateFrom, dateTo))
       .filter((r) => {
+        if (!q) return true;
         const categoryLabel =
           ATTENDANCE_CATEGORY_LABELS[r.category as AttendanceCategoryValue] ?? r.category;
         const haystack = normalizeForSearch(
@@ -84,7 +98,7 @@ const professionalsSource: SearchSource = {
     const q = normalizeForSearch(query);
     return items
       .filter((p) =>
-        normalizeForSearch(`${p.name} ${p.specialty}`).includes(q),
+        !q || normalizeForSearch(`${p.name} ${p.specialty}`).includes(q),
       )
       .map<SearchHit>((p) => ({
         kind: "professional",
@@ -99,12 +113,13 @@ const professionalsSource: SearchSource = {
 // ===== Fonte: Documentos =====
 const documentsSource: SearchSource = {
   kind: "document",
-  async search(query, { childId }) {
+  async search(query, { childId, dateFrom, dateTo }) {
     const docs = await listAllDocuments();
     const q = normalizeForSearch(query);
     return docs
       .filter((d) => !childId || d.child_id === childId)
-      .filter((d) => normalizeForSearch(d.file_name).includes(q))
+      .filter((d) => dateInRange(d.created_at, dateFrom, dateTo))
+      .filter((d) => !q || normalizeForSearch(d.file_name).includes(q))
       .map<SearchHit>((d) => {
         const origin = d.source === "child" ? "Documento da criança" : "Anexo de registro";
         return {
@@ -134,18 +149,30 @@ export type SearchResults = Record<SearchKind, SearchHit[]>;
 
 export async function searchAll(
   query: string,
-  opts: { childId?: string; kinds?: SearchKind[] } = {},
+  opts: {
+    childId?: string;
+    kinds?: SearchKind[];
+    dateFrom?: string;
+    dateTo?: string;
+    category?: AttendanceCategoryValue;
+  } = {},
 ): Promise<SearchResults> {
   const empty: SearchResults = { record: [], professional: [], document: [] };
   const trimmed = query.trim();
-  if (trimmed.length < 2) return empty;
 
   const sources = opts.kinds
     ? SEARCH_SOURCES.filter((s) => opts.kinds!.includes(s.kind))
     : SEARCH_SOURCES;
 
   const settled = await Promise.allSettled(
-    sources.map((s) => s.search(trimmed, { childId: opts.childId })),
+    sources.map((s) =>
+      s.search(trimmed, {
+        childId: opts.childId,
+        dateFrom: opts.dateFrom,
+        dateTo: opts.dateTo,
+        category: opts.category,
+      }),
+    ),
   );
 
   const results: SearchResults = { ...empty };
@@ -156,4 +183,24 @@ export async function searchAll(
     }
   });
   return results;
+}
+
+/**
+ * Achata e ordena resultados por data desc. Itens sem data (ex: profissionais)
+ * vão para o final, ordenados por título asc.
+ */
+export function flattenAndSortByDate(results: SearchResults): SearchHit[] {
+  const all: SearchHit[] = [
+    ...results.record,
+    ...results.document,
+    ...results.professional,
+  ];
+  return all.sort((a, b) => {
+    if (a.date && b.date) {
+      return a.date < b.date ? 1 : a.date > b.date ? -1 : 0;
+    }
+    if (a.date) return -1;
+    if (b.date) return 1;
+    return a.title.localeCompare(b.title);
+  });
 }
