@@ -160,38 +160,32 @@ function DashboardPage() {
         <div className="grid grid-cols-2 gap-3">
           <Link
             to="/profissionais"
-            className="group rounded-xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/40 hover:bg-primary-soft/40"
+            className="group rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:bg-primary-soft/40"
           >
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary">
-              <Users className="h-5 w-5" strokeWidth={1.75} />
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-primary-soft text-primary">
+              <Users className="h-4 w-4" strokeWidth={1.75} />
             </div>
-            <h3 className="text-base font-semibold text-foreground">
-              Rede de profissionais
+            <h3 className="text-sm font-semibold leading-tight text-foreground">
+              Profissionais
             </h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Cadastre médicos, terapeutas e profissionais escolares.
+            <p className="mt-1 text-xs text-muted-foreground">
+              Médicos, terapeutas e equipe escolar.
             </p>
-            <span className="mt-3 inline-block text-xs font-medium text-primary group-hover:underline">
-              Acessar →
-            </span>
           </Link>
 
           <Link
             to="/registros"
-            className="group rounded-xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/40 hover:bg-primary-soft/40"
+            className="group rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:bg-primary-soft/40"
           >
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary">
-              <ClipboardList className="h-5 w-5" strokeWidth={1.75} />
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-primary-soft text-primary">
+              <ClipboardList className="h-4 w-4" strokeWidth={1.75} />
             </div>
-            <h3 className="text-base font-semibold text-foreground">
-              Registros de atendimento
+            <h3 className="text-sm font-semibold leading-tight text-foreground">
+              Registros
             </h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Anote orientações, observações, condutas e evoluções.
+            <p className="mt-1 text-xs text-muted-foreground">
+              Orientações, observações e evoluções.
             </p>
-            <span className="mt-3 inline-block text-xs font-medium text-primary group-hover:underline">
-              Acessar →
-            </span>
           </Link>
         </div>
       </section>
