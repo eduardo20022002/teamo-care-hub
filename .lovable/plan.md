@@ -1,111 +1,88 @@
-## Plano — C4 / RF-03: Anexação de documentos
+# Plano — Anexos no formulário de novo registro + Central de Documentos
 
-### 1. Páginas e componentes a criar
+## 1. Anexar documentos ao **criar** um registro
 
-**Componentes (`src/components/attachments/`):**
+Hoje, anexos só aparecem na **edição** (`AttendanceFormDialog` mostra "Salve o registro para começar a anexar documentos." na criação). Vamos permitir anexar já na criação.
 
-- `AttachmentUploader.tsx` — botão "Anexar arquivo" + input file oculto. Aceita múltiplos arquivos, valida formato e tamanho no cliente antes do upload, exibe lista de uploads em andamento com spinner por arquivo. Props: `scope: "record" | "child"`, `parentId: string`, `onUploaded?`.
-- `AttachmentList.tsx` — lista os anexos já salvos. Renderiza miniatura para JPG/PNG (URL assinada do Storage) e ícone de PDF para documentos. Mostra nome, tamanho formatado e data. Ações: "Visualizar/Baixar" e "Remover".
-- `AttachmentItem.tsx` — item individual reutilizado pela lista (mantém o card enxuto).
-- `DeleteAttachmentDialog.tsx` — `AlertDialog` de confirmação para remoção.
-- `EmptyAttachments.tsx` — estado vazio amigável para a aba "Documentos" da criança.
-- `ChildDocumentsDialog.tsx` — dialog que abre a partir do `ChildCard` com `AttachmentUploader` + `AttachmentList` no escopo "child". Mantém o padrão de Dialog dos ciclos anteriores em vez de criar uma rota nova.
+**Abordagem:** "anexos pendentes em memória" — o usuário escolhe arquivos, eles ficam em uma fila local validada (sem subir ao Storage). Ao salvar o registro com sucesso, fazemos o upload de cada arquivo vinculado ao `record_id` recém-criado. Se algum upload falhar, o registro permanece criado e exibimos toast por arquivo com falha.
 
-**Rotas:** nenhuma rota nova — anexo de atendimento vive dentro do `AttendanceCard`/`AttendanceFormDialog` existentes; documentos da criança vivem em um Dialog acessível pelo `ChildCard`.
+Mudanças:
+- `AttendanceFormDialog.tsx`: substituir a mensagem "Salve o registro..." por uma **fila de arquivos pendentes** (lista com nome, tamanho, ícone e botão "remover"). Reaproveitar `AttachmentUploader` em modo "fila" (callback `onFiles` empurra para state local em vez de subir).
+- Expor no `onSubmit` do diálogo um segundo argumento opcional: `pendingFiles: File[]`, OU emitir um callback `onCreated(recordId)` que dispare o upload. Decisão: **manter assinatura atual** e introduzir um novo prop `onCreate?: (data, files) => Promise<void>`; quando passado, é usado no lugar de `onSubmit` para criação. `onSubmit` continua para edição.
+- `dashboard.tsx` e `registros.tsx`: ao receber `onCreate`, chamar `createAttendanceRecord` → pegar `record.id` retornado → fazer `uploadRecordAttachment` em loop (com toasts agregados de sucesso/falha) → invalidar queries.
+- `attendance.service.ts`: garantir que `createAttendanceRecord` retorne o `id` do registro (verificar; ajustar se necessário).
 
-### 2. Funções de service
+Componentes novos:
+- `src/components/attachments/PendingAttachmentsList.tsx` — lista visual simples para a fila local de `File[]` com remover.
 
-`src/services/attachments.service.ts` — única camada que toca Supabase Storage e as tabelas de anexos:
+## 2. Documentos da criança (avulsos) — manter
 
-- `listRecordAttachments(recordId)` / `listChildAttachments(childId)`
-- `uploadRecordAttachment(userId, recordId, file)` / `uploadChildAttachment(userId, childId, file)` — faz upload no bucket e insere a linha de metadados na tabela correspondente, em uma única função (transação lógica: se o INSERT falhar, remove o arquivo do Storage).
-- `deleteRecordAttachment(attachment)` / `deleteChildAttachment(attachment)` — remove a linha e o arquivo do Storage.
-- `getAttachmentSignedUrl(storagePath)` — gera URL assinada de curta duração (60s) para visualizar/baixar.
+Já existe via `ChildDocumentsDialog` aberto pelo botão "Documentos" no `ChildCard`. **Sem mudanças**, apenas confirmar que continua funcionando. Esses anexos vivem em `child_attachments` e não estão atrelados a registros.
 
-`src/lib/validation.ts` — adicionar:
-- `ALLOWED_ATTACHMENT_MIME = ["application/pdf", "image/jpeg", "image/png"]`
-- `MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024`
-- `validateAttachmentFile(file)` retornando `{ ok: true } | { ok: false, error: string }` com mensagens em PT-BR ("Formato não suportado. Aceitos: PDF, JPG, PNG.", "Arquivo acima de 10 MB.").
+## 3. Acesso rápido **"Documentos"** no dashboard
 
-`src/lib/formatters.ts` — adicionar `formatFileSize(bytes)`.
+Hoje a grade de Acessos rápidos tem 2 cards (Profissionais, Registros). Vamos para **3 cards** mantendo o layout 2-por-linha responsivo (no mobile, o terceiro card ocupa a linha inteira; em telas ≥ sm, vira grade de 2 colunas com 3 itens fluindo naturalmente).
 
-### 3. Schema do Supabase
+- Adicionar 3º card "Documentos" (ícone `FolderOpen`) → leva para nova rota `/documentos`.
+- Layout mantém `grid-cols-2 gap-3`. O 3º card simplesmente quebra para a linha de baixo ocupando metade da largura no mobile (ou full-width via `col-span-2` se preferir destaque). **Decisão proposta:** manter `grid-cols-2`, 3 cards, terceiro fica sozinho na 2ª linha ocupando uma coluna. Visualmente equilibrado e consistente.
 
-**Tabela `public.record_attachments`:**
+## 4. Página `/documentos` — Central de documentos com filtros
 
-| coluna | tipo | nulo | observação |
-|---|---|---|---|
-| `id` | uuid PK | não | `gen_random_uuid()` |
-| `user_id` | uuid | não | dono (RLS) |
-| `record_id` | uuid | não | FK → `attendance_records(id)` `ON DELETE CASCADE` |
-| `storage_path` | text | não | caminho dentro do bucket |
-| `file_name` | text | não | nome original exibido ao usuário |
-| `mime_type` | text | não | validado na aplicação |
-| `size_bytes` | bigint | não | |
-| `created_at` | timestamptz | não | `now()` |
+Nova rota: `src/routes/_auth/documentos.tsx`.
 
-**Tabela `public.child_attachments`:** mesma estrutura, trocando `record_id` por `child_id` (FK → `children(id)` `ON DELETE CASCADE`).
+**Conteúdo:**
+- Header com título "Documentos" + voltar para dashboard.
+- Filtros (em uma barra superior, responsiva):
+  - **Criança**: select (Todas | cada criança).
+  - **Origem**: select (Todos | Documentos da criança | Anexos de registros).
+  - **Tipo de arquivo**: select (Todos | PDF | Imagens).
+  - **Busca por nome**: input de texto que filtra `file_name` (case-insensitive, sem acento).
+  - **Período**: opcional — select rápido (Todos | Últimos 7 dias | Últimos 30 dias | Este ano).
+- Botão "Adicionar documento" abre dialog onde o usuário escolhe a criança e os arquivos (cria entradas em `child_attachments`). Reutiliza `AttachmentUploader`.
+- Lista unificada (cards) ordenada por `created_at desc`, mostrando: nome, tamanho, data, criança, origem (badge: "Documento da criança" ou "Anexo do registro · {categoria/data}"), ações (abrir, excluir).
+- Estado vazio dedicado.
 
-- Índices: `(user_id, created_at desc)`, `(record_id)` / `(child_id)`.
-- RLS habilitada nas duas tabelas, com 4 políticas (`SELECT/INSERT/UPDATE/DELETE`) usando `auth.uid() = user_id` — mesmo padrão dos C1/C2/C3.
-- Sem `updated_at` nem trigger: anexo é imutável (substituir = remover + reenviar). Reduz superfície e mantém consistência com Storage.
-- Política de exclusão: `ON DELETE CASCADE` garante que apagar o registro de atendimento ou a criança limpa as linhas; a limpeza dos arquivos no Storage é feita pelo service (chama `delete` antes do DELETE da linha quando o usuário remove pela UI).
+**Serviço novo** `src/services/documents.service.ts`:
+- `listAllDocuments()` — faz duas queries em paralelo (`child_attachments` join `children`, `record_attachments` join `attendance_records` + `children`), normaliza num shape comum:
+  ```ts
+  type UnifiedDocument = {
+    id: string;
+    source: "child" | "record";
+    storage_path: string;
+    file_name: string;
+    mime_type: string;
+    size_bytes: number;
+    created_at: string;
+    child_id: string;
+    child_name: string;
+    record_id?: string;
+    record_category?: string;
+    record_date?: string;
+  }
+  ```
+- Filtragem é feita client-side em cima do array (volume baixo no MVP, sem necessidade de paginação).
 
-**Tipos** em `src/types/database.ts`: `RecordAttachment`, `RecordAttachmentInsert`, `ChildAttachment`, `ChildAttachmentInsert`.
+**Componentes novos:**
+- `src/components/documents/DocumentFilters.tsx` — barra de filtros controlada.
+- `src/components/documents/DocumentCard.tsx` — card unificado (similar a `AttachmentItem` mas com badge de origem e nome da criança).
+- `src/components/documents/AddChildDocumentDialog.tsx` — dialog com select de criança + uploader.
+- `src/components/documents/EmptyDocuments.tsx`.
 
-### 4. Estrutura do Supabase Storage
+## 5. Ajustes técnicos
 
-**Bucket:** `attachments` — **privado** (visualização sempre via URL assinada; protege contra acesso direto por URL).
+- `attendance.service.ts`: confirmar que `createAttendanceRecord` retorna `{ id, ... }` (já parece retornar `.select().single()`).
+- `routeTree.gen.ts`: gerado automaticamente após criar `/documentos`.
+- Filtro por nome: helper de normalização (`lower + remover diacríticos`) — pode reusar abordagem de `slugifyName` em `attachments.service.ts`.
 
-**Paths:**
-- Atendimento: `records/{user_id}/{record_id}/{uuid}-{slug-do-nome}.{ext}`
-- Criança: `children/{user_id}/{child_id}/{uuid}-{slug-do-nome}.{ext}`
+## 6. O que NÃO muda
 
-Prefixar com `{user_id}` no path permite escrever políticas de Storage robustas usando `(storage.foldername(name))[1] = auth.uid()::text`. Slug + uuid no nome final evita colisão e caracteres problemáticos, mas o `file_name` original é preservado na tabela para exibição.
+- Estrutura das tabelas `record_attachments` e `child_attachments`, RLS, bucket privado, URLs assinadas.
+- Componentes `AttachmentUploader`, `AttachmentItem`, `AttachmentList`, `DeleteAttachmentDialog`, `RecordAttachmentsSection`, `ChildDocumentsDialog`.
+- Limites: 10 MB, PDF/JPG/PNG.
 
-**Políticas de storage** sobre `storage.objects` para o bucket `attachments` (4 políticas — SELECT/INSERT/UPDATE/DELETE), todas com:
-```
-bucket_id = 'attachments' AND (storage.foldername(name))[1] = auth.uid()::text
-```
+## 7. Pontos a confirmar
 
-### 5. Sequência de implementação
-
-1. Migration: tabelas `record_attachments` e `child_attachments` + índices + RLS.
-2. Migration: criação do bucket `attachments` (privado) + 4 políticas em `storage.objects`.
-3. Tipos derivados em `src/types/database.ts`.
-4. Validação + formatadores em `src/lib/`.
-5. `attachments.service.ts` (upload com rollback, delete, signed URL, list).
-6. Componentes de UI em `src/components/attachments/`.
-7. Integrar no `AttendanceFormDialog`: na **edição** de um registro existente, mostrar `AttachmentUploader` + `AttachmentList`. Na **criação**, mostrar nota "Salve o registro para anexar arquivos" (anexos só após existir `record_id`). Alternativa avaliada: upload em duas fases após o submit do registro novo — descartada por complexidade desproporcional.
-8. Integrar no `AttendanceCard`: mostrar contagem de anexos e expansão inline com `AttachmentList`.
-9. Integrar no `ChildCard`: novo botão "Documentos" que abre `ChildDocumentsDialog`.
-10. Atualizar README.
-
-### 6. Decisões em aberto que precisam de confirmação
-
-1. **Anexar arquivos durante a criação de um registro novo (antes do registro existir):**
-   - **Proposta:** anexos só ficam disponíveis após o registro ser salvo (na edição). Na criação, mensagem "Salve o registro para começar a anexar documentos." Mantém o upload simples e atômico.
-   - Alternativa: buffer no cliente + upload pós-INSERT (mais complexo, lida com falhas parciais).
-   - Confirmar a proposta?
-
-2. **Onde abrir os "Documentos da criança":**
-   - **Proposta:** Dialog acionado por botão "Documentos" no `ChildCard` (consistente com o padrão de Dialog dos ciclos anteriores, sem criar rota nova).
-   - Alternativa: rota dedicada `/_auth/criancas/$childId/documentos`.
-   - Confirmar a proposta?
-
-3. **Bucket privado + URL assinada vs. bucket público:**
-   - **Proposta:** **privado** com URL assinada de 60s sob demanda. Atende RNF-09 (cada pai acessa só os próprios anexos) mesmo se o caminho vazar.
-   - Confirmar a proposta?
-
-4. **Múltiplos arquivos em uma única ação:**
-   - **Proposta:** input com `multiple`, mas cada arquivo é validado e enviado individualmente (um falhar não derruba os outros). Cada upload mostra spinner próprio; toasts agregados ao final.
-   - Confirmar a proposta?
-
-5. **Indicador de progresso real vs. spinner:**
-   - **Proposta:** spinner (estado "enviando") + barra indeterminada por arquivo. O SDK do Storage do Supabase não expõe progresso de upload de forma confiável no browser; barra real exigiria `XMLHttpRequest` direto contra o endpoint de Storage, fugindo do padrão do projeto (apenas o service toca Supabase).
-   - Confirmar spinner/indeterminada?
-
-6. **Limite de quantidade de anexos por registro/criança:**
-   - **Proposta:** sem limite rígido neste ciclo (apenas o teto de 10 MB por arquivo). Se quiser teto (ex.: 20 por registro), defina aqui.
-
-Aguardo aprovação e respostas às 6 decisões antes de implementar.
+1. **Upload na criação do registro:** confirmar abordagem "fila local + upload pós-save". Se algum upload falhar, o registro fica criado com toast informando os arquivos que falharam (usuário pode reabrir em edição e tentar de novo). OK?
+2. **Adicionar documento na Central:** propus dialog com select de criança obrigatório (sem criança não dá pra anexar avulso). OK?
+3. **Layout do 3º acesso rápido:** manter `grid-cols-2` com o 3º card ocupando metade da largura na 2ª linha (assimetria leve). Alternativa: 3º card com `col-span-2` (full-width). Qual prefere?
+4. **Filtro de período:** vale incluir agora ou deixar fora do MVP (apenas criança + origem + tipo + busca por nome)?
