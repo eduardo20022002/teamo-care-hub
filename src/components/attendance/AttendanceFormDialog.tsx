@@ -36,7 +36,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: AttendanceRecordInput) => Promise<void> | void;
   submitting?: boolean;
-  children: Child[];
+  childrenList: Child[];
   professionals: Professional[];
   initial?: AttendanceRecord | null;
   defaultChildId?: string;
@@ -51,7 +51,7 @@ export function AttendanceFormDialog({
   onOpenChange,
   onSubmit,
   submitting,
-  children,
+  childrenList,
   professionals,
   initial,
   defaultChildId,
@@ -78,14 +78,14 @@ export function AttendanceFormDialog({
       setContent(initial.content);
       setRecordDate(initial.record_date);
     } else {
-      setChildId(defaultChildId ?? (children.length === 1 ? children[0].id : ""));
+      setChildId(defaultChildId ?? (childrenList.length === 1 ? childrenList[0].id : ""));
       setProfessional({ professional_id: null, professional_name: "" });
       setCategory("");
       setContent("");
       setRecordDate(todayISO());
     }
     setErrors({});
-  }, [open, initial, defaultChildId, children]);
+  }, [open, initial, defaultChildId, childrenList]);
 
   const isEdit = !!initial;
 
@@ -138,7 +138,7 @@ export function AttendanceFormDialog({
                 <SelectValue placeholder="Selecione a criança" />
               </SelectTrigger>
               <SelectContent>
-                {children.map((c) => (
+                {childrenList.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name}
                   </SelectItem>
