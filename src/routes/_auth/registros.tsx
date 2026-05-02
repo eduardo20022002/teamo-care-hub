@@ -27,7 +27,10 @@ import {
   updateAttendanceRecord,
   type AttendanceRecordWithRelations,
 } from "@/services/attendance.service";
-import { uploadRecordAttachment } from "@/services/attachments.service";
+import {
+  countRecordAttachments,
+  uploadRecordAttachment,
+} from "@/services/attachments.service";
 import { formatDateRelative } from "@/lib/formatters";
 import type { AttendanceRecordInput } from "@/lib/validation";
 
@@ -118,12 +121,21 @@ function RegistrosPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteAttendanceRecord(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       toast.success("Registro excluído.");
       qc.invalidateQueries({ queryKey: ["attendance"] });
+      qc.invalidateQueries({ queryKey: ["record-attachments", id] });
+      qc.invalidateQueries({ queryKey: ["record-attachments-count", id] });
+      qc.invalidateQueries({ queryKey: ["documents-all"] });
       setDeleting(null);
     },
     onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deletingAttachmentsQuery = useQuery({
+    queryKey: ["record-attachments-count", deleting?.id],
+    queryFn: () => countRecordAttachments(deleting!.id),
+    enabled: !!deleting,
   });
 
   const records = recordsQuery.data ?? [];
@@ -304,6 +316,7 @@ function RegistrosPage() {
         }}
         onConfirm={() => deleting && deleteMutation.mutate(deleting.id)}
         loading={deleteMutation.isPending}
+        attachmentCount={deletingAttachmentsQuery.data ?? 0}
       />
     </AppShell>
   );

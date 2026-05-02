@@ -188,6 +188,35 @@ export async function deleteChildAttachment(
   if (error) throw new Error(mapError(error.message));
 }
 
+// ===== Exclusão em cascata: todos os anexos de um registro =====
+
+export async function deleteAllRecordAttachments(
+  recordId: string,
+): Promise<void> {
+  const { data: rows, error: selError } = await supabase
+    .from("record_attachments")
+    .select("storage_path")
+    .eq("record_id", recordId);
+  if (selError) throw new Error(mapError(selError.message));
+
+  const paths = (rows ?? []).map((r) => r.storage_path).filter(Boolean);
+
+  if (paths.length > 0) {
+    // Best-effort: falha no Storage não bloqueia limpeza no banco
+    try {
+      await supabase.storage.from(BUCKET).remove(paths);
+    } catch {
+      /* noop */
+    }
+  }
+
+  const { error: delError } = await supabase
+    .from("record_attachments")
+    .delete()
+    .eq("record_id", recordId);
+  if (delError) throw new Error(mapError(delError.message));
+}
+
 // ===== URL assinada para visualizar/baixar =====
 
 export async function getAttachmentSignedUrl(
