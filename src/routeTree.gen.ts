@@ -13,12 +13,14 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CompartilhamentoTokenRouteImport } from './routes/compartilhamento.$token'
 import { Route as AuthRegistrosRouteImport } from './routes/_auth/registros'
 import { Route as AuthProfissionaisRouteImport } from './routes/_auth/profissionais'
 import { Route as AuthPainelRouteImport } from './routes/_auth/painel'
 import { Route as AuthOnboardingRouteImport } from './routes/_auth/onboarding'
 import { Route as AuthDocumentosRouteImport } from './routes/_auth/documentos'
 import { Route as AuthDashboardRouteImport } from './routes/_auth/dashboard'
+import { Route as AuthCompartilhamentosRouteImport } from './routes/_auth/compartilhamentos'
 import { Route as AuthBuscaRouteImport } from './routes/_auth/busca'
 import { Route as ApiPublicShareValidateOtpRouteImport } from './routes/api/public/share/validate-otp'
 import { Route as ApiPublicShareRequestOtpRouteImport } from './routes/api/public/share/request-otp'
@@ -41,6 +43,11 @@ const AuthRoute = AuthRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompartilhamentoTokenRoute = CompartilhamentoTokenRouteImport.update({
+  id: '/compartilhamento/$token',
+  path: '/compartilhamento/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRegistrosRoute = AuthRegistrosRouteImport.update({
@@ -73,6 +80,11 @@ const AuthDashboardRoute = AuthDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthCompartilhamentosRoute = AuthCompartilhamentosRouteImport.update({
+  id: '/compartilhamentos',
+  path: '/compartilhamentos',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthBuscaRoute = AuthBuscaRouteImport.update({
   id: '/busca',
   path: '/busca',
@@ -102,12 +114,14 @@ export interface FileRoutesByFullPath {
   '/cadastro': typeof CadastroRoute
   '/login': typeof LoginRoute
   '/busca': typeof AuthBuscaRoute
+  '/compartilhamentos': typeof AuthCompartilhamentosRoute
   '/dashboard': typeof AuthDashboardRoute
   '/documentos': typeof AuthDocumentosRoute
   '/onboarding': typeof AuthOnboardingRoute
   '/painel': typeof AuthPainelRoute
   '/profissionais': typeof AuthProfissionaisRoute
   '/registros': typeof AuthRegistrosRoute
+  '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
   '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
   '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
   '/api/public/share/validate-otp': typeof ApiPublicShareValidateOtpRoute
@@ -117,12 +131,14 @@ export interface FileRoutesByTo {
   '/cadastro': typeof CadastroRoute
   '/login': typeof LoginRoute
   '/busca': typeof AuthBuscaRoute
+  '/compartilhamentos': typeof AuthCompartilhamentosRoute
   '/dashboard': typeof AuthDashboardRoute
   '/documentos': typeof AuthDocumentosRoute
   '/onboarding': typeof AuthOnboardingRoute
   '/painel': typeof AuthPainelRoute
   '/profissionais': typeof AuthProfissionaisRoute
   '/registros': typeof AuthRegistrosRoute
+  '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
   '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
   '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
   '/api/public/share/validate-otp': typeof ApiPublicShareValidateOtpRoute
@@ -134,12 +150,14 @@ export interface FileRoutesById {
   '/cadastro': typeof CadastroRoute
   '/login': typeof LoginRoute
   '/_auth/busca': typeof AuthBuscaRoute
+  '/_auth/compartilhamentos': typeof AuthCompartilhamentosRoute
   '/_auth/dashboard': typeof AuthDashboardRoute
   '/_auth/documentos': typeof AuthDocumentosRoute
   '/_auth/onboarding': typeof AuthOnboardingRoute
   '/_auth/painel': typeof AuthPainelRoute
   '/_auth/profissionais': typeof AuthProfissionaisRoute
   '/_auth/registros': typeof AuthRegistrosRoute
+  '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
   '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
   '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
   '/api/public/share/validate-otp': typeof ApiPublicShareValidateOtpRoute
@@ -151,12 +169,14 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/login'
     | '/busca'
+    | '/compartilhamentos'
     | '/dashboard'
     | '/documentos'
     | '/onboarding'
     | '/painel'
     | '/profissionais'
     | '/registros'
+    | '/compartilhamento/$token'
     | '/api/public/share/document-url'
     | '/api/public/share/request-otp'
     | '/api/public/share/validate-otp'
@@ -166,12 +186,14 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/login'
     | '/busca'
+    | '/compartilhamentos'
     | '/dashboard'
     | '/documentos'
     | '/onboarding'
     | '/painel'
     | '/profissionais'
     | '/registros'
+    | '/compartilhamento/$token'
     | '/api/public/share/document-url'
     | '/api/public/share/request-otp'
     | '/api/public/share/validate-otp'
@@ -182,12 +204,14 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/login'
     | '/_auth/busca'
+    | '/_auth/compartilhamentos'
     | '/_auth/dashboard'
     | '/_auth/documentos'
     | '/_auth/onboarding'
     | '/_auth/painel'
     | '/_auth/profissionais'
     | '/_auth/registros'
+    | '/compartilhamento/$token'
     | '/api/public/share/document-url'
     | '/api/public/share/request-otp'
     | '/api/public/share/validate-otp'
@@ -198,6 +222,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   CadastroRoute: typeof CadastroRoute
   LoginRoute: typeof LoginRoute
+  CompartilhamentoTokenRoute: typeof CompartilhamentoTokenRoute
   ApiPublicShareDocumentUrlRoute: typeof ApiPublicShareDocumentUrlRoute
   ApiPublicShareRequestOtpRoute: typeof ApiPublicShareRequestOtpRoute
   ApiPublicShareValidateOtpRoute: typeof ApiPublicShareValidateOtpRoute
@@ -231,6 +256,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/compartilhamento/$token': {
+      id: '/compartilhamento/$token'
+      path: '/compartilhamento/$token'
+      fullPath: '/compartilhamento/$token'
+      preLoaderRoute: typeof CompartilhamentoTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_auth/registros': {
@@ -275,6 +307,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthDashboardRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/compartilhamentos': {
+      id: '/_auth/compartilhamentos'
+      path: '/compartilhamentos'
+      fullPath: '/compartilhamentos'
+      preLoaderRoute: typeof AuthCompartilhamentosRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/busca': {
       id: '/_auth/busca'
       path: '/busca'
@@ -308,6 +347,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthRouteChildren {
   AuthBuscaRoute: typeof AuthBuscaRoute
+  AuthCompartilhamentosRoute: typeof AuthCompartilhamentosRoute
   AuthDashboardRoute: typeof AuthDashboardRoute
   AuthDocumentosRoute: typeof AuthDocumentosRoute
   AuthOnboardingRoute: typeof AuthOnboardingRoute
@@ -318,6 +358,7 @@ interface AuthRouteChildren {
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthBuscaRoute: AuthBuscaRoute,
+  AuthCompartilhamentosRoute: AuthCompartilhamentosRoute,
   AuthDashboardRoute: AuthDashboardRoute,
   AuthDocumentosRoute: AuthDocumentosRoute,
   AuthOnboardingRoute: AuthOnboardingRoute,
@@ -333,6 +374,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   CadastroRoute: CadastroRoute,
   LoginRoute: LoginRoute,
+  CompartilhamentoTokenRoute: CompartilhamentoTokenRoute,
   ApiPublicShareDocumentUrlRoute: ApiPublicShareDocumentUrlRoute,
   ApiPublicShareRequestOtpRoute: ApiPublicShareRequestOtpRoute,
   ApiPublicShareValidateOtpRoute: ApiPublicShareValidateOtpRoute,
