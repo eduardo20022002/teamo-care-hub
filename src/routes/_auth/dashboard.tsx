@@ -229,6 +229,21 @@ function DashboardPage() {
               Laudos, relatórios e anexos com filtros.
             </p>
           </Link>
+
+          <Link
+            to="/compartilhamentos"
+            className="group rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:bg-primary-soft/40"
+          >
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-primary-soft text-primary">
+              <Share2 className="h-4 w-4" strokeWidth={1.75} />
+            </div>
+            <h3 className="text-sm font-semibold leading-tight text-foreground">
+              Compartilhamentos
+            </h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Envie info para profissionais com OTP por e-mail.
+            </p>
+          </Link>
         </div>
       </section>
 
