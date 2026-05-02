@@ -8,9 +8,15 @@ import {
   SHARING_TABLES,
 } from "./sharing.server";
 
+// 2160h = 90 days (~3 months). Trigger DB allows up to 93 days for safety margin.
 const createShareSchema = z.object({
   professionalId: z.string().uuid(),
-  expiresInHours: z.union([z.literal(6), z.literal(24), z.literal(48)]),
+  expiresInHours: z.union([
+    z.literal(6),
+    z.literal(24),
+    z.literal(48),
+    z.literal(2160),
+  ]),
   recordIds: z.array(z.string().uuid()).max(200).default([]),
   documentRecordIds: z.array(z.string().uuid()).max(200).default([]),
   documentChildIds: z.array(z.string().uuid()).max(200).default([]),
