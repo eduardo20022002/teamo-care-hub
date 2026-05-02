@@ -30,6 +30,7 @@ import {
   ProfessionalCombobox,
   type ProfessionalSelection,
 } from "./ProfessionalCombobox";
+import { RecordAttachmentsSection } from "@/components/attachments/RecordAttachmentsSection";
 
 interface Props {
   open: boolean;
