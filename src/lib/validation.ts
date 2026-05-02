@@ -47,6 +47,44 @@ export const childSchema = z.object({
 
 export type ChildInput = z.infer<typeof childSchema>;
 
+export const TEA_SPECIALTIES = [
+  "Neuropediatra",
+  "Psiquiatra infantil",
+  "Psicólogo(a)",
+  "Psicólogo(a) ABA",
+  "Fonoaudiólogo(a)",
+  "Terapeuta ocupacional",
+  "Fisioterapeuta",
+  "Nutricionista",
+  "Pedagogo(a)",
+  "Psicopedagogo(a)",
+  "Musicoterapeuta",
+  "Educador(a) físico(a)",
+  "Professor(a) de apoio",
+  "Outro",
+] as const;
+
+const phoneRegex = /^[\d\s()+\-]{8,20}$/;
+
+export const professionalSchema = z.object({
+  name: z.string().trim().min(1, "Informe o nome.").max(120, "Nome muito longo."),
+  specialty: z
+    .string()
+    .trim()
+    .min(1, "Informe a especialidade.")
+    .max(120, "Especialidade muito longa."),
+  email: emailSchema,
+  phone: z
+    .string()
+    .trim()
+    .max(20, "Telefone muito longo.")
+    .refine((v) => v === "" || phoneRegex.test(v), "Telefone inválido.")
+    .optional()
+    .or(z.literal("")),
+});
+
+export type ProfessionalInput = z.infer<typeof professionalSchema>;
+
 export interface PasswordChecks {
   length: boolean;
   letter: boolean;
