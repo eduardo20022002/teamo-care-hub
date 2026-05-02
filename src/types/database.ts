@@ -7,6 +7,14 @@ export type AuditLog = Tables<"audit_logs">;
 export type Professional = Tables<"professionals">;
 export type ProfessionalInsert = TablesInsert<"professionals">;
 export type ProfessionalUpdate = TablesUpdate<"professionals">;
+export type AttendanceRecord = Tables<"attendance_records">;
+export type AttendanceRecordInsert = TablesInsert<"attendance_records">;
+export type AttendanceRecordUpdate = TablesUpdate<"attendance_records">;
+export type AttendanceCategory =
+  | "orientacao"
+  | "observacao_clinica"
+  | "conduta"
+  | "evolucao";
 
 export type AuthEventType =
   | "auth.signup_success"
