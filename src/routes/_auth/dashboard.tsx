@@ -42,11 +42,6 @@ const COMING_SOON = [
     description: "Gerencie horários e nunca perca um atendimento.",
   },
   {
-    icon: Share2,
-    title: "Compartilhamento com profissionais",
-    description: "Envie informações de forma segura e por tempo limitado.",
-  },
-  {
     icon: TimerReset,
     title: "Linha do tempo",
     description: "Acompanhe a evolução da criança ao longo do tempo.",
