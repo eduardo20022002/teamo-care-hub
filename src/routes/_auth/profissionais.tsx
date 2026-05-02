@@ -11,6 +11,14 @@ import { DeleteProfessionalDialog } from "@/components/professionals/DeleteProfe
 import { EmptyProfessionals } from "@/components/professionals/EmptyProfessionals";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import {
   createProfessional,
@@ -35,6 +43,7 @@ function ProfessionalsPage() {
   const [editing, setEditing] = useState<Professional | null>(null);
   const [deleting, setDeleting] = useState<Professional | null>(null);
   const [search, setSearch] = useState("");
+  const [specialty, setSpecialty] = useState<string>("all");
 
   const { data: professionals, isLoading } = useQuery({
     queryKey: ["professionals"],
@@ -75,15 +84,25 @@ function ProfessionalsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const specialties = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of professionals ?? []) {
+      if (p.specialty?.trim()) set.add(p.specialty.trim());
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [professionals]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return professionals ?? [];
-    return (professionals ?? []).filter(
-      (p) =>
+    return (professionals ?? []).filter((p) => {
+      if (specialty !== "all" && p.specialty !== specialty) return false;
+      if (!q) return true;
+      return (
         p.name.toLowerCase().includes(q) ||
-        p.specialty.toLowerCase().includes(q),
-    );
-  }, [professionals, search]);
+        p.specialty.toLowerCase().includes(q)
+      );
+    });
+  }, [professionals, search, specialty]);
 
   const handleOpenCreate = () => {
     setEditing(null);
@@ -146,17 +165,38 @@ function ProfessionalsPage() {
       </header>
 
       {hasAny && (
-        <div className="mb-4 relative">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            strokeWidth={1.75}
-          />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nome ou especialidade"
-            className="pl-9"
-          />
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_240px]">
+          <div className="relative">
+            <Label htmlFor="prof-search" className="sr-only">
+              Buscar
+            </Label>
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              strokeWidth={1.75}
+            />
+            <Input
+              id="prof-search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nome ou especialidade"
+              className="pl-9"
+            />
+          </div>
+          {specialties.length > 0 && (
+            <Select value={specialty} onValueChange={setSpecialty}>
+              <SelectTrigger>
+                <SelectValue placeholder="Especialidade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as especialidades</SelectItem>
+                {specialties.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       )}
 
@@ -164,7 +204,7 @@ function ProfessionalsPage() {
         <EmptyProfessionals onAdd={handleOpenCreate} />
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-          Nenhum profissional encontrado para "{search}".
+          Nenhum profissional encontrado para os filtros aplicados.
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
