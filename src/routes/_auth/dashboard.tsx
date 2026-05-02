@@ -5,12 +5,14 @@ import {
   Baby,
   CalendarDays,
   ClipboardList,
+  FolderOpen,
   Heart,
   Plus,
   Share2,
   TimerReset,
   Users,
 } from "lucide-react";
+import { uploadRecordAttachment } from "@/services/attachments.service";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { ChildCard } from "@/components/children/ChildCard";
