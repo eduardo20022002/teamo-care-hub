@@ -165,17 +165,38 @@ function ProfessionalsPage() {
       </header>
 
       {hasAny && (
-        <div className="mb-4 relative">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            strokeWidth={1.75}
-          />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nome ou especialidade"
-            className="pl-9"
-          />
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_240px]">
+          <div className="relative">
+            <Label htmlFor="prof-search" className="sr-only">
+              Buscar
+            </Label>
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              strokeWidth={1.75}
+            />
+            <Input
+              id="prof-search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nome ou especialidade"
+              className="pl-9"
+            />
+          </div>
+          {specialties.length > 0 && (
+            <Select value={specialty} onValueChange={setSpecialty}>
+              <SelectTrigger>
+                <SelectValue placeholder="Especialidade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as especialidades</SelectItem>
+                {specialties.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       )}
 
