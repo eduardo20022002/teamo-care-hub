@@ -156,6 +156,77 @@ export const revokeShare = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+const revokeShareSchema = z.object({ shareId: z.string().uuid() });
+
+export const revokeShare = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => revokeShareSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const { userId, supabase } = context as any;
+    const { error } = await (supabase.from(SHARING_TABLES.shares) as any)
+      .update({ revoked_at: new Date().toISOString() })
+      .eq("id", data.shareId)
+      .is("revoked_at", null);
+    if (error) {
+      throw new Response("Não foi possível revogar.", { status: 500 });
+    }
+    await logShareEvent(userId, "share.revoked", { share_id: data.shareId });
+    return { ok: true };
+  });
+
+const renewShareSchema = z.object({
+  shareId: z.string().uuid(),
+  expiresInHours: z.union([
+    z.literal(6),
+    z.literal(24),
+    z.literal(48),
+    z.literal(2160),
+  ]),
+});
+
+export const renewShare = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => renewShareSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const { userId, supabase } = context as any;
+    // Ensure the share belongs to the user (RLS-aware)
+    const { data: row, error: fetchErr } = await (supabase
+      .from(SHARING_TABLES.shares) as any)
+      .select("id, revoked_at, renewals_count")
+      .eq("id", data.shareId)
+      .maybeSingle();
+    if (fetchErr || !row) {
+      throw new Response("Compartilhamento não encontrado.", { status: 404 });
+    }
+    if (row.revoked_at) {
+      throw new Response("Não é possível renovar um compartilhamento revogado.", {
+        status: 400,
+      });
+    }
+    const now = new Date();
+    const newExpiresAt = new Date(now.getTime() + data.expiresInHours * 60 * 60 * 1000);
+    // Re-issue: clear OTP state so professional must re-validate, and reset consumed_at
+    const { error: updErr } = await (supabaseAdmin.from(SHARING_TABLES.shares) as any)
+      .update({
+        expires_at: newExpiresAt.toISOString(),
+        otp_hash: null,
+        otp_expires_at: null,
+        otp_attempts: 0,
+        consumed_at: null,
+        last_renewed_at: now.toISOString(),
+        renewals_count: (row.renewals_count ?? 0) + 1,
+      })
+      .eq("id", data.shareId);
+    if (updErr) {
+      throw new Response("Não foi possível renovar.", { status: 500 });
+    }
+    await logShareEvent(userId, "share.renewed", {
+      share_id: data.shareId,
+      expires_in_hours: data.expiresInHours,
+    });
+    return { ok: true, expiresAt: newExpiresAt.toISOString() };
+  });
+
 export interface ShareSummary {
   id: string;
   token: string;
@@ -168,6 +239,8 @@ export interface ShareSummary {
   revoked_at: string | null;
   consumed_at: string | null;
   created_at: string;
+  renewals_count: number;
+  last_renewed_at: string | null;
 }
 
 export const listShares = createServerFn({ method: "POST" })
