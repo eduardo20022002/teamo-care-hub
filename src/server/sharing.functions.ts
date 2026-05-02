@@ -265,6 +265,8 @@ export const listShares = createServerFn({ method: "POST" })
         revoked_at: s.revoked_at,
         consumed_at: s.consumed_at,
         created_at: s.created_at,
+        renewals_count: s.renewals_count ?? 0,
+        last_renewed_at: s.last_renewed_at ?? null,
       };
     });
 
