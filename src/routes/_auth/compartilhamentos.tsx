@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Share2, ShieldOff, Trash2, Clock, Mail } from "lucide-react";
+import { Loader2, Share2, ShieldOff, Clock, Mail, RefreshCw } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,9 +23,12 @@ import {
   deriveShareStatus,
   useListShares,
   useRevokeShare,
+  useRenewShare,
   type ShareSummary,
 } from "@/services/sharing.service";
 import { ShareDialog } from "@/components/sharing/ShareDialog";
+import { RenewShareDialog } from "@/components/sharing/RenewShareDialog";
+import type { ExpiryHours } from "@/components/sharing/ShareExpiryStep";
 import { useState } from "react";
 
 export const Route = createFileRoute("/_auth/compartilhamentos")({
