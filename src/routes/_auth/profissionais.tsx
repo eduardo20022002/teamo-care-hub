@@ -11,6 +11,14 @@ import { DeleteProfessionalDialog } from "@/components/professionals/DeleteProfe
 import { EmptyProfessionals } from "@/components/professionals/EmptyProfessionals";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import {
   createProfessional,
@@ -35,6 +43,7 @@ function ProfessionalsPage() {
   const [editing, setEditing] = useState<Professional | null>(null);
   const [deleting, setDeleting] = useState<Professional | null>(null);
   const [search, setSearch] = useState("");
+  const [specialty, setSpecialty] = useState<string>("all");
 
   const { data: professionals, isLoading } = useQuery({
     queryKey: ["professionals"],
@@ -75,15 +84,25 @@ function ProfessionalsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const specialties = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of professionals ?? []) {
+      if (p.specialty?.trim()) set.add(p.specialty.trim());
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [professionals]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return professionals ?? [];
-    return (professionals ?? []).filter(
-      (p) =>
+    return (professionals ?? []).filter((p) => {
+      if (specialty !== "all" && p.specialty !== specialty) return false;
+      if (!q) return true;
+      return (
         p.name.toLowerCase().includes(q) ||
-        p.specialty.toLowerCase().includes(q),
-    );
-  }, [professionals, search]);
+        p.specialty.toLowerCase().includes(q)
+      );
+    });
+  }, [professionals, search, specialty]);
 
   const handleOpenCreate = () => {
     setEditing(null);
