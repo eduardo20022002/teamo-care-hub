@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { Child, ChildInput } from "@/types/database";
+import type { Child, ChildInsert } from "@/types/database";
 import type { ChildInput as ChildFormInput } from "@/lib/validation";
 
 export async function listChildren(): Promise<Child[]> {
@@ -15,7 +15,7 @@ export async function createChild(
   userId: string,
   input: ChildFormInput,
 ): Promise<Child> {
-  const payload: ChildInput = {
+  const payload: ChildInsert = {
     user_id: userId,
     name: input.name.trim(),
     birth_date: input.birth_date,
