@@ -185,11 +185,14 @@ function RegistrosPage() {
     setFormOpen(true);
   };
 
-  const handleSubmit = async (data: AttendanceRecordInput) => {
+  const handleSubmit = async (
+    data: AttendanceRecordInput,
+    pendingFiles?: File[],
+  ) => {
     if (editing) {
       await updateMutation.mutateAsync({ id: editing.id, input: data });
     } else {
-      await createMutation.mutateAsync(data);
+      await createMutation.mutateAsync({ input: data, pendingFiles });
     }
   };
 
