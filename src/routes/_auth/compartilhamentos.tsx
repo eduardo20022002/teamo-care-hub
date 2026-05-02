@@ -242,6 +242,17 @@ function SharesPage() {
                               </AlertDialog>
                             </>
                           )}
+                          {status === "expired" && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setRenewTarget(s)}
+                            >
+                              <RefreshCw className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
+                              Renovar
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </li>
@@ -254,6 +265,15 @@ function SharesPage() {
       )}
 
       <ShareDialog open={shareOpen} onOpenChange={setShareOpen} />
+      <RenewShareDialog
+        open={!!renewTarget}
+        onOpenChange={(o) => !o && setRenewTarget(null)}
+        professionalName={renewTarget?.professional_name ?? ""}
+        pending={renew.isPending}
+        onConfirm={(hours) =>
+          renewTarget && renew.mutate({ shareId: renewTarget.id, expiresInHours: hours })
+        }
+      />
       <span className="hidden">{String(!!navigate)}</span>
     </AppShell>
   );
