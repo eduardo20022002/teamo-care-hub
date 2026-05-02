@@ -263,7 +263,7 @@ function RegistrosPage() {
         }}
         onSubmit={handleSubmit}
         submitting={createMutation.isPending || updateMutation.isPending}
-        children={childrenList}
+        childrenList={childrenList}
         professionals={professionalsList}
         initial={editing}
       />
