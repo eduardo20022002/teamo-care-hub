@@ -10,6 +10,10 @@ export type ProfessionalUpdate = TablesUpdate<"professionals">;
 export type AttendanceRecord = Tables<"attendance_records">;
 export type AttendanceRecordInsert = TablesInsert<"attendance_records">;
 export type AttendanceRecordUpdate = TablesUpdate<"attendance_records">;
+export type RecordAttachment = Tables<"record_attachments">;
+export type RecordAttachmentInsert = TablesInsert<"record_attachments">;
+export type ChildAttachment = Tables<"child_attachments">;
+export type ChildAttachmentInsert = TablesInsert<"child_attachments">;
 export type AttendanceCategory =
   | "orientacao"
   | "observacao_clinica"

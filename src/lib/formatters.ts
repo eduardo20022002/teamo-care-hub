@@ -65,3 +65,10 @@ export function formatDateRelative(isoDate: string, now: Date = new Date()): str
   return `${String(d).padStart(2, "0")} de ${MONTHS_PT[m - 1]} de ${y}`;
 }
 
+/** Formata bytes em KB ou MB com 1 casa decimal. */
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+

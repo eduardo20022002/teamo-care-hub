@@ -1,7 +1,11 @@
-import { Pencil, Trash2, User } from "lucide-react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { ChevronDown, ChevronUp, Paperclip, Pencil, Trash2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CategoryBadge } from "./CategoryBadge";
 import { formatDateBR } from "@/lib/formatters";
+import { countRecordAttachments } from "@/services/attachments.service";
+import { RecordAttachmentsSection } from "@/components/attachments/RecordAttachmentsSection";
 import type { AttendanceRecordWithRelations } from "@/services/attendance.service";
 
 interface Props {
@@ -12,7 +16,14 @@ interface Props {
 }
 
 export function AttendanceCard({ record, showChild, onEdit, onDelete }: Props) {
+  const [expanded, setExpanded] = useState(false);
   const isUnregistered = !record.professional_id;
+
+  const { data: attachmentCount = 0 } = useQuery({
+    queryKey: ["record-attachments-count", record.id],
+    queryFn: () => countRecordAttachments(record.id),
+  });
+
   return (
     <article className="rounded-xl border border-border bg-card p-4 shadow-sm">
       <header className="mb-2 flex flex-wrap items-center gap-2">
@@ -62,6 +73,31 @@ export function AttendanceCard({ record, showChild, onEdit, onDelete }: Props) {
       <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
         {record.content}
       </p>
+
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+      >
+        <Paperclip className="h-3.5 w-3.5" strokeWidth={1.75} />
+        Anexos
+        {attachmentCount > 0 && (
+          <span className="rounded-full bg-primary-soft px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+            {attachmentCount}
+          </span>
+        )}
+        {expanded ? (
+          <ChevronUp className="h-3.5 w-3.5" strokeWidth={1.75} />
+        ) : (
+          <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.75} />
+        )}
+      </button>
+
+      {expanded && (
+        <div className="mt-3 border-t border-border pt-3">
+          <RecordAttachmentsSection recordId={record.id} />
+        </div>
+      )}
     </article>
   );
 }
