@@ -157,7 +157,7 @@ function DashboardPage() {
           <Users className="h-5 w-5 text-primary" strokeWidth={1.75} />
           Acessos rápidos
         </h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3">
           <Link
             to="/profissionais"
             className="group rounded-xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/40 hover:bg-primary-soft/40"
