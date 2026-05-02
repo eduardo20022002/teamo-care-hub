@@ -6,6 +6,7 @@ import { CategoryBadge } from "./CategoryBadge";
 import { formatDateBR } from "@/lib/formatters";
 import { countRecordAttachments } from "@/services/attachments.service";
 import { RecordAttachmentsSection } from "@/components/attachments/RecordAttachmentsSection";
+import { ShareTriggerButton } from "@/components/sharing/ShareTriggerButton";
 import type { AttendanceRecordWithRelations } from "@/services/attendance.service";
 
 interface Props {
@@ -37,6 +38,14 @@ export function AttendanceCard({ record, showChild, onEdit, onDelete }: Props) {
           </span>
         )}
         <div className="ml-auto flex items-center gap-1">
+          {!isUnregistered && (
+            <ShareTriggerButton
+              variant="icon"
+              preSelectedRecordIds={[record.id]}
+              preSelectedProfessionalId={record.professional_id ?? undefined}
+              label="Compartilhar registro"
+            />
+          )}
           {onEdit && (
             <Button
               variant="ghost"
