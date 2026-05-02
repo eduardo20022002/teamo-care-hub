@@ -74,7 +74,9 @@ export function RecordAttachmentsSection({ recordId }: Props) {
   return (
     <div className="space-y-3">
       <AttachmentUploader
-        onFiles={(files) => uploadMutation.mutateAsync(files)}
+        onFiles={async (files) => {
+          await uploadMutation.mutateAsync(files);
+        }}
         uploading={uploadMutation.isPending}
       />
       {isLoading ? (
