@@ -11,11 +11,11 @@ import { AttendanceFormDialog } from "@/components/attendance/AttendanceFormDial
 import { DeleteAttendanceDialog } from "@/components/attendance/DeleteAttendanceDialog";
 import { EmptyAttendance } from "@/components/attendance/EmptyAttendance";
 import {
-  PanelFilters,
-  EMPTY_PANEL_FILTERS,
-  isPanelFiltersActive,
-  type PanelFiltersValue,
-} from "@/components/panel/PanelFilters";
+  RecordFilters,
+  EMPTY_RECORD_FILTERS,
+  isRecordFiltersActive,
+  type RecordFiltersValue,
+} from "@/components/attendance/RecordFilters";
 import { useAuth } from "@/hooks/useAuth";
 import { listChildren } from "@/services/children.service";
 import { listProfessionals } from "@/services/professionals.service";
@@ -43,7 +43,7 @@ function PainelPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
 
-  const [filters, setFilters] = useState<PanelFiltersValue>(EMPTY_PANEL_FILTERS);
+  const [filters, setFilters] = useState<RecordFiltersValue>(EMPTY_RECORD_FILTERS);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<AttendanceRecordWithRelations | null>(null);
   const [deleting, setDeleting] = useState<AttendanceRecordWithRelations | null>(null);
@@ -165,7 +165,7 @@ function PainelPage() {
   }
 
   const hasAny = records.length > 0;
-  const filtersActive = isPanelFiltersActive(filters);
+  const filtersActive = isRecordFiltersActive(filters);
 
   const handleOpenCreate = () => {
     setEditing(null);
@@ -218,7 +218,7 @@ function PainelPage() {
 
       {hasAny && (
         <div className="mb-6">
-          <PanelFilters
+          <RecordFilters
             value={filters}
             onChange={setFilters}
             childrenList={childrenList}
@@ -237,7 +237,7 @@ function PainelPage() {
           {filtersActive && (
             <Button
               variant="ghost"
-              onClick={() => setFilters(EMPTY_PANEL_FILTERS)}
+              onClick={() => setFilters(EMPTY_RECORD_FILTERS)}
               className="mt-2 text-primary hover:text-primary"
             >
               Limpar filtros
