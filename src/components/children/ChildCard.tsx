@@ -1,0 +1,50 @@
+import { Trash2 } from "lucide-react";
+import type { Child } from "@/types/database";
+import { formatAge, formatBirthDate, getInitial } from "@/lib/formatters";
+import { Button } from "@/components/ui/button";
+
+interface Props {
+  child: Child;
+  onDelete?: (child: Child) => void;
+  variant?: "row" | "card";
+}
+
+export function ChildCard({ child, onDelete, variant = "card" }: Props) {
+  if (variant === "row") {
+    return (
+      <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-soft text-sm font-semibold text-primary">
+          {getInitial(child.name)}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-foreground">{child.name}</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {formatBirthDate(child.birth_date)} · {formatAge(child.birth_date)}
+          </p>
+        </div>
+        {onDelete && (
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`Remover ${child.name}`}
+            onClick={() => onDelete(child)}
+            className="text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" strokeWidth={1.75} />
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary-soft text-sm font-semibold text-primary">
+        {getInitial(child.name)}
+      </div>
+      <p className="text-base font-semibold text-foreground">{child.name}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{formatAge(child.birth_date)}</p>
+      <p className="text-xs text-muted-foreground">{formatBirthDate(child.birth_date)}</p>
+    </div>
+  );
+}
