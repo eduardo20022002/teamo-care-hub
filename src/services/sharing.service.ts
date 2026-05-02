@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   createShare,
@@ -6,6 +7,7 @@ import {
   renewShare,
   type ShareSummary,
 } from "@/server/sharing.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 export type { ShareSummary };
 
@@ -22,16 +24,42 @@ export function buildPublicShareUrl(token: string): string {
   return `${window.location.origin}/compartilhamento/${token}`;
 }
 
-// Hooks for components
+async function authHeaders(): Promise<HeadersInit> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// Hooks for components — auto-inject Supabase access token as Authorization header
 export function useCreateShare() {
-  return useServerFn(createShare);
+  const fn = useServerFn(createShare);
+  return useCallback(
+    async (opts: Parameters<typeof fn>[0]) =>
+      fn({ ...(opts as any), headers: { ...(await authHeaders()), ...((opts as any)?.headers ?? {}) } }),
+    [fn],
+  );
 }
 export function useListShares() {
-  return useServerFn(listShares);
+  const fn = useServerFn(listShares);
+  return useCallback(
+    async (opts?: Parameters<typeof fn>[0]) =>
+      fn({ ...(opts as any), headers: { ...(await authHeaders()), ...((opts as any)?.headers ?? {}) } } as any),
+    [fn],
+  );
 }
 export function useRevokeShare() {
-  return useServerFn(revokeShare);
+  const fn = useServerFn(revokeShare);
+  return useCallback(
+    async (opts: Parameters<typeof fn>[0]) =>
+      fn({ ...(opts as any), headers: { ...(await authHeaders()), ...((opts as any)?.headers ?? {}) } }),
+    [fn],
+  );
 }
 export function useRenewShare() {
-  return useServerFn(renewShare);
+  const fn = useServerFn(renewShare);
+  return useCallback(
+    async (opts: Parameters<typeof fn>[0]) =>
+      fn({ ...(opts as any), headers: { ...(await authHeaders()), ...((opts as any)?.headers ?? {}) } }),
+    [fn],
+  );
 }
