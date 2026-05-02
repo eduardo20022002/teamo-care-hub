@@ -6,6 +6,7 @@ import { CategoryBadge } from "./CategoryBadge";
 import { formatDateBR } from "@/lib/formatters";
 import { countRecordAttachments } from "@/services/attachments.service";
 import { RecordAttachmentsSection } from "@/components/attachments/RecordAttachmentsSection";
+import { ShareTriggerButton } from "@/components/sharing/ShareTriggerButton";
 import type { AttendanceRecordWithRelations } from "@/services/attendance.service";
 
 interface Props {
