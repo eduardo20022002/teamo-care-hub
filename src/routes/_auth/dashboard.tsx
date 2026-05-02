@@ -259,8 +259,8 @@ function DashboardPage() {
           setAttendanceOpen(o);
           if (!o) setQuickChildId(undefined);
         }}
-        onSubmit={async (data) => {
-          await createAttendanceMutation.mutateAsync(data);
+        onSubmit={async (data, pendingFiles) => {
+          await createAttendanceMutation.mutateAsync({ input: data, pendingFiles });
         }}
         submitting={createAttendanceMutation.isPending}
         childrenList={children ?? []}
