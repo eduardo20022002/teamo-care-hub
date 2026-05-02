@@ -1,91 +1,162 @@
-## C5 — RF-05: CRUD completo de registros de atendimento
+# Plano C6 — RF-04 + RF-09 + Busca Global
 
-### Estado atual (já entregue em C3/C4)
-- `AttendanceFormDialog` já abre em modo edição pré-preenchido e exibe `RecordAttachmentsSection` (lista + upload + remoção de anexos individuais).
-- `AttendanceCard` já tem botões de editar e excluir no header.
-- `registros.tsx` já tem `updateMutation` e `deleteMutation` ligados.
-- `DeleteAttendanceDialog` já existe com `AlertDialog` + confirmação.
-- `attendance.service.ts` já expõe `updateAttendanceRecord` e `deleteAttendanceRecord`.
+## 1. Estratégia geral
 
-### Lacunas a fechar neste ciclo
+Três entregas independentes mas conectadas pelo dashboard:
 
-**1. Exclusão em cascata dos anexos (Critério 4)**
-Hoje `deleteAttendanceRecord` só apaga a linha em `attendance_records`. Como `record_attachments` não tem FK com `ON DELETE CASCADE` para `attendance_records`, as linhas ficam órfãs e os arquivos no bucket nunca são removidos. Precisamos garantir consistência:
+- **A. Painel consolidado (RF-04)**: nova rota `/painel` com filtros completos (criança, profissional, categoria, período). O card "Registros" no dashboard passa a apontar para `/painel`. A rota `/registros` continua existindo (não vamos tocar) — `/painel` é a visão consolidada com filtros, enquanto `/registros` é a visão agrupada por criança/data já entregue no C3.
+- **B. Verificação RF-09**: análise + checklist documentado no relatório. Criar utilitário visual no `AttendanceFormDialog` apenas se identificarmos cópia condicionante (não é o caso pelo que vi). A verificação é majoritariamente documental, com roteiro de teste manual reproduzível.
+- **C. Busca global**: novo card destacado acima dos acessos rápidos no dashboard → leva a `/busca`. Tela com input + filtros rápidos + resultados agrupados por tipo, alimentados por `search.service.ts` modular.
 
-- Em `src/services/attachments.service.ts`: nova função `deleteAllRecordAttachments(recordId)` que:
-  1. Faz `select(storage_path)` em `record_attachments` filtrando por `record_id`.
-  2. Remove os objetos do bucket `attachments` em uma única chamada `storage.remove([...paths])`.
-  3. Faz `delete` das linhas em `record_attachments` por `record_id`.
-  4. Erros de Storage são best-effort (não bloqueiam exclusão da linha do banco), mas erros do `delete` propagam.
+## 2. Componentes a criar
 
-- Em `src/services/attendance.service.ts`: `deleteAttendanceRecord` passa a chamar `deleteAllRecordAttachments(id)` antes do `delete` na tabela. Ordem: anexos → registro. Garante que mesmo em falha parcial não fica registro com anexos órfãos referenciando-o.
-
-**2. Mensagem da exclusão menciona anexos (Critério 3)**
-- `DeleteAttendanceDialog` recebe nova prop opcional `attachmentCount?: number`. Quando > 0, o texto da `AlertDialogDescription` informa que os N anexos vinculados também serão removidos permanentemente.
-- `registros.tsx`: ao abrir o dialog de exclusão, busca a contagem (já temos `countRecordAttachments`) ou aproveita o cache da query `["record-attachments-count", id]` populada pelo `AttendanceCard` ao renderizar.
-
-**3. Edição/exclusão acessíveis também a partir do Dashboard (Critério 5)**
-Hoje os cards das crianças no Dashboard não listam registros recentes — a listagem só existe em `/registros`. O critério pede acesso "a partir do painel ou da visualização do registro". A visualização do registro hoje é a página `/registros`, então o critério já é atendido por lá.
-
-Decisão proposta: **não adicionar listagem de registros no Dashboard neste ciclo** (fora do escopo declarado em C3). O ChildCard já tem botão "Registrar atendimento" e link para os registros da criança via `/registros`. Isso satisfaz o critério 5 de "acessível em local consistente".
-
-### Componentes a modificar
-
-| Arquivo | Mudança |
+| Caminho | Responsabilidade |
 |---|---|
-| `src/services/attachments.service.ts` | Adicionar `deleteAllRecordAttachments(recordId)` |
-| `src/services/attendance.service.ts` | `deleteAttendanceRecord` chama `deleteAllRecordAttachments` antes do delete da linha |
-| `src/components/attendance/DeleteAttendanceDialog.tsx` | Aceitar `attachmentCount` opcional e ajustar copy |
-| `src/routes/_auth/registros.tsx` | Passar `attachmentCount` ao dialog (via `useQuery` da contagem do registro em `deleting`) e invalidar `["record-attachments-count", id]` e `["documents-all"]` no `onSuccess` da exclusão |
+| `src/routes/_auth/painel.tsx` | Painel consolidado de registros com filtros |
+| `src/routes/_auth/busca.tsx` | Tela de busca global |
+| `src/components/panel/PanelFilters.tsx` | Bloco de filtros (criança, profissional, categoria, período personalizado com data inicial/final) + botão "Limpar filtros" |
+| `src/components/search/GlobalSearchCard.tsx` | Card destacado no dashboard (fundo `bg-primary-soft/50`, borda primary/30, ícone lupa em destaque) |
+| `src/components/search/SearchInput.tsx` | Input grande com ícone de lupa, placeholder, botão limpar |
+| `src/components/search/SearchFilters.tsx` | Filtros rápidos: criança e tipo de conteúdo (registros / profissionais / documentos / todos) |
+| `src/components/search/SearchResultsGroup.tsx` | Cabeçalho de seção + lista de itens de um tipo |
+| `src/components/search/SearchResultItem.tsx` | Linha de resultado genérica (ícone por tipo + título + metadados + chevron) |
+| `src/components/search/EmptySearch.tsx` | Estado inicial (sem busca) e estado sem resultados |
+| `src/components/attendance/RecordDetailsDialog.tsx` | Dialog de visualização completa de um registro (reutilizado por `/busca` e `/painel`) — mostra cabeçalho + conteúdo + `RecordAttachmentsSection` |
 
-Nenhum componente novo.
+## 3. Funções de service
 
-### Funções de service
+### `src/services/search.service.ts` (novo)
 
-**`src/services/attachments.service.ts`:**
+Arquitetura modular por "fontes" para receber novas adições nos C7–C10 sem refatoração:
+
 ```ts
-export async function deleteAllRecordAttachments(recordId: string): Promise<void>
-```
-- `select("storage_path").eq("record_id", recordId)`
-- `storage.from("attachments").remove(paths)` (best-effort)
-- `delete().eq("record_id", recordId)` (propaga erro)
+export type SearchKind = "record" | "professional" | "document";
 
-**`src/services/attendance.service.ts`:**
-```ts
-export async function deleteAttendanceRecord(id: string): Promise<void> {
-  await deleteAllRecordAttachments(id); // anexos primeiro
-  // depois delete da linha (inalterado)
+export interface SearchHit {
+  kind: SearchKind;
+  id: string;
+  title: string;        // texto principal
+  subtitle?: string;    // metadado (criança, especialidade, categoria...)
+  date?: string;        // ISO para ordenação
+  // payload tipado por kind para navegação
+  payload:
+    | { kind: "record"; record: AttendanceRecordWithRelations }
+    | { kind: "professional"; professional: Professional }
+    | { kind: "document"; doc: UnifiedDocument };
 }
+
+export interface SearchSource {
+  kind: SearchKind;
+  search(query: string, opts: { childId?: string }): Promise<SearchHit[]>;
+}
+
+export const SEARCH_SOURCES: SearchSource[] = [
+  recordsSource,
+  professionalsSource,
+  documentsSource,
+];
+
+export async function searchAll(
+  query: string,
+  opts: { childId?: string; kinds?: SearchKind[] }
+): Promise<Record<SearchKind, SearchHit[]>>;
 ```
 
-### Comportamento esperado na exclusão de registro com anexos
+Implementação interna usa as services existentes (`listAttendanceRecords`, `listProfessionals`, `listAllDocuments`) + `normalizeForSearch` (já existe em `documents.service.ts` — moveremos para `src/lib/formatters.ts` ou reexport via search.service para evitar importar documents em search). RLS já garante que só vêm dados do usuário autenticado.
 
-1. Usuário clica no ícone de lixeira no `AttendanceCard`.
-2. `AlertDialog` abre com mensagem: *"Esta ação não pode ser desfeita. O registro e seus N anexos serão removidos permanentemente."* (quando count > 0).
-3. Ao confirmar:
-   - Service remove arquivos do Storage (best-effort, não bloqueia).
-   - Service remove linhas em `record_attachments` por `record_id`.
-   - Service remove linha em `attendance_records`.
-   - RLS garante que tudo é restrito a `auth.uid() = user_id`.
-4. Toast de sucesso "Registro excluído.".
-5. Queries invalidadas: `["attendance"]`, `["record-attachments", id]`, `["record-attachments-count", id]`, `["documents-all"]`.
-6. Em caso de erro no delete da linha do registro: toast amigável; arquivos já removidos do bucket ficam apenas como inconsistência tolerável (bucket é privado, sem URLs ativas).
+Justificativa de não fazer query SQL `ilike` direto: as listas do usuário são pequenas (escopo MVP, RLS por user), filtragem em memória é suficiente, mantém o service puro e desacoplado, e facilita adição de novas fontes.
 
-### Sequência de implementação
+### Sem alterações em outras services
+`attendance.service.ts`, `professionals.service.ts`, `attachments.service.ts`, `documents.service.ts` ficam intactos.
 
-1. Adicionar `deleteAllRecordAttachments` em `attachments.service.ts`.
-2. Encadear chamada em `deleteAttendanceRecord` (`attendance.service.ts`).
-3. Atualizar `DeleteAttendanceDialog` para aceitar `attachmentCount` e ajustar copy.
-4. Em `registros.tsx`:
-   - `useQuery` de `countRecordAttachments` quando `deleting` está setado.
-   - Passar contagem ao dialog.
-   - Adicionar invalidations adicionais no `onSuccess`.
-5. Validar manualmente: criar registro com 2 anexos → excluir → confirmar que (a) o registro some, (b) abrindo a Central de Documentos os anexos não aparecem mais, (c) toast de sucesso aparece.
+## 4. Estrutura da busca global
 
-### Decisões em aberto que precisam de confirmação
+**Fontes neste ciclo (3):**
 
-1. **Cascata via service vs. trigger no Postgres**: optei por fazer no service (mais visível, sem mudar schema). Alternativa seria criar uma FK `record_attachments.record_id → attendance_records.id ON DELETE CASCADE` + trigger para limpar Storage. **Confirma fazer no service?** (Mais simples, sem migration, e o C5 não pede schema change.)
+1. **Registros** (`attendance_records` via `listAttendanceRecords` — já traz join com child e professional):
+   - Campos buscados: `content`, `category` (label PT-BR via `ATTENDANCE_CATEGORY_LABELS`), `professional_name`
+   - Hit: title = trecho de `content` (primeiras ~80 chars), subtitle = `[categoria] · [criança] · [profissional]`, date = `record_date`
 
-2. **Exclusão do registro a partir do Dashboard**: como discutido, o critério 5 já é atendido pela página `/registros`. **Confirma manter assim** (sem listar registros no Dashboard agora) ou prefere expor edit/delete também em alguma visualização do Dashboard?
+2. **Profissionais** (`professionals` via `listProfessionals`):
+   - Campos buscados: `name`, `specialty`
+   - Hit: title = `name`, subtitle = `specialty`
 
-3. **Comportamento se falhar a remoção do Storage**: proposta é best-effort silencioso (logs internos, não bloqueia o delete da linha). Alternativa seria abortar a exclusão e mostrar erro. **Confirma best-effort?**
+3. **Documentos** (unificados via `listAllDocuments`):
+   - Campos buscados: `file_name`
+   - Hit: title = `file_name`, subtitle = `[criança] · [origem: criança/registro]`, date = `created_at`
+
+**Agrupamento na UI:** seções "Registros (N)", "Profissionais (N)", "Documentos (N)" — só renderiza seção com hits > 0. Ordem fixa: Registros → Profissionais → Documentos.
+
+**Filtros rápidos na tela `/busca`:** criança (Select) + tipo de conteúdo (Tabs: Tudo / Registros / Profissionais / Documentos).
+
+## 5. Comportamento de navegação ao clicar em resultado
+
+| Tipo | Ação |
+|---|---|
+| **Registro** | Abre `RecordDetailsDialog` na mesma tela `/busca` com o registro completo (incluindo anexos via `RecordAttachmentsSection`). Botão "Ver no painel" navega para `/painel?registro={id}` (não implementado o highlight, apenas navegação) — alternativa: deixar só o dialog. **Decisão em aberto: confirmar.** |
+| **Profissional** | Navega para `/profissionais?destacar={id}`. Em `profissionais.tsx` (já existente) leremos search param e aplicaremos `scrollIntoView` + classe `ring-2 ring-primary` por 2s no card. → Esta é uma modificação mínima permitida em `profissionais.tsx`? **O escopo declarado diz "Não deve tocar: páginas de profissionais"**. **Decisão em aberto: ver §7.** |
+| **Documento** | Gera signed URL via `getAttachmentSignedUrl` e abre em nova aba (mesmo padrão do `DocumentCard`). |
+
+## 6. Painel consolidado (`/painel`)
+
+- Header: título "Painel de registros" + link voltar para dashboard.
+- `PanelFilters` em card sticky no topo (em mobile vira accordion compacto):
+  - Criança (Select)
+  - Profissional (Select com "Todos" + lista de profissionais cadastrados + opção "Não cadastrado" para registros sem `professional_id`)
+  - Categoria (Select com `ATTENDANCE_CATEGORY_LABELS`)
+  - Período: dois `Input type="date"` (de / até)
+  - Botão "Limpar filtros" visível quando qualquer filtro está ativo
+- Resultados: lista plana (não agrupada por criança como `/registros`), ordenados por `record_date` desc, usando `AttendanceCard` com `showChild` e `onEdit`/`onDelete` ligados às mesmas mutations que `/registros` usa (replicadas neste arquivo — não é "alterar", é "reusar lógica" análoga).
+- Estado vazio com filtros: card com texto "Nenhum registro encontrado para os filtros aplicados. [Limpar filtros]".
+- Estado vazio absoluto: usa `EmptyAttendance`.
+
+## 7. Verificação do RF-09 — método
+
+**Análise estática (já fiz):**
+- `AttendanceFormDialog` aceita `professional_name` (texto livre) com `professional_id` opcional ✅
+- `attendance.service.ts` insere com `professional_id ?? null` ✅
+- `AttendanceCard` mostra "(não cadastrado)" quando sem `professional_id` ✅
+- `listProfessionals` retorna `[]` sem erro quando vazio ✅
+- Onboarding não exige profissional ✅
+- Documentos / anexos não dependem de profissional ✅
+
+**Roteiro de teste manual documentado no relatório:**
+1. Criar conta nova → cadastrar criança no onboarding (sem cadastrar profissional)
+2. Dashboard carrega normalmente
+3. Acessar `/registros` → criar registro com profissional digitado livremente → salva ✅
+4. Anexar documento ao registro → salva ✅
+5. Acessar `/documentos` → adicionar documento avulso → salva ✅
+6. Acessar `/busca` → busca por nome do profissional digitado → encontra no grupo "Registros" ✅
+7. Acessar `/painel` → filtros funcionam (filtro de profissional mostra "Não cadastrado") ✅
+
+Nenhum bloqueio, alerta ou tooltip que condicione uso a profissional cadastrado. (Compartilhamento C7 ainda não existe — exigência será apresentada lá.)
+
+## 8. Sequência de implementação
+
+1. Criar `src/services/search.service.ts` com fontes modulares
+2. Criar componentes em `src/components/search/`
+3. Criar `RecordDetailsDialog`
+4. Criar `src/routes/_auth/busca.tsx`
+5. Criar `src/components/panel/PanelFilters.tsx`
+6. Criar `src/routes/_auth/painel.tsx`
+7. Modificar `dashboard.tsx`: adicionar `GlobalSearchCard` acima da seção de acessos rápidos; trocar destino do card "Registros" de `/registros` para `/painel`
+8. Atualizar `README.md` com seção sobre `search.service.ts` e como ciclos futuros adicionam fontes
+9. Validação manual end-to-end (RF-04 + RF-09 + busca)
+10. Relatório técnico
+
+## 9. Decisões em aberto que precisam de confirmação
+
+1. **Card "Registros" do dashboard**: o requisito diz "Painel consolidado [...] Acessado pelo card Registros nos acessos rápidos do dashboard". Proposta: o card vai apontar para `/painel` (novo). A rota `/registros` continua acessível (não removo nada), mas deixa de ter entrada no dashboard. **Confirma?** Alternativa: manter `/registros` no dashboard e adicionar segundo card "Painel".
+
+2. **Highlight em `/profissionais` ao clicar em resultado de busca**: a regra de escopo diz "Não deve tocar: páginas de profissionais". Opções:
+   - **(a)** Navegar para `/profissionais` sem destaque (apenas leva à lista) — respeita o escopo literalmente.
+   - **(b)** Adicionar pequena leitura de search param + scroll/destaque em `profissionais.tsx` (modificação cirúrgica).
+   - **Proposta padrão: (a)** — fica simples e dentro do escopo. Pode ser melhorado em ciclo futuro.
+
+3. **Resultado "Registro" abre Dialog ou navega?** Proposta: abre `RecordDetailsDialog` na própria `/busca` (mantém contexto da busca, padrão usado em apps de saúde para evitar perder filtros). Alternativa: navegar para `/painel` filtrado por aquele registro. **Confirma Dialog?**
+
+4. **Filtro de período no painel**: dois inputs `type="date"` (de/até) ou Select com presets ("7d", "30d", "Este ano", "Personalizado")? Proposta: **dois inputs date** — mais flexível, atende critério 2 ("intervalo de datas") literalmente. **Confirma?**
+
+5. **Busca: mínimo de caracteres**: proposta de iniciar busca a partir de 2 caracteres (debounce 200ms). Estado inicial (`query.length < 2`) mostra `EmptySearch` com dica do que pode ser encontrado. **Confirma?**
+
+Aguardo aprovação para implementar.
