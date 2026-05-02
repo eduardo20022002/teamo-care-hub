@@ -181,9 +181,12 @@ function SharesPage() {
                             {s.item_count} {s.item_count === 1 ? "item" : "itens"} ·{" "}
                             <Clock className="inline h-3 w-3" strokeWidth={1.75} /> Expira{" "}
                             {formatDateTime(s.expires_at)}
+                            {s.renewals_count > 0 && (
+                              <> · Renovado {s.renewals_count}x</>
+                            )}
                           </p>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex flex-wrap items-center gap-1">
                           {status === "active" && (
                             <>
                               <Button
@@ -196,6 +199,15 @@ function SharesPage() {
                                 }}
                               >
                                 Copiar link
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setRenewTarget(s)}
+                              >
+                                <RefreshCw className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
+                                Renovar
                               </Button>
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
