@@ -5,12 +5,14 @@ import {
   Baby,
   CalendarDays,
   ClipboardList,
+  FolderOpen,
   Heart,
   Plus,
   Share2,
   TimerReset,
   Users,
 } from "lucide-react";
+import { uploadRecordAttachment } from "@/services/attachments.service";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { ChildCard } from "@/components/children/ChildCard";
@@ -88,11 +90,36 @@ function DashboardPage() {
   });
 
   const createAttendanceMutation = useMutation({
-    mutationFn: (input: AttendanceRecordInput) =>
-      createAttendanceRecord(user!.id, input),
-    onSuccess: () => {
+    mutationFn: async (vars: {
+      input: AttendanceRecordInput;
+      pendingFiles?: File[];
+    }) => {
+      const record = await createAttendanceRecord(user!.id, vars.input);
+      const files = vars.pendingFiles ?? [];
+      let success = 0;
+      const failed: string[] = [];
+      for (const file of files) {
+        try {
+          await uploadRecordAttachment(user!.id, record.id, file);
+          success++;
+        } catch (e) {
+          failed.push(`${file.name}: ${(e as Error).message}`);
+        }
+      }
+      return { record, attachmentSuccess: success, attachmentFailed: failed };
+    },
+    onSuccess: ({ attachmentSuccess, attachmentFailed }) => {
       toast.success("Registro criado.");
+      if (attachmentSuccess > 0) {
+        toast.success(
+          attachmentSuccess === 1
+            ? "Anexo enviado."
+            : `${attachmentSuccess} anexos enviados.`,
+        );
+      }
+      for (const msg of attachmentFailed) toast.error(msg);
       qc.invalidateQueries({ queryKey: ["attendance"] });
+      qc.invalidateQueries({ queryKey: ["documents-all"] });
       setAttendanceOpen(false);
       setQuickChildId(undefined);
     },
@@ -187,6 +214,21 @@ function DashboardPage() {
               Orientações, observações e evoluções.
             </p>
           </Link>
+
+          <Link
+            to="/documentos"
+            className="group rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:bg-primary-soft/40"
+          >
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-primary-soft text-primary">
+              <FolderOpen className="h-4 w-4" strokeWidth={1.75} />
+            </div>
+            <h3 className="text-sm font-semibold leading-tight text-foreground">
+              Documentos
+            </h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Laudos, relatórios e anexos com filtros.
+            </p>
+          </Link>
         </div>
       </section>
 
@@ -217,8 +259,8 @@ function DashboardPage() {
           setAttendanceOpen(o);
           if (!o) setQuickChildId(undefined);
         }}
-        onSubmit={async (data) => {
-          await createAttendanceMutation.mutateAsync(data);
+        onSubmit={async (data, pendingFiles) => {
+          await createAttendanceMutation.mutateAsync({ input: data, pendingFiles });
         }}
         submitting={createAttendanceMutation.isPending}
         childrenList={children ?? []}

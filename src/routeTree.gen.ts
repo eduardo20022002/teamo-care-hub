@@ -16,6 +16,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRegistrosRouteImport } from './routes/_auth/registros'
 import { Route as AuthProfissionaisRouteImport } from './routes/_auth/profissionais'
 import { Route as AuthOnboardingRouteImport } from './routes/_auth/onboarding'
+import { Route as AuthDocumentosRouteImport } from './routes/_auth/documentos'
 import { Route as AuthDashboardRouteImport } from './routes/_auth/dashboard'
 
 const LoginRoute = LoginRouteImport.update({
@@ -52,6 +53,11 @@ const AuthOnboardingRoute = AuthOnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthDocumentosRoute = AuthDocumentosRouteImport.update({
+  id: '/documentos',
+  path: '/documentos',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthDashboardRoute = AuthDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/cadastro': typeof CadastroRoute
   '/login': typeof LoginRoute
   '/dashboard': typeof AuthDashboardRoute
+  '/documentos': typeof AuthDocumentosRoute
   '/onboarding': typeof AuthOnboardingRoute
   '/profissionais': typeof AuthProfissionaisRoute
   '/registros': typeof AuthRegistrosRoute
@@ -72,6 +79,7 @@ export interface FileRoutesByTo {
   '/cadastro': typeof CadastroRoute
   '/login': typeof LoginRoute
   '/dashboard': typeof AuthDashboardRoute
+  '/documentos': typeof AuthDocumentosRoute
   '/onboarding': typeof AuthOnboardingRoute
   '/profissionais': typeof AuthProfissionaisRoute
   '/registros': typeof AuthRegistrosRoute
@@ -83,6 +91,7 @@ export interface FileRoutesById {
   '/cadastro': typeof CadastroRoute
   '/login': typeof LoginRoute
   '/_auth/dashboard': typeof AuthDashboardRoute
+  '/_auth/documentos': typeof AuthDocumentosRoute
   '/_auth/onboarding': typeof AuthOnboardingRoute
   '/_auth/profissionais': typeof AuthProfissionaisRoute
   '/_auth/registros': typeof AuthRegistrosRoute
@@ -94,6 +103,7 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/login'
     | '/dashboard'
+    | '/documentos'
     | '/onboarding'
     | '/profissionais'
     | '/registros'
@@ -103,6 +113,7 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/login'
     | '/dashboard'
+    | '/documentos'
     | '/onboarding'
     | '/profissionais'
     | '/registros'
@@ -113,6 +124,7 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/login'
     | '/_auth/dashboard'
+    | '/_auth/documentos'
     | '/_auth/onboarding'
     | '/_auth/profissionais'
     | '/_auth/registros'
@@ -176,6 +188,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthOnboardingRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/documentos': {
+      id: '/_auth/documentos'
+      path: '/documentos'
+      fullPath: '/documentos'
+      preLoaderRoute: typeof AuthDocumentosRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/dashboard': {
       id: '/_auth/dashboard'
       path: '/dashboard'
@@ -188,6 +207,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthRouteChildren {
   AuthDashboardRoute: typeof AuthDashboardRoute
+  AuthDocumentosRoute: typeof AuthDocumentosRoute
   AuthOnboardingRoute: typeof AuthOnboardingRoute
   AuthProfissionaisRoute: typeof AuthProfissionaisRoute
   AuthRegistrosRoute: typeof AuthRegistrosRoute
@@ -195,6 +215,7 @@ interface AuthRouteChildren {
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthDashboardRoute: AuthDashboardRoute,
+  AuthDocumentosRoute: AuthDocumentosRoute,
   AuthOnboardingRoute: AuthOnboardingRoute,
   AuthProfissionaisRoute: AuthProfissionaisRoute,
   AuthRegistrosRoute: AuthRegistrosRoute,

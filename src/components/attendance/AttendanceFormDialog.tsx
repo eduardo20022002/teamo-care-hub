@@ -31,11 +31,13 @@ import {
   type ProfessionalSelection,
 } from "./ProfessionalCombobox";
 import { RecordAttachmentsSection } from "@/components/attachments/RecordAttachmentsSection";
+import { AttachmentUploader } from "@/components/attachments/AttachmentUploader";
+import { PendingAttachmentsList } from "@/components/attachments/PendingAttachmentsList";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: AttendanceRecordInput) => Promise<void> | void;
+  onSubmit: (data: AttendanceRecordInput, pendingFiles?: File[]) => Promise<void> | void;
   submitting?: boolean;
   childrenList: Child[];
   professionals: Professional[];
@@ -66,6 +68,7 @@ export function AttendanceFormDialog({
   const [content, setContent] = useState("");
   const [recordDate, setRecordDate] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -86,6 +89,7 @@ export function AttendanceFormDialog({
       setRecordDate(todayISO());
     }
     setErrors({});
+    setPendingFiles([]);
   }, [open, initial, defaultChildId, childrenList]);
 
   const isEdit = !!initial;
@@ -110,7 +114,7 @@ export function AttendanceFormDialog({
       return;
     }
     setErrors({});
-    await onSubmit(parsed.data);
+    await onSubmit(parsed.data, isEdit ? undefined : pendingFiles);
   };
 
   const handleOpenChange = (next: boolean) => {
@@ -223,16 +227,35 @@ export function AttendanceFormDialog({
             </div>
           </div>
 
-          {isEdit && initial ? (
-            <div className="space-y-2 border-t border-border pt-4">
-              <Label>Anexos</Label>
+          <div className="space-y-2 border-t border-border pt-4">
+            <Label>Anexos</Label>
+            {isEdit && initial ? (
               <RecordAttachmentsSection recordId={initial.id} />
-            </div>
-          ) : (
-            <p className="rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-              Salve o registro para começar a anexar documentos.
-            </p>
-          )}
+            ) : (
+              <div className="space-y-3">
+                <AttachmentUploader
+                  onFiles={(files) => {
+                    setPendingFiles((prev) => [...prev, ...files]);
+                  }}
+                  uploading={false}
+                  label="Selecionar arquivos"
+                />
+                <PendingAttachmentsList
+                  files={pendingFiles}
+                  onRemove={(idx) =>
+                    setPendingFiles((prev) => prev.filter((_, i) => i !== idx))
+                  }
+                />
+                {pendingFiles.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {pendingFiles.length === 1
+                      ? "1 arquivo será enviado após salvar o registro."
+                      : `${pendingFiles.length} arquivos serão enviados após salvar o registro.`}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
 
           <DialogFooter>
             <Button
