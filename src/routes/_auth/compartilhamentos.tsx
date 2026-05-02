@@ -72,7 +72,9 @@ function SharesPage() {
   const qc = useQueryClient();
   const listFn = useListShares();
   const revokeFn = useRevokeShare();
+  const renewFn = useRenewShare();
   const [shareOpen, setShareOpen] = useState(false);
+  const [renewTarget, setRenewTarget] = useState<ShareSummary | null>(null);
 
   const sharesQuery = useQuery({
     queryKey: ["shares"],
@@ -84,6 +86,19 @@ function SharesPage() {
     mutationFn: (id: string) => revokeFn({ data: { shareId: id } }),
     onSuccess: () => {
       toast.success("Compartilhamento revogado.");
+      qc.invalidateQueries({ queryKey: ["shares"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const renew = useMutation({
+    mutationFn: (input: { shareId: string; expiresInHours: ExpiryHours }) =>
+      renewFn({ data: input }),
+    onSuccess: () => {
+      toast.success(
+        "Compartilhamento renovado. O profissional precisará validar um novo código no próximo acesso.",
+      );
+      setRenewTarget(null);
       qc.invalidateQueries({ queryKey: ["shares"] });
     },
     onError: (e: Error) => toast.error(e.message),
