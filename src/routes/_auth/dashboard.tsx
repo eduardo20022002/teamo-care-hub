@@ -20,6 +20,7 @@ import { ChildFormDialog } from "@/components/children/ChildFormDialog";
 import { ComingSoonCard } from "@/components/common/ComingSoonCard";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { AttendanceFormDialog } from "@/components/attendance/AttendanceFormDialog";
+import { GlobalSearchCard } from "@/components/search/GlobalSearchCard";
 import { useAuth } from "@/hooks/useAuth";
 import { createChild, listChildren } from "@/services/children.service";
 import { listProfessionals } from "@/services/professionals.service";
@@ -179,6 +180,10 @@ function DashboardPage() {
         </div>
       </section>
 
+      <section className="mb-6">
+        <GlobalSearchCard />
+      </section>
+
       <section className="mb-10">
         <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-foreground">
           <Users className="h-5 w-5 text-primary" strokeWidth={1.75} />
@@ -201,7 +206,7 @@ function DashboardPage() {
           </Link>
 
           <Link
-            to="/registros"
+            to="/painel"
             className="group rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:bg-primary-soft/40"
           >
             <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-primary-soft text-primary">
@@ -211,7 +216,7 @@ function DashboardPage() {
               Registros
             </h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              Orientações, observações e evoluções.
+              Painel consolidado com filtros.
             </p>
           </Link>
 
