@@ -45,3 +45,23 @@ export function formatAge(isoBirthDate: string, now: Date = new Date()): string 
 export function getInitial(name: string): string {
   return name.trim().charAt(0).toUpperCase() || "?";
 }
+
+/** Formata "YYYY-MM-DD" como "12/03/2026". */
+export function formatDateBR(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  if (!y || !m || !d) return isoDate;
+  return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
+}
+
+/** Retorna "Hoje", "Ontem" ou data formatada PT-BR longa. */
+export function formatDateRelative(isoDate: string, now: Date = new Date()): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  if (!y || !m || !d) return isoDate;
+  const target = new Date(y, m - 1, d);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.round((today.getTime() - target.getTime()) / 86400000);
+  if (diffDays === 0) return "Hoje";
+  if (diffDays === 1) return "Ontem";
+  return `${String(d).padStart(2, "0")} de ${MONTHS_PT[m - 1]} de ${y}`;
+}
+
