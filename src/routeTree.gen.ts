@@ -13,6 +13,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthRegistrosRouteImport } from './routes/_auth/registros'
 import { Route as AuthProfissionaisRouteImport } from './routes/_auth/profissionais'
 import { Route as AuthOnboardingRouteImport } from './routes/_auth/onboarding'
 import { Route as AuthDashboardRouteImport } from './routes/_auth/dashboard'
@@ -35,6 +36,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRegistrosRoute = AuthRegistrosRouteImport.update({
+  id: '/registros',
+  path: '/registros',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthProfissionaisRoute = AuthProfissionaisRouteImport.update({
   id: '/profissionais',
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthDashboardRoute
   '/onboarding': typeof AuthOnboardingRoute
   '/profissionais': typeof AuthProfissionaisRoute
+  '/registros': typeof AuthRegistrosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthDashboardRoute
   '/onboarding': typeof AuthOnboardingRoute
   '/profissionais': typeof AuthProfissionaisRoute
+  '/registros': typeof AuthRegistrosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/_auth/dashboard': typeof AuthDashboardRoute
   '/_auth/onboarding': typeof AuthOnboardingRoute
   '/_auth/profissionais': typeof AuthProfissionaisRoute
+  '/_auth/registros': typeof AuthRegistrosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/onboarding'
     | '/profissionais'
+    | '/registros'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/onboarding'
     | '/profissionais'
+    | '/registros'
   id:
     | '__root__'
     | '/'
@@ -104,6 +115,7 @@ export interface FileRouteTypes {
     | '/_auth/dashboard'
     | '/_auth/onboarding'
     | '/_auth/profissionais'
+    | '/_auth/registros'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -143,6 +155,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_auth/registros': {
+      id: '/_auth/registros'
+      path: '/registros'
+      fullPath: '/registros'
+      preLoaderRoute: typeof AuthRegistrosRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/profissionais': {
       id: '/_auth/profissionais'
       path: '/profissionais'
@@ -171,12 +190,14 @@ interface AuthRouteChildren {
   AuthDashboardRoute: typeof AuthDashboardRoute
   AuthOnboardingRoute: typeof AuthOnboardingRoute
   AuthProfissionaisRoute: typeof AuthProfissionaisRoute
+  AuthRegistrosRoute: typeof AuthRegistrosRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthDashboardRoute: AuthDashboardRoute,
   AuthOnboardingRoute: AuthOnboardingRoute,
   AuthProfissionaisRoute: AuthProfissionaisRoute,
+  AuthRegistrosRoute: AuthRegistrosRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)

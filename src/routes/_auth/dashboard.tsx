@@ -17,9 +17,13 @@ import { ChildCard } from "@/components/children/ChildCard";
 import { ChildFormDialog } from "@/components/children/ChildFormDialog";
 import { ComingSoonCard } from "@/components/common/ComingSoonCard";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { AttendanceFormDialog } from "@/components/attendance/AttendanceFormDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { createChild, listChildren } from "@/services/children.service";
-import type { ChildInput } from "@/lib/validation";
+import { listProfessionals } from "@/services/professionals.service";
+import { createAttendanceRecord } from "@/services/attendance.service";
+import type { ChildInput, AttendanceRecordInput } from "@/lib/validation";
+import type { Child } from "@/types/database";
 
 export const Route = createFileRoute("/_auth/dashboard")({
   head: () => ({
@@ -29,11 +33,6 @@ export const Route = createFileRoute("/_auth/dashboard")({
 });
 
 const COMING_SOON = [
-  {
-    icon: ClipboardList,
-    title: "Registros de atendimento",
-    description: "Anote o que aconteceu em cada consulta ou terapia.",
-  },
   {
     icon: CalendarDays,
     title: "Agenda de compromissos",
@@ -55,11 +54,19 @@ function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const qc = useQueryClient();
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [childDialogOpen, setChildDialogOpen] = useState(false);
+  const [attendanceOpen, setAttendanceOpen] = useState(false);
+  const [quickChildId, setQuickChildId] = useState<string | undefined>();
 
   const { data: children, isLoading } = useQuery({
     queryKey: ["children"],
     queryFn: listChildren,
+    enabled: !!user,
+  });
+
+  const professionalsQuery = useQuery({
+    queryKey: ["professionals"],
+    queryFn: listProfessionals,
     enabled: !!user,
   });
 
@@ -70,14 +77,26 @@ function DashboardPage() {
     }
   }, [isLoading, children, navigate]);
 
-  const createMutation = useMutation({
+  const createChildMutation = useMutation({
     mutationFn: (input: ChildInput) => createChild(user!.id, input),
     onSuccess: () => {
       toast.success("Criança cadastrada.");
       qc.invalidateQueries({ queryKey: ["children"] });
-      setDialogOpen(false);
+      setChildDialogOpen(false);
     },
     onError: (e: Error) => toast.error(e.message || "Não foi possível cadastrar."),
+  });
+
+  const createAttendanceMutation = useMutation({
+    mutationFn: (input: AttendanceRecordInput) =>
+      createAttendanceRecord(user!.id, input),
+    onSuccess: () => {
+      toast.success("Registro criado.");
+      qc.invalidateQueries({ queryKey: ["attendance"] });
+      setAttendanceOpen(false);
+      setQuickChildId(undefined);
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   if (isLoading) {
@@ -89,6 +108,11 @@ function DashboardPage() {
   }
 
   const greetingName = user?.email ? user.email.split("@")[0] : "";
+
+  const handleQuickRegister = (child: Child) => {
+    setQuickChildId(child.id);
+    setAttendanceOpen(true);
+  };
 
   return (
     <AppShell>
@@ -109,7 +133,7 @@ function DashboardPage() {
           </h2>
           <button
             type="button"
-            onClick={() => setDialogOpen(true)}
+            onClick={() => setChildDialogOpen(true)}
             className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
           >
             <Plus className="h-4 w-4" strokeWidth={2} />
@@ -119,7 +143,11 @@ function DashboardPage() {
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
           {(children ?? []).map((c) => (
-            <ChildCard key={c.id} child={c} />
+            <ChildCard
+              key={c.id}
+              child={c}
+              onQuickRegister={handleQuickRegister}
+            />
           ))}
         </div>
       </section>
@@ -147,6 +175,24 @@ function DashboardPage() {
               Acessar →
             </span>
           </Link>
+
+          <Link
+            to="/registros"
+            className="group rounded-xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/40 hover:bg-primary-soft/40"
+          >
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary">
+              <ClipboardList className="h-5 w-5" strokeWidth={1.75} />
+            </div>
+            <h3 className="text-base font-semibold text-foreground">
+              Registros de atendimento
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Anote orientações, observações, condutas e evoluções.
+            </p>
+            <span className="mt-3 inline-block text-xs font-medium text-primary group-hover:underline">
+              Acessar →
+            </span>
+          </Link>
         </div>
       </section>
 
@@ -163,12 +209,27 @@ function DashboardPage() {
       </section>
 
       <ChildFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        open={childDialogOpen}
+        onOpenChange={setChildDialogOpen}
         onSubmit={async (data) => {
-          await createMutation.mutateAsync(data);
+          await createChildMutation.mutateAsync(data);
         }}
-        submitting={createMutation.isPending}
+        submitting={createChildMutation.isPending}
+      />
+
+      <AttendanceFormDialog
+        open={attendanceOpen}
+        onOpenChange={(o) => {
+          setAttendanceOpen(o);
+          if (!o) setQuickChildId(undefined);
+        }}
+        onSubmit={async (data) => {
+          await createAttendanceMutation.mutateAsync(data);
+        }}
+        submitting={createAttendanceMutation.isPending}
+        childrenList={children ?? []}
+        professionals={professionalsQuery.data ?? []}
+        defaultChildId={quickChildId}
       />
     </AppShell>
   );

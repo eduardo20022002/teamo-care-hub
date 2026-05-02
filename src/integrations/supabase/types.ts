@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      attendance_records: {
+        Row: {
+          category: string
+          child_id: string
+          content: string
+          created_at: string
+          id: string
+          professional_id: string | null
+          professional_name: string
+          record_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          child_id: string
+          content: string
+          created_at?: string
+          id?: string
+          professional_id?: string | null
+          professional_name: string
+          record_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          child_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          professional_id?: string | null
+          professional_name?: string
+          record_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           created_at: string
