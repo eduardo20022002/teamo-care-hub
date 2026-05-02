@@ -222,6 +222,17 @@ export function AttendanceFormDialog({
             </div>
           </div>
 
+          {isEdit && initial ? (
+            <div className="space-y-2 border-t border-border pt-4">
+              <Label>Anexos</Label>
+              <RecordAttachmentsSection recordId={initial.id} />
+            </div>
+          ) : (
+            <p className="rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              Salve o registro para começar a anexar documentos.
+            </p>
+          )}
+
           <DialogFooter>
             <Button
               type="button"
