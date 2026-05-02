@@ -124,6 +124,32 @@ function DashboardPage() {
         </div>
       </section>
 
+      <section className="mb-10">
+        <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-foreground">
+          <Users className="h-5 w-5 text-primary" strokeWidth={1.75} />
+          Acessos rápidos
+        </h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Link
+            to="/profissionais"
+            className="group rounded-xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/40 hover:bg-primary-soft/40"
+          >
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary">
+              <Users className="h-5 w-5" strokeWidth={1.75} />
+            </div>
+            <h3 className="text-base font-semibold text-foreground">
+              Rede de profissionais
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Cadastre médicos, terapeutas e profissionais escolares.
+            </p>
+            <span className="mt-3 inline-block text-xs font-medium text-primary group-hover:underline">
+              Acessar →
+            </span>
+          </Link>
+        </div>
+      </section>
+
       <section>
         <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-foreground">
           <Heart className="h-5 w-5 text-accent" strokeWidth={1.75} />
