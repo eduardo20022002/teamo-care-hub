@@ -131,6 +131,35 @@ export const attendanceRecordSchema = z.object({
 
 export type AttendanceRecordInput = z.infer<typeof attendanceRecordSchema>;
 
+// ===== Anexos (RF-03) =====
+export const ALLOWED_ATTACHMENT_MIME = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+] as const;
+
+export const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
+
+export type AttachmentValidation =
+  | { ok: true }
+  | { ok: false; error: string };
+
+export function validateAttachmentFile(file: File): AttachmentValidation {
+  if (!ALLOWED_ATTACHMENT_MIME.includes(file.type as (typeof ALLOWED_ATTACHMENT_MIME)[number])) {
+    return {
+      ok: false,
+      error: "Formato não suportado. Aceitos: PDF, JPG, PNG.",
+    };
+  }
+  if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
+    return {
+      ok: false,
+      error: "Arquivo acima do limite de 10 MB.",
+    };
+  }
+  return { ok: true };
+}
+
 export interface PasswordChecks {
   length: boolean;
   letter: boolean;
