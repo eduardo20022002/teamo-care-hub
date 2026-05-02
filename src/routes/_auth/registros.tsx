@@ -68,11 +68,36 @@ function RegistrosPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (input: AttendanceRecordInput) =>
-      createAttendanceRecord(user!.id, input),
-    onSuccess: () => {
+    mutationFn: async (vars: {
+      input: AttendanceRecordInput;
+      pendingFiles?: File[];
+    }) => {
+      const record = await createAttendanceRecord(user!.id, vars.input);
+      const files = vars.pendingFiles ?? [];
+      let success = 0;
+      const failed: string[] = [];
+      for (const file of files) {
+        try {
+          await uploadRecordAttachment(user!.id, record.id, file);
+          success++;
+        } catch (e) {
+          failed.push(`${file.name}: ${(e as Error).message}`);
+        }
+      }
+      return { attachmentSuccess: success, attachmentFailed: failed };
+    },
+    onSuccess: ({ attachmentSuccess, attachmentFailed }) => {
       toast.success("Registro criado.");
+      if (attachmentSuccess > 0) {
+        toast.success(
+          attachmentSuccess === 1
+            ? "Anexo enviado."
+            : `${attachmentSuccess} anexos enviados.`,
+        );
+      }
+      for (const msg of attachmentFailed) toast.error(msg);
       qc.invalidateQueries({ queryKey: ["attendance"] });
+      qc.invalidateQueries({ queryKey: ["documents-all"] });
       setFormOpen(false);
       setEditing(null);
     },
