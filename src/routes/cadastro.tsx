@@ -3,8 +3,9 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/auth/PasswordInput";
 import { BrandLogo } from "@/components/layout/BrandLogo";
 import { PasswordRequirements } from "@/components/auth/PasswordRequirements";
 import { signUp } from "@/services/auth.service";
@@ -26,7 +27,12 @@ function SignupPage() {
   const { user, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+    confirmPassword?: string;
+  }>({});
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -35,7 +41,7 @@ function SignupPage() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const parsed = signUpSchema.safeParse({ email, password });
+    const parsed = signUpSchema.safeParse({ email, password, confirmPassword });
     if (!parsed.success) {
       const f: typeof errors = {};
       for (const i of parsed.error.issues) {
@@ -82,9 +88,8 @@ function SignupPage() {
 
           <div className="space-y-1.5">
             <Label htmlFor="password">Senha</Label>
-            <Input
+            <PasswordInput
               id="password"
-              type="password"
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -94,6 +99,20 @@ function SignupPage() {
               <p className="text-xs text-destructive">{errors.password}</p>
             )}
             <PasswordRequirements password={password} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="confirmPassword">Confirmar senha</Label>
+            <PasswordInput
+              id="confirmPassword"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={submitting}
+            />
+            {errors.confirmPassword && (
+              <p className="text-xs text-destructive">{errors.confirmPassword}</p>
+            )}
           </div>
 
           <Button type="submit" className="w-full" disabled={submitting}>

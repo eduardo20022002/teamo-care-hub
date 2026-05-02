@@ -14,10 +14,16 @@ export const emailSchema = z
   .email("E-mail inválido.")
   .max(255);
 
-export const signUpSchema = z.object({
-  email: emailSchema,
-  password: passwordSchema,
-});
+export const signUpSchema = z
+  .object({
+    email: emailSchema,
+    password: passwordSchema,
+    confirmPassword: z.string().min(1, "Confirme sua senha."),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "As senhas não coincidem.",
+    path: ["confirmPassword"],
+  });
 
 export const signInSchema = z.object({
   email: emailSchema,
