@@ -155,25 +155,6 @@ export const revokeShare = createServerFn({ method: "POST" })
     await logShareEvent(userId, "share.revoked", { share_id: data.shareId });
     return { ok: true };
   });
-
-const revokeShareSchema = z.object({ shareId: z.string().uuid() });
-
-export const revokeShare = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((data) => revokeShareSchema.parse(data))
-  .handler(async ({ data, context }) => {
-    const { userId, supabase } = context as any;
-    const { error } = await (supabase.from(SHARING_TABLES.shares) as any)
-      .update({ revoked_at: new Date().toISOString() })
-      .eq("id", data.shareId)
-      .is("revoked_at", null);
-    if (error) {
-      throw new Response("Não foi possível revogar.", { status: 500 });
-    }
-    await logShareEvent(userId, "share.revoked", { share_id: data.shareId });
-    return { ok: true };
-  });
-
 const renewShareSchema = z.object({
   shareId: z.string().uuid(),
   expiresInHours: z.union([
