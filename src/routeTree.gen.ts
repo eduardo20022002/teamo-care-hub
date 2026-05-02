@@ -20,6 +20,9 @@ import { Route as AuthOnboardingRouteImport } from './routes/_auth/onboarding'
 import { Route as AuthDocumentosRouteImport } from './routes/_auth/documentos'
 import { Route as AuthDashboardRouteImport } from './routes/_auth/dashboard'
 import { Route as AuthBuscaRouteImport } from './routes/_auth/busca'
+import { Route as ApiPublicShareValidateOtpRouteImport } from './routes/api/public/share/validate-otp'
+import { Route as ApiPublicShareRequestOtpRouteImport } from './routes/api/public/share/request-otp'
+import { Route as ApiPublicShareDocumentUrlRouteImport } from './routes/api/public/share/document-url'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -75,6 +78,24 @@ const AuthBuscaRoute = AuthBuscaRouteImport.update({
   path: '/busca',
   getParentRoute: () => AuthRoute,
 } as any)
+const ApiPublicShareValidateOtpRoute =
+  ApiPublicShareValidateOtpRouteImport.update({
+    id: '/api/public/share/validate-otp',
+    path: '/api/public/share/validate-otp',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicShareRequestOtpRoute =
+  ApiPublicShareRequestOtpRouteImport.update({
+    id: '/api/public/share/request-otp',
+    path: '/api/public/share/request-otp',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicShareDocumentUrlRoute =
+  ApiPublicShareDocumentUrlRouteImport.update({
+    id: '/api/public/share/document-url',
+    path: '/api/public/share/document-url',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -87,6 +108,9 @@ export interface FileRoutesByFullPath {
   '/painel': typeof AuthPainelRoute
   '/profissionais': typeof AuthProfissionaisRoute
   '/registros': typeof AuthRegistrosRoute
+  '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
+  '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
+  '/api/public/share/validate-otp': typeof ApiPublicShareValidateOtpRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -99,6 +123,9 @@ export interface FileRoutesByTo {
   '/painel': typeof AuthPainelRoute
   '/profissionais': typeof AuthProfissionaisRoute
   '/registros': typeof AuthRegistrosRoute
+  '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
+  '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
+  '/api/public/share/validate-otp': typeof ApiPublicShareValidateOtpRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -113,6 +140,9 @@ export interface FileRoutesById {
   '/_auth/painel': typeof AuthPainelRoute
   '/_auth/profissionais': typeof AuthProfissionaisRoute
   '/_auth/registros': typeof AuthRegistrosRoute
+  '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
+  '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
+  '/api/public/share/validate-otp': typeof ApiPublicShareValidateOtpRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -127,6 +157,9 @@ export interface FileRouteTypes {
     | '/painel'
     | '/profissionais'
     | '/registros'
+    | '/api/public/share/document-url'
+    | '/api/public/share/request-otp'
+    | '/api/public/share/validate-otp'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -139,6 +172,9 @@ export interface FileRouteTypes {
     | '/painel'
     | '/profissionais'
     | '/registros'
+    | '/api/public/share/document-url'
+    | '/api/public/share/request-otp'
+    | '/api/public/share/validate-otp'
   id:
     | '__root__'
     | '/'
@@ -152,6 +188,9 @@ export interface FileRouteTypes {
     | '/_auth/painel'
     | '/_auth/profissionais'
     | '/_auth/registros'
+    | '/api/public/share/document-url'
+    | '/api/public/share/request-otp'
+    | '/api/public/share/validate-otp'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -159,6 +198,9 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   CadastroRoute: typeof CadastroRoute
   LoginRoute: typeof LoginRoute
+  ApiPublicShareDocumentUrlRoute: typeof ApiPublicShareDocumentUrlRoute
+  ApiPublicShareRequestOtpRoute: typeof ApiPublicShareRequestOtpRoute
+  ApiPublicShareValidateOtpRoute: typeof ApiPublicShareValidateOtpRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -240,6 +282,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthBuscaRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/api/public/share/validate-otp': {
+      id: '/api/public/share/validate-otp'
+      path: '/api/public/share/validate-otp'
+      fullPath: '/api/public/share/validate-otp'
+      preLoaderRoute: typeof ApiPublicShareValidateOtpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/share/request-otp': {
+      id: '/api/public/share/request-otp'
+      path: '/api/public/share/request-otp'
+      fullPath: '/api/public/share/request-otp'
+      preLoaderRoute: typeof ApiPublicShareRequestOtpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/share/document-url': {
+      id: '/api/public/share/document-url'
+      path: '/api/public/share/document-url'
+      fullPath: '/api/public/share/document-url'
+      preLoaderRoute: typeof ApiPublicShareDocumentUrlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -270,6 +333,9 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   CadastroRoute: CadastroRoute,
   LoginRoute: LoginRoute,
+  ApiPublicShareDocumentUrlRoute: ApiPublicShareDocumentUrlRoute,
+  ApiPublicShareRequestOtpRoute: ApiPublicShareRequestOtpRoute,
+  ApiPublicShareValidateOtpRoute: ApiPublicShareValidateOtpRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
