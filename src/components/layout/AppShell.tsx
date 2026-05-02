@@ -51,6 +51,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <DropdownMenuSeparator />
                 </>
               )}
+              <DropdownMenuItem asChild className="text-foreground">
+                <Link to="/compartilhamentos">
+                  <Share2 className="mr-2 h-4 w-4" strokeWidth={1.75} />
+                  Compartilhamentos
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleLogout}
                 disabled={loggingOut}
