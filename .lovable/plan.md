@@ -1,88 +1,91 @@
-# Plano — Anexos no formulário de novo registro + Central de Documentos
+## C5 — RF-05: CRUD completo de registros de atendimento
 
-## 1. Anexar documentos ao **criar** um registro
+### Estado atual (já entregue em C3/C4)
+- `AttendanceFormDialog` já abre em modo edição pré-preenchido e exibe `RecordAttachmentsSection` (lista + upload + remoção de anexos individuais).
+- `AttendanceCard` já tem botões de editar e excluir no header.
+- `registros.tsx` já tem `updateMutation` e `deleteMutation` ligados.
+- `DeleteAttendanceDialog` já existe com `AlertDialog` + confirmação.
+- `attendance.service.ts` já expõe `updateAttendanceRecord` e `deleteAttendanceRecord`.
 
-Hoje, anexos só aparecem na **edição** (`AttendanceFormDialog` mostra "Salve o registro para começar a anexar documentos." na criação). Vamos permitir anexar já na criação.
+### Lacunas a fechar neste ciclo
 
-**Abordagem:** "anexos pendentes em memória" — o usuário escolhe arquivos, eles ficam em uma fila local validada (sem subir ao Storage). Ao salvar o registro com sucesso, fazemos o upload de cada arquivo vinculado ao `record_id` recém-criado. Se algum upload falhar, o registro permanece criado e exibimos toast por arquivo com falha.
+**1. Exclusão em cascata dos anexos (Critério 4)**
+Hoje `deleteAttendanceRecord` só apaga a linha em `attendance_records`. Como `record_attachments` não tem FK com `ON DELETE CASCADE` para `attendance_records`, as linhas ficam órfãs e os arquivos no bucket nunca são removidos. Precisamos garantir consistência:
 
-Mudanças:
-- `AttendanceFormDialog.tsx`: substituir a mensagem "Salve o registro..." por uma **fila de arquivos pendentes** (lista com nome, tamanho, ícone e botão "remover"). Reaproveitar `AttachmentUploader` em modo "fila" (callback `onFiles` empurra para state local em vez de subir).
-- Expor no `onSubmit` do diálogo um segundo argumento opcional: `pendingFiles: File[]`, OU emitir um callback `onCreated(recordId)` que dispare o upload. Decisão: **manter assinatura atual** e introduzir um novo prop `onCreate?: (data, files) => Promise<void>`; quando passado, é usado no lugar de `onSubmit` para criação. `onSubmit` continua para edição.
-- `dashboard.tsx` e `registros.tsx`: ao receber `onCreate`, chamar `createAttendanceRecord` → pegar `record.id` retornado → fazer `uploadRecordAttachment` em loop (com toasts agregados de sucesso/falha) → invalidar queries.
-- `attendance.service.ts`: garantir que `createAttendanceRecord` retorne o `id` do registro (verificar; ajustar se necessário).
+- Em `src/services/attachments.service.ts`: nova função `deleteAllRecordAttachments(recordId)` que:
+  1. Faz `select(storage_path)` em `record_attachments` filtrando por `record_id`.
+  2. Remove os objetos do bucket `attachments` em uma única chamada `storage.remove([...paths])`.
+  3. Faz `delete` das linhas em `record_attachments` por `record_id`.
+  4. Erros de Storage são best-effort (não bloqueiam exclusão da linha do banco), mas erros do `delete` propagam.
 
-Componentes novos:
-- `src/components/attachments/PendingAttachmentsList.tsx` — lista visual simples para a fila local de `File[]` com remover.
+- Em `src/services/attendance.service.ts`: `deleteAttendanceRecord` passa a chamar `deleteAllRecordAttachments(id)` antes do `delete` na tabela. Ordem: anexos → registro. Garante que mesmo em falha parcial não fica registro com anexos órfãos referenciando-o.
 
-## 2. Documentos da criança (avulsos) — manter
+**2. Mensagem da exclusão menciona anexos (Critério 3)**
+- `DeleteAttendanceDialog` recebe nova prop opcional `attachmentCount?: number`. Quando > 0, o texto da `AlertDialogDescription` informa que os N anexos vinculados também serão removidos permanentemente.
+- `registros.tsx`: ao abrir o dialog de exclusão, busca a contagem (já temos `countRecordAttachments`) ou aproveita o cache da query `["record-attachments-count", id]` populada pelo `AttendanceCard` ao renderizar.
 
-Já existe via `ChildDocumentsDialog` aberto pelo botão "Documentos" no `ChildCard`. **Sem mudanças**, apenas confirmar que continua funcionando. Esses anexos vivem em `child_attachments` e não estão atrelados a registros.
+**3. Edição/exclusão acessíveis também a partir do Dashboard (Critério 5)**
+Hoje os cards das crianças no Dashboard não listam registros recentes — a listagem só existe em `/registros`. O critério pede acesso "a partir do painel ou da visualização do registro". A visualização do registro hoje é a página `/registros`, então o critério já é atendido por lá.
 
-## 3. Acesso rápido **"Documentos"** no dashboard
+Decisão proposta: **não adicionar listagem de registros no Dashboard neste ciclo** (fora do escopo declarado em C3). O ChildCard já tem botão "Registrar atendimento" e link para os registros da criança via `/registros`. Isso satisfaz o critério 5 de "acessível em local consistente".
 
-Hoje a grade de Acessos rápidos tem 2 cards (Profissionais, Registros). Vamos para **3 cards** mantendo o layout 2-por-linha responsivo (no mobile, o terceiro card ocupa a linha inteira; em telas ≥ sm, vira grade de 2 colunas com 3 itens fluindo naturalmente).
+### Componentes a modificar
 
-- Adicionar 3º card "Documentos" (ícone `FolderOpen`) → leva para nova rota `/documentos`.
-- Layout mantém `grid-cols-2 gap-3`. O 3º card simplesmente quebra para a linha de baixo ocupando metade da largura no mobile (ou full-width via `col-span-2` se preferir destaque). **Decisão proposta:** manter `grid-cols-2`, 3 cards, terceiro fica sozinho na 2ª linha ocupando uma coluna. Visualmente equilibrado e consistente.
+| Arquivo | Mudança |
+|---|---|
+| `src/services/attachments.service.ts` | Adicionar `deleteAllRecordAttachments(recordId)` |
+| `src/services/attendance.service.ts` | `deleteAttendanceRecord` chama `deleteAllRecordAttachments` antes do delete da linha |
+| `src/components/attendance/DeleteAttendanceDialog.tsx` | Aceitar `attachmentCount` opcional e ajustar copy |
+| `src/routes/_auth/registros.tsx` | Passar `attachmentCount` ao dialog (via `useQuery` da contagem do registro em `deleting`) e invalidar `["record-attachments-count", id]` e `["documents-all"]` no `onSuccess` da exclusão |
 
-## 4. Página `/documentos` — Central de documentos com filtros
+Nenhum componente novo.
 
-Nova rota: `src/routes/_auth/documentos.tsx`.
+### Funções de service
 
-**Conteúdo:**
-- Header com título "Documentos" + voltar para dashboard.
-- Filtros (em uma barra superior, responsiva):
-  - **Criança**: select (Todas | cada criança).
-  - **Origem**: select (Todos | Documentos da criança | Anexos de registros).
-  - **Tipo de arquivo**: select (Todos | PDF | Imagens).
-  - **Busca por nome**: input de texto que filtra `file_name` (case-insensitive, sem acento).
-  - **Período**: opcional — select rápido (Todos | Últimos 7 dias | Últimos 30 dias | Este ano).
-- Botão "Adicionar documento" abre dialog onde o usuário escolhe a criança e os arquivos (cria entradas em `child_attachments`). Reutiliza `AttachmentUploader`.
-- Lista unificada (cards) ordenada por `created_at desc`, mostrando: nome, tamanho, data, criança, origem (badge: "Documento da criança" ou "Anexo do registro · {categoria/data}"), ações (abrir, excluir).
-- Estado vazio dedicado.
+**`src/services/attachments.service.ts`:**
+```ts
+export async function deleteAllRecordAttachments(recordId: string): Promise<void>
+```
+- `select("storage_path").eq("record_id", recordId)`
+- `storage.from("attachments").remove(paths)` (best-effort)
+- `delete().eq("record_id", recordId)` (propaga erro)
 
-**Serviço novo** `src/services/documents.service.ts`:
-- `listAllDocuments()` — faz duas queries em paralelo (`child_attachments` join `children`, `record_attachments` join `attendance_records` + `children`), normaliza num shape comum:
-  ```ts
-  type UnifiedDocument = {
-    id: string;
-    source: "child" | "record";
-    storage_path: string;
-    file_name: string;
-    mime_type: string;
-    size_bytes: number;
-    created_at: string;
-    child_id: string;
-    child_name: string;
-    record_id?: string;
-    record_category?: string;
-    record_date?: string;
-  }
-  ```
-- Filtragem é feita client-side em cima do array (volume baixo no MVP, sem necessidade de paginação).
+**`src/services/attendance.service.ts`:**
+```ts
+export async function deleteAttendanceRecord(id: string): Promise<void> {
+  await deleteAllRecordAttachments(id); // anexos primeiro
+  // depois delete da linha (inalterado)
+}
+```
 
-**Componentes novos:**
-- `src/components/documents/DocumentFilters.tsx` — barra de filtros controlada.
-- `src/components/documents/DocumentCard.tsx` — card unificado (similar a `AttachmentItem` mas com badge de origem e nome da criança).
-- `src/components/documents/AddChildDocumentDialog.tsx` — dialog com select de criança + uploader.
-- `src/components/documents/EmptyDocuments.tsx`.
+### Comportamento esperado na exclusão de registro com anexos
 
-## 5. Ajustes técnicos
+1. Usuário clica no ícone de lixeira no `AttendanceCard`.
+2. `AlertDialog` abre com mensagem: *"Esta ação não pode ser desfeita. O registro e seus N anexos serão removidos permanentemente."* (quando count > 0).
+3. Ao confirmar:
+   - Service remove arquivos do Storage (best-effort, não bloqueia).
+   - Service remove linhas em `record_attachments` por `record_id`.
+   - Service remove linha em `attendance_records`.
+   - RLS garante que tudo é restrito a `auth.uid() = user_id`.
+4. Toast de sucesso "Registro excluído.".
+5. Queries invalidadas: `["attendance"]`, `["record-attachments", id]`, `["record-attachments-count", id]`, `["documents-all"]`.
+6. Em caso de erro no delete da linha do registro: toast amigável; arquivos já removidos do bucket ficam apenas como inconsistência tolerável (bucket é privado, sem URLs ativas).
 
-- `attendance.service.ts`: confirmar que `createAttendanceRecord` retorna `{ id, ... }` (já parece retornar `.select().single()`).
-- `routeTree.gen.ts`: gerado automaticamente após criar `/documentos`.
-- Filtro por nome: helper de normalização (`lower + remover diacríticos`) — pode reusar abordagem de `slugifyName` em `attachments.service.ts`.
+### Sequência de implementação
 
-## 6. O que NÃO muda
+1. Adicionar `deleteAllRecordAttachments` em `attachments.service.ts`.
+2. Encadear chamada em `deleteAttendanceRecord` (`attendance.service.ts`).
+3. Atualizar `DeleteAttendanceDialog` para aceitar `attachmentCount` e ajustar copy.
+4. Em `registros.tsx`:
+   - `useQuery` de `countRecordAttachments` quando `deleting` está setado.
+   - Passar contagem ao dialog.
+   - Adicionar invalidations adicionais no `onSuccess`.
+5. Validar manualmente: criar registro com 2 anexos → excluir → confirmar que (a) o registro some, (b) abrindo a Central de Documentos os anexos não aparecem mais, (c) toast de sucesso aparece.
 
-- Estrutura das tabelas `record_attachments` e `child_attachments`, RLS, bucket privado, URLs assinadas.
-- Componentes `AttachmentUploader`, `AttachmentItem`, `AttachmentList`, `DeleteAttachmentDialog`, `RecordAttachmentsSection`, `ChildDocumentsDialog`.
-- Limites: 10 MB, PDF/JPG/PNG.
+### Decisões em aberto que precisam de confirmação
 
-## 7. Pontos a confirmar
+1. **Cascata via service vs. trigger no Postgres**: optei por fazer no service (mais visível, sem mudar schema). Alternativa seria criar uma FK `record_attachments.record_id → attendance_records.id ON DELETE CASCADE` + trigger para limpar Storage. **Confirma fazer no service?** (Mais simples, sem migration, e o C5 não pede schema change.)
 
-1. **Upload na criação do registro:** confirmar abordagem "fila local + upload pós-save". Se algum upload falhar, o registro fica criado com toast informando os arquivos que falharam (usuário pode reabrir em edição e tentar de novo). OK?
-2. **Adicionar documento na Central:** propus dialog com select de criança obrigatório (sem criança não dá pra anexar avulso). OK?
-3. **Layout do 3º acesso rápido:** manter `grid-cols-2` com o 3º card ocupando metade da largura na 2ª linha (assimetria leve). Alternativa: 3º card com `col-span-2` (full-width). Qual prefere?
-4. **Filtro de período:** vale incluir agora ou deixar fora do MVP (apenas criança + origem + tipo + busca por nome)?
+2. **Exclusão do registro a partir do Dashboard**: como discutido, o critério 5 já é atendido pela página `/registros`. **Confirma manter assim** (sem listar registros no Dashboard agora) ou prefere expor edit/delete também em alguma visualização do Dashboard?
+
+3. **Comportamento se falhar a remoção do Storage**: proposta é best-effort silencioso (logs internos, não bloqueia o delete da linha). Alternativa seria abortar a exclusão e mostrar erro. **Confirma best-effort?**

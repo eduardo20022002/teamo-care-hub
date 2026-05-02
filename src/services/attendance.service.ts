@@ -5,6 +5,7 @@ import type {
   AttendanceRecordUpdate,
 } from "@/types/database";
 import type { AttendanceRecordInput } from "@/lib/validation";
+import { deleteAllRecordAttachments } from "./attachments.service";
 
 export interface AttendanceRecordWithRelations extends AttendanceRecord {
   child: { id: string; name: string } | null;
@@ -77,6 +78,8 @@ export async function updateAttendanceRecord(
 }
 
 export async function deleteAttendanceRecord(id: string): Promise<void> {
+  // Cascata manual: limpa anexos (Storage + tabela) antes de remover o registro
+  await deleteAllRecordAttachments(id);
   const { error } = await supabase
     .from("attendance_records")
     .delete()

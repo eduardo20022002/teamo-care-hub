@@ -15,6 +15,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
   loading?: boolean;
+  attachmentCount?: number;
 }
 
 export function DeleteAttendanceDialog({
@@ -22,15 +23,22 @@ export function DeleteAttendanceDialog({
   onOpenChange,
   onConfirm,
   loading,
+  attachmentCount = 0,
 }: Props) {
+  const hasAttachments = attachmentCount > 0;
+  const attachmentText =
+    attachmentCount === 1
+      ? "1 anexo vinculado também será removido permanentemente."
+      : `${attachmentCount} anexos vinculados também serão removidos permanentemente.`;
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Excluir este registro?</AlertDialogTitle>
           <AlertDialogDescription>
-            Esta ação não pode ser desfeita. O registro será removido
-            permanentemente.
+            Esta ação não pode ser desfeita. O registro será removido permanentemente.
+            {hasAttachments && ` ${attachmentText}`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
