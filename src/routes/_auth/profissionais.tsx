@@ -204,7 +204,7 @@ function ProfessionalsPage() {
         <EmptyProfessionals onAdd={handleOpenCreate} />
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-          Nenhum profissional encontrado para "{search}".
+          Nenhum profissional encontrado para os filtros aplicados.
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
