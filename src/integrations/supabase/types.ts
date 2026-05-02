@@ -252,6 +252,78 @@ export type Database = {
           },
         ]
       }
+      share_items: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          item_type: string
+          share_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          item_type: string
+          share_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          item_type?: string
+          share_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      shares: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          otp_attempts: number
+          otp_expires_at: string | null
+          otp_hash: string | null
+          professional_id: string
+          revoked_at: string | null
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          otp_attempts?: number
+          otp_expires_at?: string | null
+          otp_hash?: string | null
+          professional_id: string
+          revoked_at?: string | null
+          token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          otp_attempts?: number
+          otp_expires_at?: string | null
+          otp_hash?: string | null
+          professional_id?: string
+          revoked_at?: string | null
+          token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
