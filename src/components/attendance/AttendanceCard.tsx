@@ -38,6 +38,14 @@ export function AttendanceCard({ record, showChild, onEdit, onDelete }: Props) {
           </span>
         )}
         <div className="ml-auto flex items-center gap-1">
+          {!isUnregistered && (
+            <ShareTriggerButton
+              variant="icon"
+              preSelectedRecordIds={[record.id]}
+              preSelectedProfessionalId={record.professional_id ?? undefined}
+              label="Compartilhar registro"
+            />
+          )}
           {onEdit && (
             <Button
               variant="ghost"
