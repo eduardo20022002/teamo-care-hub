@@ -27,6 +27,7 @@ import {
   updateAttendanceRecord,
   type AttendanceRecordWithRelations,
 } from "@/services/attendance.service";
+import { uploadRecordAttachment } from "@/services/attachments.service";
 import { formatDateRelative } from "@/lib/formatters";
 import type { AttendanceRecordInput } from "@/lib/validation";
 
