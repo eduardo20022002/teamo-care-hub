@@ -77,3 +77,29 @@ src/
 | `profiles` | Perfil do responsável, criado automaticamente no cadastro |
 | `children` | Crianças sob cuidado de cada responsável |
 | `audit_logs` | Eventos de autenticação (sucesso, falha, logout, expiração) |
+| `professionals` | Rede de profissionais cadastrados pelo responsável |
+| `attendance_records` | Registros de atendimento (orientações, observações, condutas, evoluções) |
+| `record_attachments` | Anexos vinculados a um registro de atendimento |
+| `child_attachments` | Documentos avulsos vinculados diretamente a uma criança |
+
+## Busca global (`src/services/search.service.ts`)
+
+A tela `/busca` é alimentada por um service modular orientado a **fontes**. Cada fonte implementa a interface `SearchSource`:
+
+```ts
+interface SearchSource {
+  kind: SearchKind;
+  search(query: string, opts: { childId?: string }): Promise<SearchHit[]>;
+}
+```
+
+As fontes registradas em `SEARCH_SOURCES` são consultadas em paralelo por `searchAll()` e agrupadas por `kind` na UI.
+
+**Fontes atuais:** `record` (atendimentos), `professional`, `document` (anexos unificados).
+
+**Adicionando uma nova fonte (ciclos C7+):**
+
+1. Criar um objeto `SearchSource` que retorna `SearchHit[]` a partir das services do domínio.
+2. Definir `payload` tipado para que a navegação ao clicar saiba para onde ir.
+3. Adicionar a fonte ao array `SEARCH_SOURCES`.
+4. (Se for um novo tipo) estender `SearchKind`, `SearchPayload`, `SEARCH_KIND_LABELS`, ícones em `SearchResultItem` e tratamento em `handleSelect` na rota `/busca`.
