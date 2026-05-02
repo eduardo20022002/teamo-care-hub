@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import type { Child } from "@/types/database";
 import { formatAge, formatBirthDate, getInitial } from "@/lib/formatters";
 import { Button } from "@/components/ui/button";
@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 interface Props {
   child: Child;
   onDelete?: (child: Child) => void;
+  onQuickRegister?: (child: Child) => void;
   variant?: "row" | "card";
 }
 
-export function ChildCard({ child, onDelete, variant = "card" }: Props) {
+export function ChildCard({ child, onDelete, onQuickRegister, variant = "card" }: Props) {
   if (variant === "row") {
     return (
       <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
@@ -45,6 +46,18 @@ export function ChildCard({ child, onDelete, variant = "card" }: Props) {
       <p className="text-base font-semibold text-foreground">{child.name}</p>
       <p className="mt-1 text-xs text-muted-foreground">{formatAge(child.birth_date)}</p>
       <p className="text-xs text-muted-foreground">{formatBirthDate(child.birth_date)}</p>
+      {onQuickRegister && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => onQuickRegister(child)}
+          className="mt-3 w-full"
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" strokeWidth={2} />
+          Registrar atendimento
+        </Button>
+      )}
     </div>
   );
 }
