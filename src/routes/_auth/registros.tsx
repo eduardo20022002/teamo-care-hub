@@ -7,12 +7,11 @@ import { AppShell } from "@/components/layout/AppShell";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  RecordFilters,
+  EMPTY_RECORD_FILTERS,
+  isRecordFiltersActive,
+  type RecordFiltersValue,
+} from "@/components/attendance/RecordFilters";
 import { AttendanceCard } from "@/components/attendance/AttendanceCard";
 import { AttendanceFormDialog } from "@/components/attendance/AttendanceFormDialog";
 import { DeleteAttendanceDialog } from "@/components/attendance/DeleteAttendanceDialog";
@@ -52,7 +51,7 @@ function RegistrosPage() {
   const [deleting, setDeleting] = useState<AttendanceRecordWithRelations | null>(
     null,
   );
-  const [childFilter, setChildFilter] = useState<string>("all");
+  const [filters, setFilters] = useState<RecordFiltersValue>(EMPTY_RECORD_FILTERS);
 
   const childrenQuery = useQuery({
     queryKey: ["children"],
@@ -141,11 +140,21 @@ function RegistrosPage() {
   const records = recordsQuery.data ?? [];
   const filtered = useMemo(
     () =>
-      childFilter === "all"
-        ? records
-        : records.filter((r) => r.child_id === childFilter),
-    [records, childFilter],
+      records.filter((r) => {
+        if (filters.childId !== "all" && r.child_id !== filters.childId) return false;
+        if (filters.professionalId === "none") {
+          if (r.professional_id !== null) return false;
+        } else if (filters.professionalId !== "all") {
+          if (r.professional_id !== filters.professionalId) return false;
+        }
+        if (filters.category !== "all" && r.category !== filters.category) return false;
+        if (filters.dateFrom && r.record_date < filters.dateFrom) return false;
+        if (filters.dateTo && r.record_date > filters.dateTo) return false;
+        return true;
+      }),
+    [records, filters],
   );
+  const filtersActive = isRecordFiltersActive(filters);
 
   // Agrupa por criança → data
   const grouped = useMemo(() => {
@@ -238,29 +247,34 @@ function RegistrosPage() {
         )}
       </header>
 
-      {hasAny && childrenList.length > 1 && (
-        <div className="mb-6 max-w-xs">
-          <Select value={childFilter} onValueChange={setChildFilter}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as crianças</SelectItem>
-              {childrenList.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {hasAny && (
+        <div className="mb-6">
+          <RecordFilters
+            value={filters}
+            onChange={setFilters}
+            childrenList={childrenList}
+            professionals={professionalsList}
+            alwaysShowChild={childrenList.length > 1}
+          />
         </div>
       )}
 
       {!hasAny ? (
         <EmptyAttendance onAdd={handleOpenCreate} />
       ) : grouped.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-          Nenhum registro para o filtro selecionado.
+        <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center">
+          <p className="text-sm text-foreground">
+            Nenhum registro encontrado para os filtros aplicados.
+          </p>
+          {filtersActive && (
+            <Button
+              variant="ghost"
+              onClick={() => setFilters(EMPTY_RECORD_FILTERS)}
+              className="mt-2 text-primary hover:text-primary"
+            >
+              Limpar filtros
+            </Button>
+          )}
         </div>
       ) : (
         <div className="space-y-8">
