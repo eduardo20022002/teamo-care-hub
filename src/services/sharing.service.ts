@@ -1,5 +1,11 @@
 import { useServerFn } from "@tanstack/react-start";
-import { createShare, listShares, revokeShare, type ShareSummary } from "@/server/sharing.functions";
+import {
+  createShare,
+  listShares,
+  revokeShare,
+  renewShare,
+  type ShareSummary,
+} from "@/server/sharing.functions";
 
 export type { ShareSummary };
 
@@ -25,4 +31,7 @@ export function useListShares() {
 }
 export function useRevokeShare() {
   return useServerFn(revokeShare);
+}
+export function useRenewShare() {
+  return useServerFn(renewShare);
 }

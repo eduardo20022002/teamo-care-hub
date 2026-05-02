@@ -285,10 +285,12 @@ export type Database = {
           created_at: string
           expires_at: string
           id: string
+          last_renewed_at: string | null
           otp_attempts: number
           otp_expires_at: string | null
           otp_hash: string | null
           professional_id: string
+          renewals_count: number
           revoked_at: string | null
           token: string
           updated_at: string
@@ -299,10 +301,12 @@ export type Database = {
           created_at?: string
           expires_at: string
           id?: string
+          last_renewed_at?: string | null
           otp_attempts?: number
           otp_expires_at?: string | null
           otp_hash?: string | null
           professional_id: string
+          renewals_count?: number
           revoked_at?: string | null
           token: string
           updated_at?: string
@@ -313,10 +317,12 @@ export type Database = {
           created_at?: string
           expires_at?: string
           id?: string
+          last_renewed_at?: string | null
           otp_attempts?: number
           otp_expires_at?: string | null
           otp_hash?: string | null
           professional_id?: string
+          renewals_count?: number
           revoked_at?: string | null
           token?: string
           updated_at?: string

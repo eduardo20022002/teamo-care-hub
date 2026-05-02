@@ -1,6 +1,6 @@
 import { Label } from "@/components/ui/label";
 
-export type ExpiryHours = 6 | 24 | 48;
+export type ExpiryHours = 6 | 24 | 48 | 2160;
 
 interface Props {
   value: ExpiryHours;
@@ -10,7 +10,13 @@ interface Props {
 const OPTIONS: { value: ExpiryHours; label: string; help: string }[] = [
   { value: 6, label: "6 horas", help: "Acesso curto, ideal para revisão pontual." },
   { value: 24, label: "24 horas", help: "Tempo confortável para o profissional acessar." },
-  { value: 48, label: "48 horas", help: "Prazo máximo permitido pelo sistema." },
+  { value: 48, label: "48 horas", help: "Para acompanhamento de até dois dias." },
+  {
+    value: 2160,
+    label: "3 meses (longo prazo)",
+    help:
+      "Para acompanhamento contínuo. Você poderá renovar antes do vencimento — um novo código será exigido do profissional.",
+  },
 ];
 
 export function ShareExpiryStep({ value, onChange }: Props) {

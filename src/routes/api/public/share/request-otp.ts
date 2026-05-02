@@ -96,7 +96,10 @@ export const Route = createFileRoute("/api/public/share/request-otp")({
           return Response.json(
             {
               error: "email_failed",
-              detail: "Não foi possível enviar agora. Tente novamente em instantes.",
+              detail:
+                send.error ??
+                "Não foi possível enviar agora. Tente novamente em instantes.",
+              professionalEmailMasked: maskEmail(prof.email),
             },
             { status: 502 },
           );

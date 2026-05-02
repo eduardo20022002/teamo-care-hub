@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Share2, ShieldOff, Trash2, Clock, Mail } from "lucide-react";
+import { Loader2, Share2, ShieldOff, Clock, Mail, RefreshCw } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,9 +23,12 @@ import {
   deriveShareStatus,
   useListShares,
   useRevokeShare,
+  useRenewShare,
   type ShareSummary,
 } from "@/services/sharing.service";
 import { ShareDialog } from "@/components/sharing/ShareDialog";
+import { RenewShareDialog } from "@/components/sharing/RenewShareDialog";
+import type { ExpiryHours } from "@/components/sharing/ShareExpiryStep";
 import { useState } from "react";
 
 export const Route = createFileRoute("/_auth/compartilhamentos")({
@@ -69,7 +72,9 @@ function SharesPage() {
   const qc = useQueryClient();
   const listFn = useListShares();
   const revokeFn = useRevokeShare();
+  const renewFn = useRenewShare();
   const [shareOpen, setShareOpen] = useState(false);
+  const [renewTarget, setRenewTarget] = useState<ShareSummary | null>(null);
 
   const sharesQuery = useQuery({
     queryKey: ["shares"],
@@ -81,6 +86,19 @@ function SharesPage() {
     mutationFn: (id: string) => revokeFn({ data: { shareId: id } }),
     onSuccess: () => {
       toast.success("Compartilhamento revogado.");
+      qc.invalidateQueries({ queryKey: ["shares"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const renew = useMutation({
+    mutationFn: (input: { shareId: string; expiresInHours: ExpiryHours }) =>
+      renewFn({ data: input }),
+    onSuccess: () => {
+      toast.success(
+        "Compartilhamento renovado. O profissional precisará validar um novo código no próximo acesso.",
+      );
+      setRenewTarget(null);
       qc.invalidateQueries({ queryKey: ["shares"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -163,9 +181,12 @@ function SharesPage() {
                             {s.item_count} {s.item_count === 1 ? "item" : "itens"} ·{" "}
                             <Clock className="inline h-3 w-3" strokeWidth={1.75} /> Expira{" "}
                             {formatDateTime(s.expires_at)}
+                            {s.renewals_count > 0 && (
+                              <> · Renovado {s.renewals_count}x</>
+                            )}
                           </p>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex flex-wrap items-center gap-1">
                           {status === "active" && (
                             <>
                               <Button
@@ -178,6 +199,15 @@ function SharesPage() {
                                 }}
                               >
                                 Copiar link
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setRenewTarget(s)}
+                              >
+                                <RefreshCw className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
+                                Renovar
                               </Button>
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
@@ -212,6 +242,17 @@ function SharesPage() {
                               </AlertDialog>
                             </>
                           )}
+                          {status === "expired" && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setRenewTarget(s)}
+                            >
+                              <RefreshCw className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.75} />
+                              Renovar
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </li>
@@ -224,6 +265,15 @@ function SharesPage() {
       )}
 
       <ShareDialog open={shareOpen} onOpenChange={setShareOpen} />
+      <RenewShareDialog
+        open={!!renewTarget}
+        onOpenChange={(o) => !o && setRenewTarget(null)}
+        professionalName={renewTarget?.professional_name ?? ""}
+        pending={renew.isPending}
+        onConfirm={(hours) =>
+          renewTarget && renew.mutate({ shareId: renewTarget.id, expiresInHours: hours })
+        }
+      />
       <span className="hidden">{String(!!navigate)}</span>
     </AppShell>
   );
