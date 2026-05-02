@@ -15,9 +15,11 @@ import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRegistrosRouteImport } from './routes/_auth/registros'
 import { Route as AuthProfissionaisRouteImport } from './routes/_auth/profissionais'
+import { Route as AuthPainelRouteImport } from './routes/_auth/painel'
 import { Route as AuthOnboardingRouteImport } from './routes/_auth/onboarding'
 import { Route as AuthDocumentosRouteImport } from './routes/_auth/documentos'
 import { Route as AuthDashboardRouteImport } from './routes/_auth/dashboard'
+import { Route as AuthBuscaRouteImport } from './routes/_auth/busca'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -48,6 +50,11 @@ const AuthProfissionaisRoute = AuthProfissionaisRouteImport.update({
   path: '/profissionais',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthPainelRoute = AuthPainelRouteImport.update({
+  id: '/painel',
+  path: '/painel',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthOnboardingRoute = AuthOnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -63,14 +70,21 @@ const AuthDashboardRoute = AuthDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthBuscaRoute = AuthBuscaRouteImport.update({
+  id: '/busca',
+  path: '/busca',
+  getParentRoute: () => AuthRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cadastro': typeof CadastroRoute
   '/login': typeof LoginRoute
+  '/busca': typeof AuthBuscaRoute
   '/dashboard': typeof AuthDashboardRoute
   '/documentos': typeof AuthDocumentosRoute
   '/onboarding': typeof AuthOnboardingRoute
+  '/painel': typeof AuthPainelRoute
   '/profissionais': typeof AuthProfissionaisRoute
   '/registros': typeof AuthRegistrosRoute
 }
@@ -78,9 +92,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cadastro': typeof CadastroRoute
   '/login': typeof LoginRoute
+  '/busca': typeof AuthBuscaRoute
   '/dashboard': typeof AuthDashboardRoute
   '/documentos': typeof AuthDocumentosRoute
   '/onboarding': typeof AuthOnboardingRoute
+  '/painel': typeof AuthPainelRoute
   '/profissionais': typeof AuthProfissionaisRoute
   '/registros': typeof AuthRegistrosRoute
 }
@@ -90,9 +106,11 @@ export interface FileRoutesById {
   '/_auth': typeof AuthRouteWithChildren
   '/cadastro': typeof CadastroRoute
   '/login': typeof LoginRoute
+  '/_auth/busca': typeof AuthBuscaRoute
   '/_auth/dashboard': typeof AuthDashboardRoute
   '/_auth/documentos': typeof AuthDocumentosRoute
   '/_auth/onboarding': typeof AuthOnboardingRoute
+  '/_auth/painel': typeof AuthPainelRoute
   '/_auth/profissionais': typeof AuthProfissionaisRoute
   '/_auth/registros': typeof AuthRegistrosRoute
 }
@@ -102,9 +120,11 @@ export interface FileRouteTypes {
     | '/'
     | '/cadastro'
     | '/login'
+    | '/busca'
     | '/dashboard'
     | '/documentos'
     | '/onboarding'
+    | '/painel'
     | '/profissionais'
     | '/registros'
   fileRoutesByTo: FileRoutesByTo
@@ -112,9 +132,11 @@ export interface FileRouteTypes {
     | '/'
     | '/cadastro'
     | '/login'
+    | '/busca'
     | '/dashboard'
     | '/documentos'
     | '/onboarding'
+    | '/painel'
     | '/profissionais'
     | '/registros'
   id:
@@ -123,9 +145,11 @@ export interface FileRouteTypes {
     | '/_auth'
     | '/cadastro'
     | '/login'
+    | '/_auth/busca'
     | '/_auth/dashboard'
     | '/_auth/documentos'
     | '/_auth/onboarding'
+    | '/_auth/painel'
     | '/_auth/profissionais'
     | '/_auth/registros'
   fileRoutesById: FileRoutesById
@@ -181,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthProfissionaisRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/painel': {
+      id: '/_auth/painel'
+      path: '/painel'
+      fullPath: '/painel'
+      preLoaderRoute: typeof AuthPainelRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/onboarding': {
       id: '/_auth/onboarding'
       path: '/onboarding'
@@ -202,21 +233,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthDashboardRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/busca': {
+      id: '/_auth/busca'
+      path: '/busca'
+      fullPath: '/busca'
+      preLoaderRoute: typeof AuthBuscaRouteImport
+      parentRoute: typeof AuthRoute
+    }
   }
 }
 
 interface AuthRouteChildren {
+  AuthBuscaRoute: typeof AuthBuscaRoute
   AuthDashboardRoute: typeof AuthDashboardRoute
   AuthDocumentosRoute: typeof AuthDocumentosRoute
   AuthOnboardingRoute: typeof AuthOnboardingRoute
+  AuthPainelRoute: typeof AuthPainelRoute
   AuthProfissionaisRoute: typeof AuthProfissionaisRoute
   AuthRegistrosRoute: typeof AuthRegistrosRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
+  AuthBuscaRoute: AuthBuscaRoute,
   AuthDashboardRoute: AuthDashboardRoute,
   AuthDocumentosRoute: AuthDocumentosRoute,
   AuthOnboardingRoute: AuthOnboardingRoute,
+  AuthPainelRoute: AuthPainelRoute,
   AuthProfissionaisRoute: AuthProfissionaisRoute,
   AuthRegistrosRoute: AuthRegistrosRoute,
 }
