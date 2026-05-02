@@ -85,6 +85,52 @@ export const professionalSchema = z.object({
 
 export type ProfessionalInput = z.infer<typeof professionalSchema>;
 
+export const ATTENDANCE_CATEGORIES = [
+  "orientacao",
+  "observacao_clinica",
+  "conduta",
+  "evolucao",
+] as const;
+
+export type AttendanceCategoryValue = (typeof ATTENDANCE_CATEGORIES)[number];
+
+export const ATTENDANCE_CATEGORY_LABELS: Record<AttendanceCategoryValue, string> = {
+  orientacao: "Orientação",
+  observacao_clinica: "Observação clínica",
+  conduta: "Conduta",
+  evolucao: "Evolução",
+};
+
+export const attendanceRecordSchema = z.object({
+  child_id: z.string().uuid("Selecione uma criança."),
+  professional_id: z.string().uuid().nullable().optional(),
+  professional_name: z
+    .string()
+    .trim()
+    .min(1, "Informe o profissional emissor.")
+    .max(120, "Nome muito longo."),
+  category: z.enum(ATTENDANCE_CATEGORIES, {
+    message: "Selecione a categoria.",
+  }),
+  content: z
+    .string()
+    .trim()
+    .min(1, "Descreva o conteúdo do atendimento.")
+    .max(5000, "Conteúdo muito longo (máx. 5000 caracteres)."),
+  record_date: z
+    .string()
+    .min(1, "Informe a data do atendimento.")
+    .refine((v) => {
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return false;
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      return d <= today;
+    }, "A data não pode ser futura."),
+});
+
+export type AttendanceRecordInput = z.infer<typeof attendanceRecordSchema>;
+
 export interface PasswordChecks {
   length: boolean;
   letter: boolean;
