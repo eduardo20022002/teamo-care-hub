@@ -4,7 +4,7 @@ export function BrandLogo({ className = "" }: { className?: string }) {
       className={`font-bold tracking-tight ${className}`}
       style={{
         backgroundImage:
-          "linear-gradient(90deg, var(--primary) 0%, var(--primary) 55%, var(--accent) 95%)",
+          "linear-gradient(90deg, var(--primary) 0%, var(--primary) 30%, var(--accent) 60%, var(--accent) 100%)",
         WebkitBackgroundClip: "text",
         backgroundClip: "text",
         WebkitTextFillColor: "transparent",
