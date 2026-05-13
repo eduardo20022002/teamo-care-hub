@@ -6,7 +6,7 @@ import {
   generateShareToken,
   logShareEvent,
   SHARING_TABLES,
-} from "./sharing.server";
+} from "@/server/sharing.server";
 
 // 2160h = 90 days (~3 months). Trigger DB allows up to 93 days for safety margin.
 const createShareSchema = z.object({
