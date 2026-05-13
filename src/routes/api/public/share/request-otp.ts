@@ -64,12 +64,43 @@ export const Route = createFileRoute("/api/public/share/request-otp")({
           return Response.json({ error: "professional_missing" }, { status: 500 });
         }
 
+        // Cooldown: prevent OTP spam (60s between requests)
+        const COOLDOWN_MS = 60_000;
+        if (share.otp_expires_at) {
+          const lastIssuedAt =
+            new Date(share.otp_expires_at).getTime() - OTP_TTL_MINUTES * 60 * 1000;
+          const since = Date.now() - lastIssuedAt;
+          if (since < COOLDOWN_MS) {
+            return Response.json(
+              {
+                error: "cooldown",
+                retryAfterSeconds: Math.ceil((COOLDOWN_MS - since) / 1000),
+              },
+              { status: 429 },
+            );
+          }
+        }
+
+        // If max attempts already reached, do not re-issue (revoke)
+        const MAX_ATTEMPTS = 5;
+        if (share.otp_attempts >= MAX_ATTEMPTS) {
+          await (supabaseAdmin.from(SHARING_TABLES.shares) as any)
+            .update({ revoked_at: new Date().toISOString() })
+            .eq("id", share.id);
+          await logShareEvent(share.user_id, "share.access_denied_revoked", {
+            share_id: share.id,
+            reason: "max_otp_attempts",
+          });
+          return Response.json({ error: "too_many_attempts" }, { status: 429 });
+        }
+
         const otp = generateOtp();
         const otp_hash = hashOtp(otp);
         const otp_expires_at = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000).toISOString();
 
+        // NOTE: do NOT reset otp_attempts here — preserves brute-force lockout across re-issues.
         const { error: updErr } = await (supabaseAdmin.from(SHARING_TABLES.shares) as any)
-          .update({ otp_hash, otp_expires_at, otp_attempts: 0 })
+          .update({ otp_hash, otp_expires_at })
           .eq("id", share.id);
         if (updErr) {
           return Response.json({ error: "update_failed" }, { status: 500 });
@@ -93,12 +124,13 @@ export const Route = createFileRoute("/api/public/share/request-otp")({
         });
 
         if (!send.ok) {
+          // Log internal detail server-side; return generic message to client.
+          console.error("[share.request-otp] email send failed:", send.error);
           return Response.json(
             {
               error: "email_failed",
               detail:
-                send.error ??
-                "Não foi possível enviar agora. Tente novamente em instantes.",
+                "Não foi possível enviar o código agora. Tente novamente em instantes.",
               professionalEmailMasked: maskEmail(prof.email),
             },
             { status: 502 },

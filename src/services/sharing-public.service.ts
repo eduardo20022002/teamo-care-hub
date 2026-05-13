@@ -22,7 +22,7 @@ export interface SharedRecord {
 export interface SharedDocument {
   id: string;
   source: "child" | "record";
-  storage_path: string;
+  
   file_name: string;
   mime_type: string;
   size_bytes: number;

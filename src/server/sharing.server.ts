@@ -317,7 +317,7 @@ export interface SharedRecord {
 export interface SharedDocument {
   id: string;
   source: "child" | "record";
-  storage_path: string;
+  
   file_name: string;
   mime_type: string;
   size_bytes: number;
@@ -377,7 +377,6 @@ export async function loadSharedContent(items: ShareItemRow[]): Promise<{
   const recDocRows = ((recDocsRes.data as any[]) ?? []).map((d) => ({
     id: d.id as string,
     source: "record" as const,
-    storage_path: d.storage_path as string,
     file_name: d.file_name as string,
     mime_type: d.mime_type as string,
     size_bytes: Number(d.size_bytes),
@@ -389,7 +388,6 @@ export async function loadSharedContent(items: ShareItemRow[]): Promise<{
   const childDocRows = ((childDocsRes.data as any[]) ?? []).map((d) => ({
     id: d.id as string,
     source: "child" as const,
-    storage_path: d.storage_path as string,
     file_name: d.file_name as string,
     mime_type: d.mime_type as string,
     size_bytes: Number(d.size_bytes),

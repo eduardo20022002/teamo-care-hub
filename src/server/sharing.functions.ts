@@ -229,7 +229,9 @@ export const listShares = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { userId, supabase } = context as any;
     const { data: shares } = await (supabase.from(SHARING_TABLES.shares) as any)
-      .select("*")
+      .select(
+        "id, token, professional_id, expires_at, revoked_at, consumed_at, created_at, renewals_count, last_renewed_at",
+      )
       .order("created_at", { ascending: false });
 
     const sharesArr = (shares as any[]) ?? [];
