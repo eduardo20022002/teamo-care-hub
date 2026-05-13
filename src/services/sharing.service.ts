@@ -6,7 +6,7 @@ import {
   revokeShare,
   renewShare,
   type ShareSummary,
-} from "@/server/sharing.functions";
+} from "@/lib/sharing.functions";
 import { supabase } from "@/integrations/supabase/client";
 
 export type { ShareSummary };
