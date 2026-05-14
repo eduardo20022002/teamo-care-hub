@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, Menu, Share2 } from "lucide-react";
+import { LogOut, Menu, Share2, ShieldCheck } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
@@ -55,6 +55,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link to="/compartilhamentos">
                   <Share2 className="mr-2 h-4 w-4" strokeWidth={1.75} />
                   Compartilhamentos
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="text-foreground">
+                <Link to="/seguranca">
+                  <ShieldCheck className="mr-2 h-4 w-4" strokeWidth={1.75} />
+                  Segurança
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />

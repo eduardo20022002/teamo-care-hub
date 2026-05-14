@@ -14,6 +14,7 @@ import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CompartilhamentoTokenRouteImport } from './routes/compartilhamento.$token'
+import { Route as AuthSegurancaRouteImport } from './routes/_auth/seguranca'
 import { Route as AuthRegistrosRouteImport } from './routes/_auth/registros'
 import { Route as AuthProfissionaisRouteImport } from './routes/_auth/profissionais'
 import { Route as AuthPainelRouteImport } from './routes/_auth/painel'
@@ -49,6 +50,11 @@ const CompartilhamentoTokenRoute = CompartilhamentoTokenRouteImport.update({
   id: '/compartilhamento/$token',
   path: '/compartilhamento/$token',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthSegurancaRoute = AuthSegurancaRouteImport.update({
+  id: '/seguranca',
+  path: '/seguranca',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthRegistrosRoute = AuthRegistrosRouteImport.update({
   id: '/registros',
@@ -121,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/painel': typeof AuthPainelRoute
   '/profissionais': typeof AuthProfissionaisRoute
   '/registros': typeof AuthRegistrosRoute
+  '/seguranca': typeof AuthSegurancaRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
   '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
   '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
@@ -138,6 +145,7 @@ export interface FileRoutesByTo {
   '/painel': typeof AuthPainelRoute
   '/profissionais': typeof AuthProfissionaisRoute
   '/registros': typeof AuthRegistrosRoute
+  '/seguranca': typeof AuthSegurancaRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
   '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
   '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
@@ -157,6 +165,7 @@ export interface FileRoutesById {
   '/_auth/painel': typeof AuthPainelRoute
   '/_auth/profissionais': typeof AuthProfissionaisRoute
   '/_auth/registros': typeof AuthRegistrosRoute
+  '/_auth/seguranca': typeof AuthSegurancaRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
   '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
   '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
@@ -176,6 +185,7 @@ export interface FileRouteTypes {
     | '/painel'
     | '/profissionais'
     | '/registros'
+    | '/seguranca'
     | '/compartilhamento/$token'
     | '/api/public/share/document-url'
     | '/api/public/share/request-otp'
@@ -193,6 +203,7 @@ export interface FileRouteTypes {
     | '/painel'
     | '/profissionais'
     | '/registros'
+    | '/seguranca'
     | '/compartilhamento/$token'
     | '/api/public/share/document-url'
     | '/api/public/share/request-otp'
@@ -211,6 +222,7 @@ export interface FileRouteTypes {
     | '/_auth/painel'
     | '/_auth/profissionais'
     | '/_auth/registros'
+    | '/_auth/seguranca'
     | '/compartilhamento/$token'
     | '/api/public/share/document-url'
     | '/api/public/share/request-otp'
@@ -264,6 +276,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/compartilhamento/$token'
       preLoaderRoute: typeof CompartilhamentoTokenRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_auth/seguranca': {
+      id: '/_auth/seguranca'
+      path: '/seguranca'
+      fullPath: '/seguranca'
+      preLoaderRoute: typeof AuthSegurancaRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/_auth/registros': {
       id: '/_auth/registros'
@@ -354,6 +373,7 @@ interface AuthRouteChildren {
   AuthPainelRoute: typeof AuthPainelRoute
   AuthProfissionaisRoute: typeof AuthProfissionaisRoute
   AuthRegistrosRoute: typeof AuthRegistrosRoute
+  AuthSegurancaRoute: typeof AuthSegurancaRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
@@ -365,6 +385,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthPainelRoute: AuthPainelRoute,
   AuthProfissionaisRoute: AuthProfissionaisRoute,
   AuthRegistrosRoute: AuthRegistrosRoute,
+  AuthSegurancaRoute: AuthSegurancaRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)

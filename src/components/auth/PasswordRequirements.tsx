@@ -2,8 +2,9 @@ import { Check, X } from "lucide-react";
 import { checkPassword } from "@/lib/validation";
 
 const REQUIREMENTS: Array<{ key: keyof ReturnType<typeof checkPassword>; label: string }> = [
-  { key: "length", label: "Mínimo de 8 caracteres" },
-  { key: "letter", label: "Ao menos uma letra" },
+  { key: "length", label: "Mínimo de 12 caracteres" },
+  { key: "lower", label: "Ao menos uma letra minúscula" },
+  { key: "upper", label: "Ao menos uma letra maiúscula" },
   { key: "number", label: "Ao menos um número" },
   { key: "special", label: "Ao menos um caractere especial" },
 ];

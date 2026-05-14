@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { logger } from "@/lib/logger";
+import { rateLimit, getClientIp } from "@/server/rate-limit";
 import {
   fetchShareByToken,
   fetchProfessional,
@@ -30,6 +32,16 @@ export const Route = createFileRoute("/api/public/share/request-otp")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        // Rate limit: 5 pedidos de OTP por IP / 10 min (em paralelo ao cooldown de 60s por share)
+        const ip = getClientIp(request);
+        const rl = rateLimit(`request-otp:${ip}`, 5, 10 * 60_000);
+        if (!rl.allowed) {
+          return Response.json(
+            { error: "too_many_requests", retryAfterSeconds: rl.retryAfterSeconds },
+            { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } },
+          );
+        }
+
         let body: unknown;
         try {
           body = await request.json();
@@ -125,7 +137,10 @@ export const Route = createFileRoute("/api/public/share/request-otp")({
 
         if (!send.ok) {
           // Log internal detail server-side; return generic message to client.
-          console.error("[share.request-otp] email send failed:", send.error);
+          logger.error("share.request-otp email send failed", {
+            shareId: share.id,
+            failureCode: "email_send_failed",
+          });
           return Response.json(
             {
               error: "email_failed",

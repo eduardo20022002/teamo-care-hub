@@ -6,7 +6,7 @@ import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 import { signOut } from "@/services/auth.service";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 
-const IDLE_TIMEOUT_MS = 20 * 60 * 1000; // 20 minutos
+const IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutos (recomendação HIPAA/LGPD para sistemas com dados sensíveis de saúde)
 
 export const Route = createFileRoute("/_auth")({
   component: AuthLayout,

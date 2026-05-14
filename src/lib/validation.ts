@@ -2,8 +2,9 @@ import { z } from "zod";
 
 export const passwordSchema = z
   .string()
-  .min(8, "A senha deve ter no mínimo 8 caracteres.")
-  .regex(/[A-Za-z]/, "A senha deve conter ao menos uma letra.")
+  .min(12, "A senha deve ter no mínimo 12 caracteres.")
+  .regex(/[a-z]/, "A senha deve conter ao menos uma letra minúscula.")
+  .regex(/[A-Z]/, "A senha deve conter ao menos uma letra maiúscula.")
   .regex(/[0-9]/, "A senha deve conter ao menos um número.")
   .regex(/[^A-Za-z0-9]/, "A senha deve conter ao menos um caractere especial.");
 
@@ -162,15 +163,17 @@ export function validateAttachmentFile(file: File): AttachmentValidation {
 
 export interface PasswordChecks {
   length: boolean;
-  letter: boolean;
+  lower: boolean;
+  upper: boolean;
   number: boolean;
   special: boolean;
 }
 
 export function checkPassword(password: string): PasswordChecks {
   return {
-    length: password.length >= 8,
-    letter: /[A-Za-z]/.test(password),
+    length: password.length >= 12,
+    lower: /[a-z]/.test(password),
+    upper: /[A-Z]/.test(password),
     number: /[0-9]/.test(password),
     special: /[^A-Za-z0-9]/.test(password),
   };

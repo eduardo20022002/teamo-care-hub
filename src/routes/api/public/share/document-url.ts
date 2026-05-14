@@ -7,6 +7,7 @@ import {
   verifyShareJwt,
   deriveStatus,
 } from "@/server/sharing.server";
+import { rateLimit, getClientIp } from "@/server/rate-limit";
 
 const bodySchema = z.object({
   accessToken: z.string().min(20),
@@ -20,6 +21,16 @@ export const Route = createFileRoute("/api/public/share/document-url")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        // Rate limit: 60 downloads de URL assinada por IP / 5 min
+        const ip = getClientIp(request);
+        const rl = rateLimit(`document-url:${ip}`, 60, 5 * 60_000);
+        if (!rl.allowed) {
+          return Response.json(
+            { error: "too_many_requests", retryAfterSeconds: rl.retryAfterSeconds },
+            { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } },
+          );
+        }
+
         let body: unknown;
         try {
           body = await request.json();

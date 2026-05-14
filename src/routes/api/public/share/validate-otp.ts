@@ -13,6 +13,7 @@ import {
   timingSafeEqualHex,
   deriveStatus,
 } from "@/server/sharing.server";
+import { rateLimit, getClientIp } from "@/server/rate-limit";
 
 const MAX_ATTEMPTS = 5;
 const ACCESS_TTL_MINUTES = 30;
@@ -26,6 +27,16 @@ export const Route = createFileRoute("/api/public/share/validate-otp")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        // Rate limit: 20 tentativas por IP / 5 min (em paralelo ao MAX_ATTEMPTS por share)
+        const ip = getClientIp(request);
+        const rl = rateLimit(`validate-otp:${ip}`, 20, 5 * 60_000);
+        if (!rl.allowed) {
+          return Response.json(
+            { error: "too_many_requests", retryAfterSeconds: rl.retryAfterSeconds },
+            { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } },
+          );
+        }
+
         let body: unknown;
         try {
           body = await request.json();
