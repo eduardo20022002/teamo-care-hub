@@ -25,4 +25,5 @@ export type AuthEventType =
   | "auth.login_success"
   | "auth.login_failure"
   | "auth.logout"
-  | "auth.session_expired";
+  | "auth.session_expired"
+  | "auth.password_changed";

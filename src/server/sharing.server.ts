@@ -42,8 +42,13 @@ const TABLES = {
 // ---------- Tokens, OTP, JWT ----------
 
 export function generateShareToken(): string {
-  // 32 bytes -> 43-char base64url (>192 bits)
+  // 32 bytes -> 43-char base64url (>192 bits entropy)
   return randomBytes(32).toString("base64url");
+}
+
+// Store this in the DB, never the raw token. If the DB is leaked, raw tokens stay safe.
+export function hashShareToken(rawToken: string): string {
+  return createHash("sha256").update(rawToken).digest("hex");
 }
 
 export function generateOtp(): string {
@@ -53,8 +58,16 @@ export function generateOtp(): string {
   return n.toString().padStart(6, "0");
 }
 
+function getOtpHmacSecret(): string {
+  const s = process.env.OTP_HMAC_SECRET;
+  if (!s) throw new Error("OTP_HMAC_SECRET is not configured");
+  return s;
+}
+
+// HMAC-SHA256 with server secret — prevents rainbow table attacks on 6-digit OTPs.
+// Plain SHA-256 is precomputable across all 1M values in milliseconds.
 export function hashOtp(otp: string): string {
-  return createHash("sha256").update(otp).digest("hex");
+  return createHmac("sha256", getOtpHmacSecret()).update(otp).digest("hex");
 }
 
 export function timingSafeEqualHex(a: string, b: string): boolean {
@@ -259,10 +272,11 @@ export function deriveStatus(share: ShareRow, now: Date = new Date()): ShareStat
   return "active";
 }
 
-export async function fetchShareByToken(token: string): Promise<ShareRow | null> {
+export async function fetchShareByToken(rawToken: string): Promise<ShareRow | null> {
+  const tokenHash = hashShareToken(rawToken);
   const { data } = await (supabaseAdmin.from(TABLES.shares) as any)
     .select("*")
-    .eq("token", token)
+    .eq("token", tokenHash)
     .maybeSingle();
   return (data as ShareRow | null) ?? null;
 }

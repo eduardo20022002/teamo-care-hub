@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { validateAttachmentFileAsync } from "@/lib/validation";
 import type {
   ChildAttachment,
   ChildAttachmentInsert,
@@ -109,6 +110,9 @@ export async function uploadRecordAttachment(
   recordId: string,
   file: File,
 ): Promise<RecordAttachment> {
+  const validation = await validateAttachmentFileAsync(file);
+  if (!validation.ok) throw new Error(validation.error);
+
   const storagePath = buildPath("records", userId, recordId, file.name);
   await uploadToBucket(storagePath, file);
 
@@ -139,6 +143,9 @@ export async function uploadChildAttachment(
   childId: string,
   file: File,
 ): Promise<ChildAttachment> {
+  const validation = await validateAttachmentFileAsync(file);
+  if (!validation.ok) throw new Error(validation.error);
+
   const storagePath = buildPath("children", userId, childId, file.name);
   await uploadToBucket(storagePath, file);
 

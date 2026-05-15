@@ -21,7 +21,15 @@ function sanitizeMetadata(meta: Record<string, unknown>): Record<string, unknown
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(meta)) {
     const lower = k.toLowerCase();
-    if (lower === "password" || lower === "secret" || lower === "token" || lower === "otp") continue;
+    if (
+      lower === "password" ||
+      lower === "secret" ||
+      lower === "token" ||
+      lower === "otp" ||
+      lower === "email" ||   // PHI — use userId instead
+      lower === "phone" ||   // PHI
+      lower === "cpf"        // PHI
+    ) continue;
     out[k] = v;
   }
   return out;

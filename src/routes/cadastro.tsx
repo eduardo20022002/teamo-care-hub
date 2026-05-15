@@ -1,16 +1,16 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { PasswordInput } from "@/components/auth/PasswordInput";
-import { BrandLogo } from "@/components/layout/BrandLogo";
-import { PasswordRequirements } from "@/components/auth/PasswordRequirements";
+import { AuthShell } from "@/components/auth/AuthShell";
+import { AuthInput } from "@/components/auth/AuthInput";
+import { PasswordStrengthBar, PasswordRules } from "@/components/auth/PasswordStrengthBar";
 import { signUp } from "@/services/auth.service";
 import { signUpSchema } from "@/lib/validation";
 import { useAuth } from "@/hooks/useAuth";
+
+const BRAND_GRADIENT =
+  "linear-gradient(140deg, #4F46E5 0%, #6D3FE0 45%, #C13A8C 85%, #EC4899 100%)";
 
 export const Route = createFileRoute("/cadastro")({
   head: () => ({
@@ -28,10 +28,14 @@ function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [errors, setErrors] = useState<{
     email?: string;
     password?: string;
     confirmPassword?: string;
+    terms?: string;
   }>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -41,19 +45,26 @@ function SignupPage() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    const f: typeof errors = {};
+
     const parsed = signUpSchema.safeParse({ email, password, confirmPassword });
     if (!parsed.success) {
-      const f: typeof errors = {};
       for (const i of parsed.error.issues) {
         const k = i.path[0] as keyof typeof f;
         if (k && !f[k]) f[k] = i.message;
       }
+    }
+    if (!agreedToTerms) {
+      f.terms = "Você precisa aceitar os Termos de Uso para continuar.";
+    }
+    if (Object.keys(f).length > 0) {
       setErrors(f);
       return;
     }
+
     setErrors({});
     setSubmitting(true);
-    const res = await signUp(parsed.data.email, parsed.data.password);
+    const res = await signUp(parsed.data!.email, parsed.data!.password);
     setSubmitting(false);
     if (!res.ok) {
       toast.error(res.error ?? "Não foi possível criar a conta.");
@@ -64,70 +75,185 @@ function SignupPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10">
-      <BrandLogo className="mb-8 text-4xl" />
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-sm md:p-8">
-        <h1 className="text-xl font-semibold text-foreground">Criar conta</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Comece a organizar o cuidado da sua criança em poucos minutos.
+    <AuthShell>
+      <div>
+        <h1
+          className="text-[28px] font-extrabold leading-tight tracking-tight"
+          style={{ color: "#0F172A" }}
+        >
+          Crie sua conta gratuita
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed" style={{ color: "#6B7280" }}>
+          Comece a organizar o cuidado de quem você ama em poucos minutos.
         </p>
 
-        <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
-          <div className="space-y-1.5">
-            <Label htmlFor="email">E-mail</Label>
-            <Input
-              id="email"
+        <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-4" noValidate>
+          {/* E-mail */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium" style={{ color: "#1F2937" }}>
+              E-mail
+            </label>
+            <AuthInput
               type="email"
               autoComplete="email"
+              placeholder="seu@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={submitting}
+              error={!!errors.email}
+              leadingIcon={<Mail size={16} />}
             />
-            {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+            {errors.email && (
+              <p className="text-xs text-red-500">{errors.email}</p>
+            )}
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="password">Senha</Label>
-            <PasswordInput
-              id="password"
+          {/* Senha */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium" style={{ color: "#1F2937" }}>
+              Senha
+            </label>
+            <AuthInput
+              type={showPassword ? "text" : "password"}
               autoComplete="new-password"
+              placeholder="Crie uma senha"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={submitting}
+              error={!!errors.password}
+              leadingIcon={<Lock size={16} />}
+              trailingIcon={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              }
             />
             {errors.password && (
-              <p className="text-xs text-destructive">{errors.password}</p>
+              <p className="text-xs text-red-500">{errors.password}</p>
             )}
-            <PasswordRequirements password={password} />
+            <PasswordStrengthBar password={password} />
+            <PasswordRules password={password} />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="confirmPassword">Confirmar senha</Label>
-            <PasswordInput
-              id="confirmPassword"
+          {/* Confirmar senha */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium" style={{ color: "#1F2937" }}>
+              Confirmar senha
+            </label>
+            <AuthInput
+              type={showConfirm ? "text" : "password"}
               autoComplete="new-password"
+              placeholder="Repita sua senha"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={submitting}
+              error={!!errors.confirmPassword}
+              leadingIcon={<Lock size={16} />}
+              trailingIcon={
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm((v) => !v)}
+                  className="text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
+                  tabIndex={-1}
+                >
+                  {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              }
             />
             {errors.confirmPassword && (
-              <p className="text-xs text-destructive">{errors.confirmPassword}</p>
+              <p className="text-xs text-red-500">{errors.confirmPassword}</p>
             )}
           </div>
 
-          <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Criar conta
-          </Button>
+          {/* Termos */}
+          <div className="flex flex-col gap-1">
+            <label className="flex items-start gap-2.5 cursor-pointer select-none">
+              <span
+                className="mt-0.5 flex-shrink-0 flex items-center justify-center w-[18px] h-[18px] rounded-[5px] border transition-colors"
+                style={{
+                  borderColor: agreedToTerms ? "#4F46E5" : "#D1D5DB",
+                  background: agreedToTerms ? "#4F46E5" : "white",
+                }}
+              >
+                {agreedToTerms && (
+                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M1.5 6l3 3 6-6" />
+                  </svg>
+                )}
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                />
+              </span>
+              <span className="text-sm leading-snug" style={{ color: "#6B7280" }}>
+                Concordo com os{" "}
+                <a
+                  href="#"
+                  className="font-semibold hover:underline"
+                  style={{ color: "#4F46E5" }}
+                  onClick={(e) => e.preventDefault()}
+                >
+                  Termos de Uso
+                </a>{" "}
+                e a{" "}
+                <a
+                  href="#"
+                  className="font-semibold hover:underline"
+                  style={{ color: "#4F46E5" }}
+                  onClick={(e) => e.preventDefault()}
+                >
+                  Política de Privacidade
+                </a>
+                .
+              </span>
+            </label>
+            {errors.terms && (
+              <p className="text-xs text-red-500">{errors.terms}</p>
+            )}
+          </div>
+
+          {/* Botão criar conta */}
+          <button
+            type="submit"
+            disabled={submitting}
+            className="flex items-center justify-center gap-2 w-full text-white font-semibold text-sm transition-all duration-200 hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+            style={{
+              height: 52,
+              borderRadius: 12,
+              background: "linear-gradient(135deg, #4F46E5 0%, #6D3FE0 45%, #C13A8C 85%, #EC4899 100%)",
+              boxShadow: "0 10px 24px -8px rgba(79,70,229,0.5), 0 4px 12px -4px rgba(236,72,153,0.3)",
+            }}
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Criando conta…
+              </>
+            ) : (
+              "Criar minha conta"
+            )}
+          </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
+        {/* Footer */}
+        <p className="mt-8 text-center text-sm" style={{ color: "#6B7280" }}>
           Já tem conta?{" "}
-          <Link to="/login" className="font-medium text-primary hover:underline">
+          <Link
+            to="/login"
+            className="font-semibold hover:underline"
+            style={{ color: "#4F46E5" }}
+          >
             Entrar
           </Link>
         </p>
       </div>
-    </div>
+    </AuthShell>
   );
 }

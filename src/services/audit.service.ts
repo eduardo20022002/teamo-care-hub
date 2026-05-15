@@ -19,8 +19,11 @@ export async function logAuthEvent(
   try {
     if (eventType === "auth.login_failure") {
       // Usuário não autenticado — único caminho aceito pela RLS de anon.
-      const safeMetadata = { ...metadata };
-      delete (safeMetadata as Record<string, unknown>).password;
+      // Nunca armazenar PHI (email, phone, cpf) em audit_logs.
+      const PHI_KEYS = new Set(["password", "email", "phone", "cpf", "secret", "token", "otp"]);
+      const safeMetadata = Object.fromEntries(
+        Object.entries(metadata).filter(([k]) => !PHI_KEYS.has(k.toLowerCase())),
+      );
       await supabase.from("audit_logs").insert({
         user_id: null,
         event_type: eventType,

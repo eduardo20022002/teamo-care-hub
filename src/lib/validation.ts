@@ -2,9 +2,8 @@ import { z } from "zod";
 
 export const passwordSchema = z
   .string()
-  .min(12, "A senha deve ter no mínimo 12 caracteres.")
-  .regex(/[a-z]/, "A senha deve conter ao menos uma letra minúscula.")
-  .regex(/[A-Z]/, "A senha deve conter ao menos uma letra maiúscula.")
+  .min(8, "A senha deve ter no mínimo 8 caracteres.")
+  .regex(/[a-zA-Z]/, "A senha deve conter ao menos uma letra.")
   .regex(/[0-9]/, "A senha deve conter ao menos um número.")
   .regex(/[^A-Za-z0-9]/, "A senha deve conter ao menos um caractere especial.");
 
@@ -145,35 +144,56 @@ export type AttachmentValidation =
   | { ok: true }
   | { ok: false; error: string };
 
+// Magic byte signatures for allowed file types.
+// file.type is set by the browser and trivially spoofable — reading the actual
+// file header ensures a PDF isn't a disguised HTML/executable.
+const MAGIC_SIGNATURES: Array<{ mime: string; bytes: number[]; offset?: number }> = [
+  { mime: "application/pdf", bytes: [0x25, 0x50, 0x44, 0x46] },        // %PDF
+  { mime: "image/jpeg",      bytes: [0xff, 0xd8, 0xff] },               // JFIF/Exif SOI
+  { mime: "image/png",       bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] }, // PNG
+];
+
+async function checkMagicBytes(file: File): Promise<boolean> {
+  const maxHeaderBytes = 8;
+  const buf = await file.slice(0, maxHeaderBytes).arrayBuffer();
+  const header = new Uint8Array(buf);
+  return MAGIC_SIGNATURES.some(({ bytes, offset = 0 }) =>
+    bytes.every((b, i) => header[offset + i] === b),
+  );
+}
+
 export function validateAttachmentFile(file: File): AttachmentValidation {
   if (!ALLOWED_ATTACHMENT_MIME.includes(file.type as (typeof ALLOWED_ATTACHMENT_MIME)[number])) {
-    return {
-      ok: false,
-      error: "Formato não suportado. Aceitos: PDF, JPG, PNG.",
-    };
+    return { ok: false, error: "Formato não suportado. Aceitos: PDF, JPG, PNG." };
   }
   if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
-    return {
-      ok: false,
-      error: "Arquivo acima do limite de 10 MB.",
-    };
+    return { ok: false, error: "Arquivo acima do limite de 10 MB." };
+  }
+  return { ok: true };
+}
+
+// Async version that also validates magic bytes — use before upload.
+export async function validateAttachmentFileAsync(file: File): Promise<AttachmentValidation> {
+  const basic = validateAttachmentFile(file);
+  if (!basic.ok) return basic;
+  const validHeader = await checkMagicBytes(file);
+  if (!validHeader) {
+    return { ok: false, error: "Conteúdo do arquivo não corresponde ao formato declarado." };
   }
   return { ok: true };
 }
 
 export interface PasswordChecks {
   length: boolean;
-  lower: boolean;
-  upper: boolean;
+  letter: boolean;
   number: boolean;
   special: boolean;
 }
 
 export function checkPassword(password: string): PasswordChecks {
   return {
-    length: password.length >= 12,
-    lower: /[a-z]/.test(password),
-    upper: /[A-Z]/.test(password),
+    length: password.length >= 8,
+    letter: /[a-zA-Z]/.test(password),
     number: /[0-9]/.test(password),
     special: /[^A-Za-z0-9]/.test(password),
   };

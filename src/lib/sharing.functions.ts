@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   generateShareToken,
+  hashShareToken,
   logShareEvent,
   SHARING_TABLES,
 } from "@/server/sharing.server";
@@ -73,19 +74,20 @@ export const createShare = createServerFn({ method: "POST" })
       }
     }
 
-    const token = generateShareToken();
+    const rawToken = generateShareToken();
+    const tokenHash = hashShareToken(rawToken);
     const now = new Date();
     const expiresAt = new Date(now.getTime() + data.expiresInHours * 60 * 60 * 1000);
 
-    // Use admin client to bypass RLS for new tables (types not yet generated)
+    // Store SHA-256(token) — raw token is returned to the caller and never persisted.
     const { data: shareRow, error: insErr } = await (supabaseAdmin.from(SHARING_TABLES.shares) as any)
       .insert({
         user_id: userId,
         professional_id: data.professionalId,
-        token,
+        token: tokenHash,
         expires_at: expiresAt.toISOString(),
       })
-      .select("id, token, expires_at, created_at")
+      .select("id, expires_at, created_at")
       .single();
 
     if (insErr || !shareRow) {
@@ -132,7 +134,7 @@ export const createShare = createServerFn({ method: "POST" })
 
     return {
       shareId: shareRow.id as string,
-      token: shareRow.token as string,
+      token: rawToken, // raw bearer token — shown once, never stored
       expiresAt: shareRow.expires_at as string,
       itemCount: itemsPayload.length,
     };

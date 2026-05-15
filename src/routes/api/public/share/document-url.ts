@@ -6,6 +6,7 @@ import {
   fetchShareItems,
   verifyShareJwt,
   deriveStatus,
+  logShareEvent,
 } from "@/server/sharing.server";
 import { rateLimit, getClientIp } from "@/server/rate-limit";
 
@@ -74,6 +75,13 @@ export const Route = createFileRoute("/api/public/share/document-url")({
         if (signErr || !signed?.signedUrl) {
           return Response.json({ error: "sign_failed" }, { status: 500 });
         }
+
+        // LGPD Art. 37 / HIPAA audit requirement: every access to clinical PHI must be logged.
+        await logShareEvent(share.user_id, "share.document_downloaded", {
+          share_id: share.id,
+          document_id: parsed.data.documentId,
+          source: parsed.data.source,
+        });
 
         return Response.json({ url: signed.signedUrl });
       },

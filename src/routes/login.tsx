@@ -1,15 +1,15 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { PasswordInput } from "@/components/auth/PasswordInput";
-import { BrandLogo } from "@/components/layout/BrandLogo";
+import { AuthShell } from "@/components/auth/AuthShell";
+import { AuthInput } from "@/components/auth/AuthInput";
 import { signIn } from "@/services/auth.service";
 import { signInSchema } from "@/lib/validation";
 import { useAuth } from "@/hooks/useAuth";
+
+const BRAND_GRADIENT =
+  "linear-gradient(140deg, #4F46E5 0%, #6D3FE0 45%, #C13A8C 85%, #EC4899 100%)";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -26,6 +26,8 @@ function LoginPage() {
   const { user, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -58,55 +60,160 @@ function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-10">
-      <BrandLogo className="mb-8 text-4xl" />
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-sm md:p-8">
-        <h1 className="text-xl font-semibold text-foreground">Entrar</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Acesse sua conta para acompanhar o cuidado da sua família.
+    <AuthShell>
+      <div>
+        {/* Desktop: título caloroso / Mobile: título direto */}
+        <h1
+          className="text-[28px] font-extrabold leading-tight tracking-tight"
+          style={{ color: "#0F172A" }}
+        >
+          <span className="hidden lg:inline">Que bom ter você de volta 👋</span>
+          <span className="lg:hidden">Entrar</span>
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed" style={{ color: "#6B7280" }}>
+          <span className="hidden lg:inline">Entre para continuar acompanhando o cuidado da sua família.</span>
+          <span className="lg:hidden">Acesse sua conta para acompanhar o cuidado da sua família.</span>
         </p>
 
-        <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
-          <div className="space-y-1.5">
-            <Label htmlFor="email">E-mail</Label>
-            <Input
-              id="email"
+        <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-4" noValidate>
+          {/* E-mail */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium" style={{ color: "#1F2937" }}>
+              E-mail
+            </label>
+            <AuthInput
               type="email"
               autoComplete="email"
+              placeholder="seu@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={submitting}
+              error={!!errors.email}
+              leadingIcon={<Mail size={16} />}
             />
-            {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="password">Senha</Label>
-            <PasswordInput
-              id="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={submitting}
-            />
-            {errors.password && (
-              <p className="text-xs text-destructive">{errors.password}</p>
+            {errors.email && (
+              <p className="text-xs text-red-500">{errors.email}</p>
             )}
           </div>
 
-          <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Entrar
-          </Button>
+          {/* Senha */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium" style={{ color: "#1F2937" }}>
+              Senha
+            </label>
+            <AuthInput
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={submitting}
+              error={!!errors.password}
+              leadingIcon={<Lock size={16} />}
+              trailingIcon={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              }
+            />
+            {errors.password && (
+              <p className="text-xs text-red-500">{errors.password}</p>
+            )}
+          </div>
+
+          {/* Lembrar + Esqueci */}
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded accent-[#4F46E5]"
+              />
+              <span className="text-sm" style={{ color: "#6B7280" }}>
+                Lembrar de mim
+              </span>
+            </label>
+            <Link
+              to="/recuperar-senha"
+              className="text-sm font-medium hover:underline"
+              style={{ color: "#4F46E5" }}
+            >
+              Esqueci minha senha
+            </Link>
+          </div>
+
+          {/* Botão entrar */}
+          <button
+            type="submit"
+            disabled={submitting}
+            className="flex items-center justify-center gap-2 w-full text-white font-semibold text-sm transition-all duration-200 hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+            style={{
+              height: 52,
+              borderRadius: 12,
+              background: "linear-gradient(135deg, #4F46E5 0%, #6D3FE0 45%, #C13A8C 85%, #EC4899 100%)",
+              boxShadow: "0 10px 24px -8px rgba(79,70,229,0.5), 0 4px 12px -4px rgba(236,72,153,0.3)",
+            }}
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Entrando…
+              </>
+            ) : (
+              "Entrar"
+            )}
+          </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
+        {/* Divisor social */}
+        <div className="relative flex items-center gap-3 my-6">
+          <div className="flex-1 h-px bg-[#E5E7EB]" />
+          <span className="text-xs" style={{ color: "#9CA3AF" }}>
+            ou continue com
+          </span>
+          <div className="flex-1 h-px bg-[#E5E7EB]" />
+        </div>
+
+        {/* Botão Google */}
+        <button
+          type="button"
+          disabled
+          className="flex items-center justify-center gap-3 w-full bg-white border text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:bg-[#F9FAFB]"
+          style={{
+            height: 48,
+            borderRadius: 12,
+            border: "1.5px solid #E5E7EB",
+            color: "#1F2937",
+          }}
+        >
+          {/* Google SVG logo */}
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+            <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
+            <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+            <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+          </svg>
+          Google
+        </button>
+
+        {/* Footer */}
+        <p className="mt-8 text-center text-sm" style={{ color: "#6B7280" }}>
           Ainda não tem conta?{" "}
-          <Link to="/cadastro" className="font-medium text-primary hover:underline">
+          <Link
+            to="/cadastro"
+            className="font-semibold hover:underline"
+            style={{ color: "#4F46E5" }}
+          >
             Cadastre-se
           </Link>
         </p>
       </div>
-    </div>
+    </AuthShell>
   );
 }

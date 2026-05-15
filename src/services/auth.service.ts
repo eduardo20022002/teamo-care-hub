@@ -32,20 +32,20 @@ export async function signUp(email: string, password: string): Promise<AuthResul
     options: { emailRedirectTo: redirectTo },
   });
   if (error) {
-    await logAuthEvent(null, "auth.login_failure", { stage: "signup", email });
+    await logAuthEvent(null, "auth.login_failure", { stage: "signup" });
     return { ok: false, error: translateAuthError(error.message) };
   }
-  await logAuthEvent(data.user?.id ?? null, "auth.signup_success", { email });
+  await logAuthEvent(data.user?.id ?? null, "auth.signup_success", {});
   return { ok: true };
 }
 
 export async function signIn(email: string, password: string): Promise<AuthResult> {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
-    await logAuthEvent(null, "auth.login_failure", { email });
+    await logAuthEvent(null, "auth.login_failure", {});
     return { ok: false, error: translateAuthError(error.message) };
   }
-  await logAuthEvent(data.user?.id ?? null, "auth.login_success", { email });
+  await logAuthEvent(data.user?.id ?? null, "auth.login_success", {});
   return { ok: true };
 }
 
@@ -71,4 +71,25 @@ export function onAuthStateChange(
     callback(session);
   });
   return { unsubscribe: () => data.subscription.unsubscribe() };
+}
+
+export async function requestPasswordReset(email: string): Promise<AuthResult> {
+  const redirectTo =
+    typeof window !== "undefined" ? `${window.location.origin}/redefinir-senha` : undefined;
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) {
+    await logAuthEvent(null, "auth.login_failure", { stage: "password_reset_request" });
+    return { ok: false, error: translateAuthError(error.message) };
+  }
+  // Intentionally generic — never confirm if email exists (prevents enumeration)
+  return { ok: true };
+}
+
+export async function updatePassword(newPassword: string): Promise<AuthResult> {
+  const { data, error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) {
+    return { ok: false, error: translateAuthError(error.message) };
+  }
+  await logAuthEvent(data.user?.id ?? null, "auth.password_changed", {});
+  return { ok: true };
 }
