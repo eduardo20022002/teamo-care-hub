@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VerificarContaRouteImport } from './routes/verificar-conta'
 import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
 import { Route as RecuperarSenhaRouteImport } from './routes/recuperar-senha'
 import { Route as LoginRouteImport } from './routes/login'
@@ -29,6 +30,11 @@ import { Route as ApiPublicShareValidateOtpRouteImport } from './routes/api/publ
 import { Route as ApiPublicShareRequestOtpRouteImport } from './routes/api/public/share/request-otp'
 import { Route as ApiPublicShareDocumentUrlRouteImport } from './routes/api/public/share/document-url'
 
+const VerificarContaRoute = VerificarContaRouteImport.update({
+  id: '/verificar-conta',
+  path: '/verificar-conta',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
   id: '/redefinir-senha',
   path: '/redefinir-senha',
@@ -133,6 +139,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
+  '/verificar-conta': typeof VerificarContaRoute
   '/busca': typeof AuthBuscaRoute
   '/compartilhamentos': typeof AuthCompartilhamentosRoute
   '/dashboard': typeof AuthDashboardRoute
@@ -153,6 +160,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
+  '/verificar-conta': typeof VerificarContaRoute
   '/busca': typeof AuthBuscaRoute
   '/compartilhamentos': typeof AuthCompartilhamentosRoute
   '/dashboard': typeof AuthDashboardRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
+  '/verificar-conta': typeof VerificarContaRoute
   '/_auth/busca': typeof AuthBuscaRoute
   '/_auth/compartilhamentos': typeof AuthCompartilhamentosRoute
   '/_auth/dashboard': typeof AuthDashboardRoute
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/recuperar-senha'
     | '/redefinir-senha'
+    | '/verificar-conta'
     | '/busca'
     | '/compartilhamentos'
     | '/dashboard'
@@ -217,6 +227,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/recuperar-senha'
     | '/redefinir-senha'
+    | '/verificar-conta'
     | '/busca'
     | '/compartilhamentos'
     | '/dashboard'
@@ -238,6 +249,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/recuperar-senha'
     | '/redefinir-senha'
+    | '/verificar-conta'
     | '/_auth/busca'
     | '/_auth/compartilhamentos'
     | '/_auth/dashboard'
@@ -260,6 +272,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
+  VerificarContaRoute: typeof VerificarContaRoute
   CompartilhamentoTokenRoute: typeof CompartilhamentoTokenRoute
   ApiPublicShareDocumentUrlRoute: typeof ApiPublicShareDocumentUrlRoute
   ApiPublicShareRequestOtpRoute: typeof ApiPublicShareRequestOtpRoute
@@ -268,6 +281,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/verificar-conta': {
+      id: '/verificar-conta'
+      path: '/verificar-conta'
+      fullPath: '/verificar-conta'
+      preLoaderRoute: typeof VerificarContaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/redefinir-senha': {
       id: '/redefinir-senha'
       path: '/redefinir-senha'
@@ -437,6 +457,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   RecuperarSenhaRoute: RecuperarSenhaRoute,
   RedefinirSenhaRoute: RedefinirSenhaRoute,
+  VerificarContaRoute: VerificarContaRoute,
   CompartilhamentoTokenRoute: CompartilhamentoTokenRoute,
   ApiPublicShareDocumentUrlRoute: ApiPublicShareDocumentUrlRoute,
   ApiPublicShareRequestOtpRoute: ApiPublicShareRequestOtpRoute,

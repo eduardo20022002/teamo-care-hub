@@ -40,7 +40,9 @@ function SignupPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) navigate({ to: "/onboarding" });
+    if (!loading && user) {
+      navigate({ to: user.email_confirmed_at ? "/onboarding" : "/verificar-conta" });
+    }
   }, [loading, user, navigate]);
 
   const onSubmit = async (e: FormEvent) => {
@@ -70,8 +72,9 @@ function SignupPage() {
       toast.error(res.error ?? "Não foi possível criar a conta.");
       return;
     }
-    toast.success("Conta criada! Vamos cadastrar sua criança.");
-    navigate({ to: "/onboarding" });
+    sessionStorage.setItem("teamo:pendingEmail", parsed.data!.email);
+    toast.success("Conta criada! Confirme seu e-mail para continuar.");
+    navigate({ to: "/verificar-conta" });
   };
 
   return (

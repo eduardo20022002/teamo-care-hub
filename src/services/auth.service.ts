@@ -39,6 +39,18 @@ export async function signUp(email: string, password: string): Promise<AuthResul
   return { ok: true };
 }
 
+export async function resendVerification(email: string): Promise<AuthResult> {
+  const redirectTo =
+    typeof window !== "undefined" ? `${window.location.origin}/onboarding` : undefined;
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: { emailRedirectTo: redirectTo },
+  });
+  if (error) return { ok: false, error: translateAuthError(error.message) };
+  return { ok: true };
+}
+
 export async function signIn(email: string, password: string): Promise<AuthResult> {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
