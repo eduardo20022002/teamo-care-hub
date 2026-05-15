@@ -62,7 +62,27 @@ function BrandPanel() {
       <div className="relative z-10 flex-1 flex flex-col justify-center px-8 py-8 lg:px-14 lg:py-12">
         <h1 className="text-2xl lg:text-4xl font-extrabold text-white leading-tight tracking-tight">
           Cuidar é complexo.<br />
-          <span style={{ color: "#FFD9EC" }}>O TEAmo simplifica.</span>
+          O{" "}
+          <span style={{ position: "relative", display: "inline-block", fontWeight: 900, letterSpacing: "-0.025em" }}>
+            <span style={{ color: "#FFFFFF" }}>TEA</span>
+            <span style={{ color: "#FF8FC4" }}>mo</span>
+            <svg
+              viewBox="0 0 200 14"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+              style={{ position: "absolute", left: 0, right: 0, bottom: -6, width: "100%", height: 9 }}
+            >
+              <path
+                d="M2 8 Q 25 1, 50 7 T 100 7 T 150 7 T 198 7"
+                fill="none"
+                stroke="#FF8FC4"
+                strokeWidth="2.8"
+                strokeLinecap="round"
+                opacity="0.95"
+              />
+            </svg>
+          </span>
+          {" "}simplifica.
         </h1>
         <p className="mt-3 text-white/75 text-sm lg:text-base leading-relaxed">
           A plataforma que organiza, em um único lugar, o cuidado de quem você ama.
