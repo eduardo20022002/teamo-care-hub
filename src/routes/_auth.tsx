@@ -20,10 +20,6 @@ function AuthLayout() {
     if (loading) return;
     if (!user) {
       navigate({ to: "/login" });
-      return;
-    }
-    if (!user.email_confirmed_at) {
-      navigate({ to: "/verificar-conta" });
     }
   }, [loading, user, navigate]);
 
@@ -37,6 +33,6 @@ function AuthLayout() {
     !!user,
   );
 
-  if (loading || !user || !user.email_confirmed_at) return <LoadingSpinner label="Carregando..." />;
+  if (loading || !user) return <LoadingSpinner label="Carregando..." />;
   return <Outlet />;
 }

@@ -29,17 +29,19 @@
 5. **Mínimo necessário** — funções e queries retornam apenas os campos necessários para aquele papel (paciente/médico/admin)
 6. **Rate limiting em toda rota pública** — endpoints sem auth usam sliding-window por IP
 
-## Skills Ativas
+## Skills Instaladas
 
 | Skill | Quando acionar |
 |---|---|
-| `saude-app` | Qualquer tarefa envolvendo Supabase, Vercel, dados de pacientes, LGPD/HIPAA ou nova feature |
-| `hipaa` | Revisão de compliance HIPAA, auditoria de código, análise de risco |
-| `frontend-design` | Criação ou refatoração de componentes de UI |
-| `pdf` | Geração, leitura ou manipulação de arquivos PDF |
-| `docx` / `xlsx` | Exportação ou importação de documentos Word/Excel |
-| `file-reading` | Leitura e parsing de arquivos enviados por usuários |
-| `product-self-knowledge` | Dúvidas sobre funcionalidades do próprio TEAmo |
+| `hipaa-compliance` | Compliance LGPD/HIPAA, auditoria de código, análise de risco, qualquer dado sensível |
+| `improve-codebase-architecture` | Refatoração, avaliação de impacto arquitetural, modularização |
+| `supabase` | Qualquer tarefa com Supabase: Auth, RLS, migrations, Edge Functions, Storage |
+| `supabase-postgres-best-practices` | Otimização de queries, schema design, índices, tipos Postgres |
+| `tdd` | Escrever testes antes de implementar qualquer feature ou fix |
+| `vercel-react-best-practices` | Componentes React, performance, data fetching (adaptar: projeto usa TanStack Start, não Next.js) |
+| `web-design-guidelines` | Revisão de UI, acessibilidade, responsividade |
+| `deploy-to-vercel` | Deploy para staging ou produção no Vercel |
+| `systematic-debugging` | Bugs difíceis de diagnosticar — seguir processo metódico |
 
 ## Padrão de Commits
 
@@ -55,16 +57,18 @@ chore(deps): atualiza supabase-js para 2.45
 
 ## Fluxo para Novas Features
 
-1. Verificar impacto em RLS e dados clínicos
-2. Criar issue no GitHub (use template LGPD se tocar dados de pacientes)
-3. Implementar com checklist LGPD/HIPAA da skill `saude-app`
-4. Configurar env vars no Vercel (nunca em código)
-5. Testar permissões por role via MCP Supabase
-6. Revisar PR com foco em segurança antes de merge
+Ver workflow completo em `/Users/eduardoterra/Downloads/teamo-dev-workflow.md`.
+
+Resumo das 6 fases:
+1. Especificação formal (`hipaa-compliance`)
+2. Plano arquitetural em Plan Mode (`improve-codebase-architecture` + `supabase`)
+3. Implementação: testes primeiro (`tdd`) → migration → RLS → backend → frontend → UI
+4. Revisão de segurança e LGPD (`hipaa-compliance`)
+5. Deploy (`deploy-to-vercel`)
+6. Commit + PR + atualizar CLAUDE.md se necessário
 
 ## Referências
 
-- [Supabase MCP](.claude/skills/saude-app/references/supabase-mcp.md)
-- [GitHub MCP](.claude/skills/saude-app/references/github-mcp.md)
-- [Vercel MCP](.claude/skills/saude-app/references/vercel-mcp.md)
-- [LGPD / HIPAA](.claude/skills/saude-app/references/lgpd-hipaa.md)
+- [Contexto de domínio](CONTEXT.md)
+- [Decisões arquiteturais](docs/adr/)
+- [Workflow de desenvolvimento](/Users/eduardoterra/Downloads/teamo-dev-workflow.md)

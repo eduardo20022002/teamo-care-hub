@@ -14,8 +14,15 @@ export const emailSchema = z
   .email("E-mail inválido.")
   .max(255);
 
+export const displayNameSchema = z
+  .string()
+  .trim()
+  .min(2, "Informe como gostaria de ser chamado(a).")
+  .max(60, "Nome muito longo.");
+
 export const signUpSchema = z
   .object({
+    displayName: displayNameSchema,
     email: emailSchema,
     password: passwordSchema,
     confirmPassword: z.string().min(1, "Confirme sua senha."),

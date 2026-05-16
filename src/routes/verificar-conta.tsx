@@ -37,12 +37,12 @@ function VerifyAccountPage() {
     }
   }, [user]);
 
-  // Já confirmado → libera para o onboarding.
+  // Verificação de email está desativada — qualquer pessoa que cair aqui
+  // é redirecionada: logada → onboarding, não logada → login.
   useEffect(() => {
-    if (!loading && user?.email_confirmed_at) {
-      sessionStorage.removeItem("teamo:pendingEmail");
-      navigate({ to: "/onboarding" });
-    }
+    if (loading) return;
+    sessionStorage.removeItem("teamo:pendingEmail");
+    navigate({ to: user ? "/onboarding" : "/login" });
   }, [loading, user, navigate]);
 
   // Countdown do botão de reenvio.

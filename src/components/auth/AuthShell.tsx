@@ -49,7 +49,7 @@ function BrandPanel() {
       </svg>
 
       {/* Badge do logo — fixo no topo esquerdo */}
-      <div className="relative z-10 px-8 pt-8 lg:px-14 lg:pt-10">
+      <div className="relative z-10 px-6 pt-5 lg:px-14 lg:pt-10">
         <div className="inline-flex items-center bg-white rounded-2xl px-5 py-2.5 shadow-sm">
           <span className="text-xl font-extrabold tracking-tight leading-none">
             <span style={{ color: "#4F46E5" }}>TEA</span>
@@ -59,8 +59,8 @@ function BrandPanel() {
       </div>
 
       {/* Conteúdo central — headline + bullets (bullets ocultos no mobile) */}
-      <div className="relative z-10 flex-1 flex flex-col justify-center px-8 py-8 lg:px-14 lg:py-12">
-        <h1 className="text-2xl lg:text-4xl font-extrabold text-white leading-tight tracking-tight">
+      <div className="relative z-10 lg:flex-1 flex flex-col justify-center px-6 py-5 lg:px-14 lg:py-12">
+        <h1 className="text-xl lg:text-4xl font-extrabold text-white leading-tight tracking-tight">
           Cuidar é complexo.<br />
           O{" "}
           <span style={{ position: "relative", display: "inline-block", fontWeight: 900, letterSpacing: "-0.025em" }}>
@@ -84,7 +84,7 @@ function BrandPanel() {
           </span>
           {" "}simplifica.
         </h1>
-        <p className="mt-3 text-white/75 text-sm lg:text-base leading-relaxed">
+        <p className="hidden lg:block mt-3 text-white/75 text-sm lg:text-base leading-relaxed">
           A plataforma que organiza, em um único lugar, o cuidado de quem você ama.
         </p>
 
@@ -107,7 +107,7 @@ function BrandPanel() {
       </div>
 
       {/* Rodapé LGPD — canto inferior esquerdo */}
-      <div className="relative z-10 px-8 pb-8 lg:px-14 lg:pb-10">
+      <div className="relative z-10 px-6 pb-5 lg:px-14 lg:pb-10">
         <div className="flex items-center gap-2 text-white/50 text-xs">
           <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8 1.5l5 2.25v4.5c0 3-2.5 5.25-5 6.25C5.5 13.5 3 11.25 3 8.25v-4.5L8 1.5z" />

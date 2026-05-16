@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Loader2, Mail, Lock, Eye, EyeOff, User } from "lucide-react";
 import { toast } from "sonner";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { AuthInput } from "@/components/auth/AuthInput";
@@ -25,6 +25,7 @@ export const Route = createFileRoute("/cadastro")({
 function SignupPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -32,6 +33,7 @@ function SignupPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [errors, setErrors] = useState<{
+    displayName?: string;
     email?: string;
     password?: string;
     confirmPassword?: string;
@@ -41,7 +43,7 @@ function SignupPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      navigate({ to: user.email_confirmed_at ? "/onboarding" : "/verificar-conta" });
+      navigate({ to: "/onboarding" });
     }
   }, [loading, user, navigate]);
 
@@ -49,7 +51,7 @@ function SignupPage() {
     e.preventDefault();
     const f: typeof errors = {};
 
-    const parsed = signUpSchema.safeParse({ email, password, confirmPassword });
+    const parsed = signUpSchema.safeParse({ displayName, email, password, confirmPassword });
     if (!parsed.success) {
       for (const i of parsed.error.issues) {
         const k = i.path[0] as keyof typeof f;
@@ -66,15 +68,14 @@ function SignupPage() {
 
     setErrors({});
     setSubmitting(true);
-    const res = await signUp(parsed.data!.email, parsed.data!.password);
+    const res = await signUp(parsed.data!.email, parsed.data!.password, parsed.data!.displayName);
     setSubmitting(false);
     if (!res.ok) {
       toast.error(res.error ?? "Não foi possível criar a conta.");
       return;
     }
-    sessionStorage.setItem("teamo:pendingEmail", parsed.data!.email);
-    toast.success("Conta criada! Confirme seu e-mail para continuar.");
-    navigate({ to: "/verificar-conta" });
+    toast.success("Conta criada com sucesso!");
+    navigate({ to: "/onboarding" });
   };
 
   return (
@@ -91,6 +92,26 @@ function SignupPage() {
         </p>
 
         <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-4" noValidate>
+          {/* Nome */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium" style={{ color: "#1F2937" }}>
+              Como prefere ser chamado(a)?
+            </label>
+            <AuthInput
+              type="text"
+              autoComplete="given-name"
+              placeholder="Seu nome ou apelido"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              disabled={submitting}
+              error={!!errors.displayName}
+              leadingIcon={<User size={16} />}
+            />
+            {errors.displayName && (
+              <p className="text-xs text-red-500">{errors.displayName}</p>
+            )}
+          </div>
+
           {/* E-mail */}
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium" style={{ color: "#1F2937" }}>

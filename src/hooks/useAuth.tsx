@@ -21,11 +21,26 @@ const AuthContext = createContext<AuthContextValue>({
   loading: true,
 });
 
+// Dev-only bypass: set VITE_DEV_BYPASS_AUTH=true in .env.local to skip Supabase auth.
+// .env.local is gitignored — this never ships to production.
+const DEV_MOCK_USER =
+  import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_AUTH === "true"
+    ? ({
+        id: "00000000-0000-0000-0000-000000000001",
+        email: "preview@teamo.dev",
+        user_metadata: { display_name: "Eduardo" },
+        app_metadata: {},
+        aud: "authenticated",
+        created_at: new Date().toISOString(),
+      } as unknown as User)
+    : null;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!DEV_MOCK_USER);
 
   useEffect(() => {
+    if (DEV_MOCK_USER) return;
     const sub = onAuthStateChange((s) => {
       setSession(s);
       setLoading(false);
@@ -38,7 +53,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ session, user: session?.user ?? null, loading }),
+    () => ({
+      session,
+      user: DEV_MOCK_USER ?? session?.user ?? null,
+      loading,
+    }),
     [session, loading],
   );
 

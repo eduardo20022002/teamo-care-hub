@@ -16,24 +16,50 @@ function translateAuthError(message: string): string {
     return "Este e-mail já está cadastrado. Faça login.";
   if (m.includes("password") && m.includes("pwned"))
     return "Esta senha aparece em vazamentos conhecidos. Escolha outra.";
-  if (m.includes("rate limit"))
-    return "Muitas tentativas. Aguarde um instante e tente novamente.";
+  if (
+    m.includes("rate limit") ||
+    m.includes("for security purposes") ||
+    m.includes("you can only request") ||
+    m.includes("over_email_send_rate_limit") ||
+    m.includes("too many")
+  ) {
+    const match = message.match(/(\d+)\s*seconds?/i);
+    return match
+      ? `Aguarde ${match[1]} segundos antes de tentar novamente.`
+      : "Muitas tentativas. Aguarde um instante e tente novamente.";
+  }
   if (m.includes("network") || m.includes("fetch"))
     return "Falha de conexão. Verifique sua internet e tente novamente.";
   return "Não foi possível concluir. Tente novamente.";
 }
 
-export async function signUp(email: string, password: string): Promise<AuthResult> {
+export async function signUp(
+  email: string,
+  password: string,
+  displayName?: string,
+): Promise<AuthResult> {
   const redirectTo =
     typeof window !== "undefined" ? `${window.location.origin}/onboarding` : undefined;
+  const trimmedName = displayName?.trim();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { emailRedirectTo: redirectTo },
+    options: {
+      emailRedirectTo: redirectTo,
+      data: trimmedName ? { display_name: trimmedName } : undefined,
+    },
   });
   if (error) {
     await logAuthEvent(null, "auth.login_failure", { stage: "signup" });
     return { ok: false, error: translateAuthError(error.message) };
+  }
+  // Supabase retorna user com identities vazio quando o email já está cadastrado
+  // (proteção contra enumeração). Detectamos aqui para dar feedback claro.
+  if (data.user && data.user.identities && data.user.identities.length === 0) {
+    return {
+      ok: false,
+      error: "Este e-mail já está cadastrado. Faça login ou recupere sua senha.",
+    };
   }
   await logAuthEvent(data.user?.id ?? null, "auth.signup_success", {});
   return { ok: true };
