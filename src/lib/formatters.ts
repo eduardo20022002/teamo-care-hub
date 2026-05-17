@@ -65,6 +65,22 @@ export function formatDateRelative(isoDate: string, now: Date = new Date()): str
   return `${String(d).padStart(2, "0")} de ${MONTHS_PT[m - 1]} de ${y}`;
 }
 
+const WEEKDAYS_PT_SHORT = [
+  "Domingo",
+  "Segunda",
+  "Terça",
+  "Quarta",
+  "Quinta",
+  "Sexta",
+  "Sábado",
+];
+
+/** Formata data como "Quinta · 15 de maio" (sem ano, dia da semana curto). */
+export function formatTodayHero(now: Date = new Date()): string {
+  const weekday = WEEKDAYS_PT_SHORT[now.getDay()];
+  return `${weekday} · ${now.getDate()} de ${MONTHS_PT[now.getMonth()]}`;
+}
+
 /** Formata bytes em KB ou MB com 1 casa decimal. */
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

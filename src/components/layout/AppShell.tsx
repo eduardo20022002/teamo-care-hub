@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, Menu, Share2, ShieldCheck } from "lucide-react";
+import { Bell, LogOut, Menu, Share2, ShieldCheck } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
@@ -37,7 +37,19 @@ export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
           <BrandLogo className="text-2xl" />
           {!hideMenu && (
-            <DropdownMenu>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                aria-label="Notificações"
+                className="relative inline-flex h-9 w-9 items-center justify-center rounded-[10px] text-foreground transition-colors hover:bg-muted"
+              >
+                <Bell className="h-[18px] w-[18px]" strokeWidth={1.7} />
+                <span
+                  className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#EC4899]"
+                  style={{ boxShadow: "0 0 0 2px white" }}
+                />
+              </button>
+              <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" aria-label="Menu">
                   <Menu className="h-5 w-5" strokeWidth={1.75} />
@@ -75,6 +87,7 @@ export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </div>
           )}
         </div>
       </header>
