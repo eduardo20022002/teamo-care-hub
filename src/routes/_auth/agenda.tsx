@@ -200,6 +200,7 @@ function AgendaTodayView({
   events: AgendaEventWithRelations[];
   view: ViewMode;
 }) {
+  const navigate = useNavigate();
   const groups = groupEventsByDay(events);
   return (
     <>
@@ -263,7 +264,16 @@ function AgendaTodayView({
             </div>
             <div className="flex flex-col gap-2">
               {group.events.map((ev) => (
-                <EventCard key={ev.id} event={ev} />
+                <EventCard
+                  key={ev.id}
+                  event={ev}
+                  onClick={() =>
+                    navigate({
+                      to: "/agenda/$eventId",
+                      params: { eventId: ev.id },
+                    })
+                  }
+                />
               ))}
             </div>
           </div>

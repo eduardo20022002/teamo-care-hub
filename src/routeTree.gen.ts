@@ -27,6 +27,7 @@ import { Route as AuthDashboardRouteImport } from './routes/_auth/dashboard'
 import { Route as AuthCompartilhamentosRouteImport } from './routes/_auth/compartilhamentos'
 import { Route as AuthBuscaRouteImport } from './routes/_auth/busca'
 import { Route as AuthAgendaRouteImport } from './routes/_auth/agenda'
+import { Route as AuthAgendaEventIdRouteImport } from './routes/_auth/agenda_.$eventId'
 import { Route as ApiPublicShareValidateOtpRouteImport } from './routes/api/public/share/validate-otp'
 import { Route as ApiPublicShareRequestOtpRouteImport } from './routes/api/public/share/request-otp'
 import { Route as ApiPublicShareDocumentUrlRouteImport } from './routes/api/public/share/document-url'
@@ -120,6 +121,11 @@ const AuthAgendaRoute = AuthAgendaRouteImport.update({
   path: '/agenda',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthAgendaEventIdRoute = AuthAgendaEventIdRouteImport.update({
+  id: '/agenda_/$eventId',
+  path: '/agenda/$eventId',
+  getParentRoute: () => AuthRoute,
+} as any)
 const ApiPublicShareValidateOtpRoute =
   ApiPublicShareValidateOtpRouteImport.update({
     id: '/api/public/share/validate-otp',
@@ -157,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/registros': typeof AuthRegistrosRoute
   '/seguranca': typeof AuthSegurancaRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
+  '/agenda/$eventId': typeof AuthAgendaEventIdRoute
   '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
   '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
   '/api/public/share/validate-otp': typeof ApiPublicShareValidateOtpRoute
@@ -179,6 +186,7 @@ export interface FileRoutesByTo {
   '/registros': typeof AuthRegistrosRoute
   '/seguranca': typeof AuthSegurancaRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
+  '/agenda/$eventId': typeof AuthAgendaEventIdRoute
   '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
   '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
   '/api/public/share/validate-otp': typeof ApiPublicShareValidateOtpRoute
@@ -203,6 +211,7 @@ export interface FileRoutesById {
   '/_auth/registros': typeof AuthRegistrosRoute
   '/_auth/seguranca': typeof AuthSegurancaRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
+  '/_auth/agenda_/$eventId': typeof AuthAgendaEventIdRoute
   '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
   '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
   '/api/public/share/validate-otp': typeof ApiPublicShareValidateOtpRoute
@@ -227,6 +236,7 @@ export interface FileRouteTypes {
     | '/registros'
     | '/seguranca'
     | '/compartilhamento/$token'
+    | '/agenda/$eventId'
     | '/api/public/share/document-url'
     | '/api/public/share/request-otp'
     | '/api/public/share/validate-otp'
@@ -249,6 +259,7 @@ export interface FileRouteTypes {
     | '/registros'
     | '/seguranca'
     | '/compartilhamento/$token'
+    | '/agenda/$eventId'
     | '/api/public/share/document-url'
     | '/api/public/share/request-otp'
     | '/api/public/share/validate-otp'
@@ -272,6 +283,7 @@ export interface FileRouteTypes {
     | '/_auth/registros'
     | '/_auth/seguranca'
     | '/compartilhamento/$token'
+    | '/_auth/agenda_/$eventId'
     | '/api/public/share/document-url'
     | '/api/public/share/request-otp'
     | '/api/public/share/validate-otp'
@@ -419,6 +431,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthAgendaRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/agenda_/$eventId': {
+      id: '/_auth/agenda_/$eventId'
+      path: '/agenda/$eventId'
+      fullPath: '/agenda/$eventId'
+      preLoaderRoute: typeof AuthAgendaEventIdRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/api/public/share/validate-otp': {
       id: '/api/public/share/validate-otp'
       path: '/api/public/share/validate-otp'
@@ -454,6 +473,7 @@ interface AuthRouteChildren {
   AuthProfissionaisRoute: typeof AuthProfissionaisRoute
   AuthRegistrosRoute: typeof AuthRegistrosRoute
   AuthSegurancaRoute: typeof AuthSegurancaRoute
+  AuthAgendaEventIdRoute: typeof AuthAgendaEventIdRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
@@ -467,6 +487,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthProfissionaisRoute: AuthProfissionaisRoute,
   AuthRegistrosRoute: AuthRegistrosRoute,
   AuthSegurancaRoute: AuthSegurancaRoute,
+  AuthAgendaEventIdRoute: AuthAgendaEventIdRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
