@@ -19,7 +19,10 @@ import { NoteCard } from "@/components/agenda/NoteCard";
 import { AfterAppointmentActions } from "@/components/agenda/AfterAppointmentActions";
 import { PendingObservationsBanner } from "@/components/agenda/PendingObservationsBanner";
 import { ObservationFormSheet } from "@/components/agenda/ObservationFormSheet";
-import { listAgendaEvents } from "@/services/agenda/events.service";
+import {
+  listAgendaEvents,
+  updateAgendaEventStatus,
+} from "@/services/agenda/events.service";
 import {
   listObservationsByEvent,
   listPendingObservationsByEvent,
@@ -152,6 +155,27 @@ function AgendaEventDetailPage() {
     [eventsQuery.data, eventId],
   );
 
+  const statusMutation = useMutation({
+    mutationFn: ({ status }: { status: AgendaEventStatus }) =>
+      updateAgendaEventStatus(eventId, status),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["agenda-events"] });
+      if (vars.status === "happened") {
+        toast.success("Marcado como aconteceu. Quer registrar?", {
+          action: {
+            label: "Registrar",
+            onClick: () => navigate({ to: "/painel" }),
+          },
+        });
+      } else if (vars.status === "rescheduled") {
+        toast.message("Reagendamento em breve. Por ora, edite o compromisso.");
+      } else {
+        toast.success("Marcado como não fui.");
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const createObsMutation = useMutation({
     mutationFn: (data: AgendaObservationInput) =>
       createObservation(user!.id, data),
@@ -206,14 +230,7 @@ function AgendaEventDetailPage() {
   const remindersLabel = formatRemindersLabel(event.reminders);
 
   const handleStatus = (status: AgendaEventStatus) => {
-    // Implementação real chegará junto com updateEventStatus em fase futura.
-    toast.message(
-      status === "happened"
-        ? "Marcado como aconteceu. Quer registrar?"
-        : status === "rescheduled"
-        ? "Use a opção 'Remarcar' (em breve) para escolher nova data."
-        : "Marcado como não fui.",
-    );
+    statusMutation.mutate({ status });
   };
 
   const promoteToRegistro = (obsId: string) => {

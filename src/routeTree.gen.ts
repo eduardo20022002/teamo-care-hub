@@ -27,6 +27,8 @@ import { Route as AuthDashboardRouteImport } from './routes/_auth/dashboard'
 import { Route as AuthCompartilhamentosRouteImport } from './routes/_auth/compartilhamentos'
 import { Route as AuthBuscaRouteImport } from './routes/_auth/busca'
 import { Route as AuthAgendaRouteImport } from './routes/_auth/agenda'
+import { Route as AuthAgendaOnboardingRouteImport } from './routes/_auth/agenda_.onboarding'
+import { Route as AuthAgendaBuscaRouteImport } from './routes/_auth/agenda_.busca'
 import { Route as AuthAgendaEventIdRouteImport } from './routes/_auth/agenda_.$eventId'
 import { Route as ApiPublicShareValidateOtpRouteImport } from './routes/api/public/share/validate-otp'
 import { Route as ApiPublicShareRequestOtpRouteImport } from './routes/api/public/share/request-otp'
@@ -121,6 +123,16 @@ const AuthAgendaRoute = AuthAgendaRouteImport.update({
   path: '/agenda',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthAgendaOnboardingRoute = AuthAgendaOnboardingRouteImport.update({
+  id: '/agenda_/onboarding',
+  path: '/agenda/onboarding',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthAgendaBuscaRoute = AuthAgendaBuscaRouteImport.update({
+  id: '/agenda_/busca',
+  path: '/agenda/busca',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthAgendaEventIdRoute = AuthAgendaEventIdRouteImport.update({
   id: '/agenda_/$eventId',
   path: '/agenda/$eventId',
@@ -164,6 +176,8 @@ export interface FileRoutesByFullPath {
   '/seguranca': typeof AuthSegurancaRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
   '/agenda/$eventId': typeof AuthAgendaEventIdRoute
+  '/agenda/busca': typeof AuthAgendaBuscaRoute
+  '/agenda/onboarding': typeof AuthAgendaOnboardingRoute
   '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
   '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
   '/api/public/share/validate-otp': typeof ApiPublicShareValidateOtpRoute
@@ -187,6 +201,8 @@ export interface FileRoutesByTo {
   '/seguranca': typeof AuthSegurancaRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
   '/agenda/$eventId': typeof AuthAgendaEventIdRoute
+  '/agenda/busca': typeof AuthAgendaBuscaRoute
+  '/agenda/onboarding': typeof AuthAgendaOnboardingRoute
   '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
   '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
   '/api/public/share/validate-otp': typeof ApiPublicShareValidateOtpRoute
@@ -212,6 +228,8 @@ export interface FileRoutesById {
   '/_auth/seguranca': typeof AuthSegurancaRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
   '/_auth/agenda_/$eventId': typeof AuthAgendaEventIdRoute
+  '/_auth/agenda_/busca': typeof AuthAgendaBuscaRoute
+  '/_auth/agenda_/onboarding': typeof AuthAgendaOnboardingRoute
   '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
   '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
   '/api/public/share/validate-otp': typeof ApiPublicShareValidateOtpRoute
@@ -237,6 +255,8 @@ export interface FileRouteTypes {
     | '/seguranca'
     | '/compartilhamento/$token'
     | '/agenda/$eventId'
+    | '/agenda/busca'
+    | '/agenda/onboarding'
     | '/api/public/share/document-url'
     | '/api/public/share/request-otp'
     | '/api/public/share/validate-otp'
@@ -260,6 +280,8 @@ export interface FileRouteTypes {
     | '/seguranca'
     | '/compartilhamento/$token'
     | '/agenda/$eventId'
+    | '/agenda/busca'
+    | '/agenda/onboarding'
     | '/api/public/share/document-url'
     | '/api/public/share/request-otp'
     | '/api/public/share/validate-otp'
@@ -284,6 +306,8 @@ export interface FileRouteTypes {
     | '/_auth/seguranca'
     | '/compartilhamento/$token'
     | '/_auth/agenda_/$eventId'
+    | '/_auth/agenda_/busca'
+    | '/_auth/agenda_/onboarding'
     | '/api/public/share/document-url'
     | '/api/public/share/request-otp'
     | '/api/public/share/validate-otp'
@@ -431,6 +455,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthAgendaRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/agenda_/onboarding': {
+      id: '/_auth/agenda_/onboarding'
+      path: '/agenda/onboarding'
+      fullPath: '/agenda/onboarding'
+      preLoaderRoute: typeof AuthAgendaOnboardingRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/agenda_/busca': {
+      id: '/_auth/agenda_/busca'
+      path: '/agenda/busca'
+      fullPath: '/agenda/busca'
+      preLoaderRoute: typeof AuthAgendaBuscaRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/agenda_/$eventId': {
       id: '/_auth/agenda_/$eventId'
       path: '/agenda/$eventId'
@@ -474,6 +512,8 @@ interface AuthRouteChildren {
   AuthRegistrosRoute: typeof AuthRegistrosRoute
   AuthSegurancaRoute: typeof AuthSegurancaRoute
   AuthAgendaEventIdRoute: typeof AuthAgendaEventIdRoute
+  AuthAgendaBuscaRoute: typeof AuthAgendaBuscaRoute
+  AuthAgendaOnboardingRoute: typeof AuthAgendaOnboardingRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
@@ -488,6 +528,8 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthRegistrosRoute: AuthRegistrosRoute,
   AuthSegurancaRoute: AuthSegurancaRoute,
   AuthAgendaEventIdRoute: AuthAgendaEventIdRoute,
+  AuthAgendaBuscaRoute: AuthAgendaBuscaRoute,
+  AuthAgendaOnboardingRoute: AuthAgendaOnboardingRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)

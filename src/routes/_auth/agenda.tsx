@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Calendar, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
@@ -7,6 +7,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { EventCard } from "@/components/agenda/EventCard";
 import { EventFormSheet } from "@/components/agenda/EventFormSheet";
+import { MonthGrid, MonthLegend } from "@/components/agenda/MonthGrid";
+import { WeekGrid } from "@/components/agenda/WeekGrid";
 import { useAuth } from "@/hooks/useAuth";
 import { listChildren } from "@/services/children.service";
 import { listProfessionals } from "@/services/professionals.service";
@@ -14,6 +16,7 @@ import {
   createAgendaEvent,
   listAgendaEvents,
 } from "@/services/agenda/events.service";
+import { getNotificationPrefs } from "@/services/agenda/prefs.service";
 import {
   formatHeroDate,
   formatTodaySummary,
@@ -37,11 +40,36 @@ export const Route = createFileRoute("/_auth/agenda")({
 
 type ViewMode = "hoje" | "semana" | "mes";
 
+const WEEKDAYS_PT = [
+  "Domingo",
+  "Segunda",
+  "Terça",
+  "Quarta",
+  "Quinta",
+  "Sexta",
+  "Sábado",
+];
+
+const MONTHS_PT = [
+  "janeiro",
+  "fevereiro",
+  "março",
+  "abril",
+  "maio",
+  "junho",
+  "julho",
+  "agosto",
+  "setembro",
+  "outubro",
+  "novembro",
+  "dezembro",
+];
+
 function AgendaPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const qc = useQueryClient();
-  const [view] = useState<ViewMode>("hoje");
+  const [view, setView] = useState<ViewMode>("hoje");
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const eventsQuery = useQuery({
@@ -49,6 +77,30 @@ function AgendaPage() {
     queryFn: listAgendaEvents,
     enabled: !!user,
   });
+
+  const prefsQuery = useQuery({
+    queryKey: ["agenda-prefs", user?.id],
+    queryFn: () => getNotificationPrefs(user!.id),
+    enabled: !!user,
+  });
+
+  // Auto-redirect ao tutorial se for primeira vez E não tem compromisso ainda.
+  // Se o usuário já cadastrou algo manualmente sem terminar o tutorial,
+  // respeitamos isso (não interrompemos com fluxo guiado).
+  useEffect(() => {
+    if (eventsQuery.isLoading || prefsQuery.isLoading) return;
+    const events = eventsQuery.data ?? [];
+    const completed = prefsQuery.data?.onboarding_completed ?? false;
+    if (events.length === 0 && !completed) {
+      navigate({ to: "/agenda/onboarding" });
+    }
+  }, [
+    eventsQuery.data,
+    eventsQuery.isLoading,
+    prefsQuery.data,
+    prefsQuery.isLoading,
+    navigate,
+  ]);
 
   const childrenQuery = useQuery({
     queryKey: ["children"],
@@ -118,6 +170,7 @@ function AgendaPage() {
               <button
                 type="button"
                 aria-label="Buscar"
+                onClick={() => navigate({ to: "/agenda/busca" })}
                 className="flex h-[38px] w-[38px] items-center justify-center rounded-xl transition-colors hover:bg-[#E5E7EB]"
                 style={{ background: "#F4F5FA" }}
               >
@@ -137,9 +190,16 @@ function AgendaPage() {
         </div>
 
         {hasEvents ? (
-          <AgendaTodayView events={events} view={view} />
+          <AgendaTodayView
+            events={events}
+            view={view}
+            onChangeView={setView}
+          />
         ) : (
-          <AgendaEmptyState onAdd={() => setSheetOpen(true)} />
+          <AgendaEmptyState
+            onAdd={() => setSheetOpen(true)}
+            onOpenTutorial={() => navigate({ to: "/agenda/onboarding" })}
+          />
         )}
 
         <div className="h-8" />
@@ -159,7 +219,13 @@ function AgendaPage() {
   );
 }
 
-function ViewToggle({ active }: { active: ViewMode }) {
+function ViewToggle({
+  active,
+  onChange,
+}: {
+  active: ViewMode;
+  onChange: (v: ViewMode) => void;
+}) {
   const items: Array<{ key: ViewMode; label: string }> = [
     { key: "hoje", label: "Hoje" },
     { key: "semana", label: "Semana" },
@@ -174,17 +240,15 @@ function ViewToggle({ active }: { active: ViewMode }) {
         <button
           key={v.key}
           type="button"
-          disabled
-          className="flex h-8 flex-1 items-center justify-center rounded-[9px] text-[13px] font-bold"
+          onClick={() => onChange(v.key)}
+          className="flex h-8 flex-1 items-center justify-center rounded-[9px] text-[13px] font-bold transition-all"
           style={{
             background: v.key === active ? "white" : "transparent",
-            boxShadow: v.key === active ? "0 1px 3px rgba(15,23,42,0.1)" : "none",
+            boxShadow:
+              v.key === active ? "0 1px 3px rgba(15,23,42,0.1)" : "none",
             color: v.key === active ? "#0F172A" : "#6B7280",
             letterSpacing: "-0.005em",
-            cursor: "not-allowed",
-            opacity: v.key === active ? 1 : 0.5,
           }}
-          title={v.key === active ? undefined : "Em breve"}
         >
           {v.label}
         </button>
@@ -196,15 +260,177 @@ function ViewToggle({ active }: { active: ViewMode }) {
 function AgendaTodayView({
   events,
   view,
+  onChangeView,
 }: {
   events: AgendaEventWithRelations[];
   view: ViewMode;
+  onChangeView: (v: ViewMode) => void;
 }) {
   const navigate = useNavigate();
+  const [monthYear, setMonthYear] = useState(() => {
+    const d = new Date();
+    return { year: d.getFullYear(), month: d.getMonth() };
+  });
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [weekStart, setWeekStart] = useState<Date>(() => {
+    const today = new Date();
+    const d = new Date(today);
+    d.setDate(today.getDate() - today.getDay());
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+
+  if (view === "mes") {
+    const sameDay = (a: Date, b: Date) =>
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate();
+    const dayEvents = events.filter((e) =>
+      sameDay(new Date(e.start_at), selectedDate),
+    );
+    const selectedTitle = `${WEEKDAYS_PT[selectedDate.getDay()]}, ${selectedDate.getDate()} de ${MONTHS_PT[selectedDate.getMonth()]}`;
+    return (
+      <>
+        <ViewToggle active={view} onChange={onChangeView} />
+        <div className="mt-4">
+          <MonthGrid
+            monthYear={monthYear}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            onPrevMonth={() =>
+              setMonthYear(({ year, month }) => {
+                const m = month - 1;
+                return m < 0
+                  ? { year: year - 1, month: 11 }
+                  : { year, month: m };
+              })
+            }
+            onNextMonth={() =>
+              setMonthYear(({ year, month }) => {
+                const m = month + 1;
+                return m > 11
+                  ? { year: year + 1, month: 0 }
+                  : { year, month: m };
+              })
+            }
+            events={events}
+          />
+        </div>
+        <div className="mt-3.5">
+          <MonthLegend />
+        </div>
+        <div className="mt-4 mb-2">
+          <div
+            className="text-[12px] font-bold uppercase tracking-[0.05em]"
+            style={{ color: "#0F172A" }}
+          >
+            {selectedTitle}
+          </div>
+        </div>
+        {dayEvents.length === 0 ? (
+          <div
+            className="rounded-2xl border border-dashed px-4 py-6 text-center text-sm"
+            style={{ borderColor: "#E5E7EB", color: "#9CA3AF" }}
+          >
+            Sem compromissos neste dia.
+          </div>
+        ) : (
+          <div className="-mx-5 flex flex-col gap-2">
+            {dayEvents.map((ev) => (
+              <EventCard
+                key={ev.id}
+                event={ev}
+                onClick={() =>
+                  navigate({
+                    to: "/agenda/$eventId",
+                    params: { eventId: ev.id },
+                  })
+                }
+              />
+            ))}
+          </div>
+        )}
+      </>
+    );
+  }
+
+  if (view === "semana") {
+    const sameDay = (a: Date, b: Date) =>
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate();
+    const today = new Date();
+    const todayEvents = events.filter((e) =>
+      sameDay(new Date(e.start_at), today),
+    );
+    return (
+      <>
+        <ViewToggle active={view} onChange={onChangeView} />
+        <div className="mt-4">
+          <WeekGrid
+            weekStart={weekStart}
+            onPrev={() => {
+              const d = new Date(weekStart);
+              d.setDate(weekStart.getDate() - 7);
+              setWeekStart(d);
+            }}
+            onNext={() => {
+              const d = new Date(weekStart);
+              d.setDate(weekStart.getDate() + 7);
+              setWeekStart(d);
+            }}
+            events={events}
+            onSelectEvent={(eventId) =>
+              navigate({
+                to: "/agenda/$eventId",
+                params: { eventId },
+              })
+            }
+          />
+        </div>
+        <div className="mt-5 mb-2 flex items-center gap-2">
+          <span
+            className="h-1.5 w-1.5 rounded-full"
+            style={{ background: AGENDA_BRAND.col }}
+          />
+          <div
+            className="text-[12px] font-bold uppercase tracking-[0.05em]"
+            style={{ color: "#0F172A" }}
+          >
+            Hoje · {WEEKDAYS_PT[today.getDay()].toLowerCase()} {today.getDate()}
+          </div>
+        </div>
+        {todayEvents.length === 0 ? (
+          <div
+            className="rounded-2xl border border-dashed px-4 py-6 text-center text-sm"
+            style={{ borderColor: "#E5E7EB", color: "#9CA3AF" }}
+          >
+            Sem compromissos hoje.
+          </div>
+        ) : (
+          <div className="-mx-5 flex flex-col gap-2">
+            {todayEvents.map((ev) => (
+              <EventCard
+                key={ev.id}
+                event={ev}
+                onClick={() =>
+                  navigate({
+                    to: "/agenda/$eventId",
+                    params: { eventId: ev.id },
+                  })
+                }
+              />
+            ))}
+          </div>
+        )}
+      </>
+    );
+  }
+
   const groups = groupEventsByDay(events);
   return (
     <>
-      <ViewToggle active={view} />
+      <ViewToggle active={view} onChange={onChangeView} />
 
       {/* Hero pastel */}
       <section
@@ -283,7 +509,13 @@ function AgendaTodayView({
   );
 }
 
-function AgendaEmptyState({ onAdd }: { onAdd: () => void }) {
+function AgendaEmptyState({
+  onAdd,
+  onOpenTutorial,
+}: {
+  onAdd: () => void;
+  onOpenTutorial: () => void;
+}) {
   return (
     <div className="mt-5">
       <p
@@ -330,6 +562,16 @@ function AgendaEmptyState({ onAdd }: { onAdd: () => void }) {
           <Plus size={18} strokeWidth={2.2} />
           Adicionar compromisso
         </button>
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={onOpenTutorial}
+            className="bg-transparent text-[13px] font-bold underline-offset-2 hover:underline"
+            style={{ color: AGENDA_BRAND.col }}
+          >
+            Voltar ao tutorial guiado
+          </button>
+        </div>
       </section>
     </div>
   );

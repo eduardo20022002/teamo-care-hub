@@ -2,6 +2,8 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Bell, LogOut, Menu, Share2, ShieldCheck } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import { NotificationsDrawer } from "@/components/agenda/NotificationsDrawer";
+import { useAgendaNotifications } from "@/hooks/useAgendaNotifications";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +21,9 @@ export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu
   const navigate = useNavigate();
   const { user } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifications = useAgendaNotifications();
+  const hasUnread = notifications.length > 0;
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -41,13 +46,16 @@ export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu
               <button
                 type="button"
                 aria-label="Notificações"
+                onClick={() => setNotifOpen(true)}
                 className="relative inline-flex h-9 w-9 items-center justify-center rounded-[10px] text-foreground transition-colors hover:bg-muted"
               >
                 <Bell className="h-[18px] w-[18px]" strokeWidth={1.7} />
-                <span
-                  className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#EC4899]"
-                  style={{ boxShadow: "0 0 0 2px white" }}
-                />
+                {hasUnread && (
+                  <span
+                    className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#EC4899]"
+                    style={{ boxShadow: "0 0 0 2px white" }}
+                  />
+                )}
               </button>
               <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -92,6 +100,19 @@ export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6 md:py-10">{children}</main>
+
+      <NotificationsDrawer
+        open={notifOpen}
+        onClose={() => setNotifOpen(false)}
+        items={notifications.map((n) => ({
+          ...n,
+          onCta: n.deepLink
+            ? () => {
+                navigate({ to: n.deepLink });
+              }
+            : undefined,
+        }))}
+      />
     </div>
   );
 }

@@ -241,3 +241,25 @@ export async function deleteAgendaEvent(id: string): Promise<void> {
     .eq("id", id);
   if (error) throw new Error(mapError(error.message));
 }
+
+import type { AgendaEventStatus } from "@/types/agenda";
+
+export async function updateAgendaEventStatus(
+  id: string,
+  status: AgendaEventStatus,
+): Promise<void> {
+  if (DEV_BYPASS) return;
+  const { error } = await (supabase as unknown as {
+    from: (t: string) => {
+      update: (p: { status: AgendaEventStatus }) => {
+        eq: (col: string, val: string) => Promise<{
+          error: { message: string } | null;
+        }>;
+      };
+    };
+  })
+    .from("agenda_events")
+    .update({ status })
+    .eq("id", id);
+  if (error) throw new Error(mapError(error.message));
+}
