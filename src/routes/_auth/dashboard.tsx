@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Baby,
-  CalendarDays,
+  Calendar,
   ClipboardList,
   Compass,
   FolderOpen,
@@ -52,6 +52,14 @@ const BRAND_SHADOW =
 
 const EXPLORE_TILES = [
   {
+    to: "/agenda" as const,
+    tint: "#F3E8FF",
+    color: "#7C3AED",
+    icon: Calendar,
+    title: "Agenda",
+    desc: "Compromissos, terapias e medicações.",
+  },
+  {
     to: "/profissionais" as const,
     tint: "#EEF1FF",
     color: "#4F46E5",
@@ -86,11 +94,6 @@ const EXPLORE_TILES = [
 ] as const;
 
 const COMING_SOON = [
-  {
-    icon: CalendarDays,
-    title: "Agenda de compromissos",
-    description: "Gerencie horários e nunca perca um atendimento.",
-  },
   {
     icon: TimerReset,
     title: "Linha do tempo",

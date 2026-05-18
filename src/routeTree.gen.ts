@@ -26,6 +26,7 @@ import { Route as AuthDocumentosRouteImport } from './routes/_auth/documentos'
 import { Route as AuthDashboardRouteImport } from './routes/_auth/dashboard'
 import { Route as AuthCompartilhamentosRouteImport } from './routes/_auth/compartilhamentos'
 import { Route as AuthBuscaRouteImport } from './routes/_auth/busca'
+import { Route as AuthAgendaRouteImport } from './routes/_auth/agenda'
 import { Route as ApiPublicShareValidateOtpRouteImport } from './routes/api/public/share/validate-otp'
 import { Route as ApiPublicShareRequestOtpRouteImport } from './routes/api/public/share/request-otp'
 import { Route as ApiPublicShareDocumentUrlRouteImport } from './routes/api/public/share/document-url'
@@ -114,6 +115,11 @@ const AuthBuscaRoute = AuthBuscaRouteImport.update({
   path: '/busca',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthAgendaRoute = AuthAgendaRouteImport.update({
+  id: '/agenda',
+  path: '/agenda',
+  getParentRoute: () => AuthRoute,
+} as any)
 const ApiPublicShareValidateOtpRoute =
   ApiPublicShareValidateOtpRouteImport.update({
     id: '/api/public/share/validate-otp',
@@ -140,6 +146,7 @@ export interface FileRoutesByFullPath {
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/verificar-conta': typeof VerificarContaRoute
+  '/agenda': typeof AuthAgendaRoute
   '/busca': typeof AuthBuscaRoute
   '/compartilhamentos': typeof AuthCompartilhamentosRoute
   '/dashboard': typeof AuthDashboardRoute
@@ -161,6 +168,7 @@ export interface FileRoutesByTo {
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/verificar-conta': typeof VerificarContaRoute
+  '/agenda': typeof AuthAgendaRoute
   '/busca': typeof AuthBuscaRoute
   '/compartilhamentos': typeof AuthCompartilhamentosRoute
   '/dashboard': typeof AuthDashboardRoute
@@ -184,6 +192,7 @@ export interface FileRoutesById {
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/verificar-conta': typeof VerificarContaRoute
+  '/_auth/agenda': typeof AuthAgendaRoute
   '/_auth/busca': typeof AuthBuscaRoute
   '/_auth/compartilhamentos': typeof AuthCompartilhamentosRoute
   '/_auth/dashboard': typeof AuthDashboardRoute
@@ -207,6 +216,7 @@ export interface FileRouteTypes {
     | '/recuperar-senha'
     | '/redefinir-senha'
     | '/verificar-conta'
+    | '/agenda'
     | '/busca'
     | '/compartilhamentos'
     | '/dashboard'
@@ -228,6 +238,7 @@ export interface FileRouteTypes {
     | '/recuperar-senha'
     | '/redefinir-senha'
     | '/verificar-conta'
+    | '/agenda'
     | '/busca'
     | '/compartilhamentos'
     | '/dashboard'
@@ -250,6 +261,7 @@ export interface FileRouteTypes {
     | '/recuperar-senha'
     | '/redefinir-senha'
     | '/verificar-conta'
+    | '/_auth/agenda'
     | '/_auth/busca'
     | '/_auth/compartilhamentos'
     | '/_auth/dashboard'
@@ -400,6 +412,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthBuscaRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/agenda': {
+      id: '/_auth/agenda'
+      path: '/agenda'
+      fullPath: '/agenda'
+      preLoaderRoute: typeof AuthAgendaRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/api/public/share/validate-otp': {
       id: '/api/public/share/validate-otp'
       path: '/api/public/share/validate-otp'
@@ -425,6 +444,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthRouteChildren {
+  AuthAgendaRoute: typeof AuthAgendaRoute
   AuthBuscaRoute: typeof AuthBuscaRoute
   AuthCompartilhamentosRoute: typeof AuthCompartilhamentosRoute
   AuthDashboardRoute: typeof AuthDashboardRoute
@@ -437,6 +457,7 @@ interface AuthRouteChildren {
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
+  AuthAgendaRoute: AuthAgendaRoute,
   AuthBuscaRoute: AuthBuscaRoute,
   AuthCompartilhamentosRoute: AuthCompartilhamentosRoute,
   AuthDashboardRoute: AuthDashboardRoute,
