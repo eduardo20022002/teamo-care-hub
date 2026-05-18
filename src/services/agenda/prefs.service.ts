@@ -6,7 +6,6 @@ const DEV_BYPASS =
 
 const MOCK_USER_ID = "00000000-0000-0000-0000-000000000001";
 
-// Em DEV bypass mantemos as prefs em memória para o ciclo da página.
 let mockPrefs: AgendaNotificationPrefs | null = DEV_BYPASS
   ? {
       user_id: MOCK_USER_ID,
@@ -30,26 +29,13 @@ export async function getNotificationPrefs(
   userId: string,
 ): Promise<AgendaNotificationPrefs | null> {
   if (DEV_BYPASS) return mockPrefs;
-  const { data, error } = await (
-    supabase as unknown as {
-      from: (t: string) => {
-        select: (s: string) => {
-          eq: (c: string, v: string) => {
-            maybeSingle: () => Promise<{
-              data: AgendaNotificationPrefs | null;
-              error: { message: string } | null;
-            }>;
-          };
-        };
-      };
-    }
-  )
+  const { data, error } = await supabase
     .from("agenda_notification_prefs")
     .select("*")
     .eq("user_id", userId)
     .maybeSingle();
   if (error) throw new Error(mapError(error.message));
-  return data;
+  return (data ?? null) as AgendaNotificationPrefs | null;
 }
 
 export interface NotificationPrefsInput {
@@ -68,26 +54,14 @@ export async function upsertNotificationPrefs(
     mockPrefs = {
       user_id: userId,
       ...input,
-      onboarding_completed: input.onboarding_completed ?? mockPrefs?.onboarding_completed ?? false,
+      onboarding_completed:
+        input.onboarding_completed ?? mockPrefs?.onboarding_completed ?? false,
       updated_at: new Date().toISOString(),
     };
     return mockPrefs;
   }
   const payload = { user_id: userId, ...input };
-  const { data, error } = await (
-    supabase as unknown as {
-      from: (t: string) => {
-        upsert: (p: typeof payload, opts: { onConflict: string }) => {
-          select: () => {
-            single: () => Promise<{
-              data: AgendaNotificationPrefs | null;
-              error: { message: string } | null;
-            }>;
-          };
-        };
-      };
-    }
-  )
+  const { data, error } = await supabase
     .from("agenda_notification_prefs")
     .upsert(payload, { onConflict: "user_id" })
     .select()

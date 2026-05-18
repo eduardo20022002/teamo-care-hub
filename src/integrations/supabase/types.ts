@@ -14,6 +14,276 @@ export type Database = {
   }
   public: {
     Tables: {
+      agenda_events: {
+        Row: {
+          child_id: string
+          created_at: string
+          end_at: string | null
+          id: string
+          locale: string | null
+          professional_id: string | null
+          professional_name_raw: string | null
+          recurrence: Json
+          reminders: Json
+          start_at: string
+          status: string
+          title: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          child_id: string
+          created_at?: string
+          end_at?: string | null
+          id?: string
+          locale?: string | null
+          professional_id?: string | null
+          professional_name_raw?: string | null
+          recurrence?: Json
+          reminders?: Json
+          start_at: string
+          status?: string
+          title: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          child_id?: string
+          created_at?: string
+          end_at?: string | null
+          id?: string
+          locale?: string | null
+          professional_id?: string | null
+          professional_name_raw?: string | null
+          recurrence?: Json
+          reminders?: Json
+          start_at?: string
+          status?: string
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agenda_events_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_events_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agenda_notification_prefs: {
+        Row: {
+          onboarding_completed: boolean
+          one_day_before: boolean
+          one_hour_before: boolean
+          pending_observations: boolean
+          post_event_register: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          onboarding_completed?: boolean
+          one_day_before?: boolean
+          one_hour_before?: boolean
+          pending_observations?: boolean
+          post_event_register?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          onboarding_completed?: boolean
+          one_day_before?: boolean
+          one_hour_before?: boolean
+          pending_observations?: boolean
+          post_event_register?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      agenda_notifications: {
+        Row: {
+          actioned_at: string | null
+          body: string
+          created_at: string
+          deep_link: string
+          event_id: string | null
+          fire_at: string
+          id: string
+          kind: string
+          observation_ids: string[] | null
+          read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          actioned_at?: string | null
+          body: string
+          created_at?: string
+          deep_link: string
+          event_id?: string | null
+          fire_at: string
+          id?: string
+          kind: string
+          observation_ids?: string[] | null
+          read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          actioned_at?: string | null
+          body?: string
+          created_at?: string
+          deep_link?: string
+          event_id?: string | null
+          fire_at?: string
+          id?: string
+          kind?: string
+          observation_ids?: string[] | null
+          read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agenda_notifications_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "agenda_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agenda_observation_attachments: {
+        Row: {
+          created_at: string
+          duration_seconds: number | null
+          filename: string
+          id: string
+          kind: string
+          mime_type: string
+          observation_id: string
+          size_bytes: number
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number | null
+          filename: string
+          id?: string
+          kind: string
+          mime_type: string
+          observation_id: string
+          size_bytes: number
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number | null
+          filename?: string
+          id?: string
+          kind?: string
+          mime_type?: string
+          observation_id?: string
+          size_bytes?: number
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agenda_observation_attachments_observation_id_fkey"
+            columns: ["observation_id"]
+            isOneToOne: false
+            referencedRelation: "agenda_observations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agenda_observations: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          promoted_to_record_id: string | null
+          reminder_dismissed: boolean
+          reminder_enabled: boolean
+          reminder_fire_at: string | null
+          reminder_target_event_id: string | null
+          reminder_target_professional_id: string | null
+          text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          promoted_to_record_id?: string | null
+          reminder_dismissed?: boolean
+          reminder_enabled?: boolean
+          reminder_fire_at?: string | null
+          reminder_target_event_id?: string | null
+          reminder_target_professional_id?: string | null
+          text: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          promoted_to_record_id?: string | null
+          reminder_dismissed?: boolean
+          reminder_enabled?: boolean
+          reminder_fire_at?: string | null
+          reminder_target_event_id?: string | null
+          reminder_target_professional_id?: string | null
+          text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agenda_observations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "agenda_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_observations_promoted_to_record_id_fkey"
+            columns: ["promoted_to_record_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_observations_reminder_target_event_id_fkey"
+            columns: ["reminder_target_event_id"]
+            isOneToOne: false
+            referencedRelation: "agenda_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_observations_reminder_target_professional_id_fkey"
+            columns: ["reminder_target_professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_records: {
         Row: {
           category: string
@@ -335,7 +605,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      schedule_agenda_notifications: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

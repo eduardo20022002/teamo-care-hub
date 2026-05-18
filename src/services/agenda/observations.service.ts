@@ -22,8 +22,6 @@ function mockDaysAgo(days: number, hour = 14, minute = 50): string {
 
 const MOCK_USER_ID = "00000000-0000-0000-0000-000000000001";
 
-// Mocks só para preview do detalhe — observações ancoradas ao evento "ev-2"
-// (Terapia ABA de hoje) com obs antigas pra mostrar relative dates.
 const MOCK_OBSERVATIONS_BY_EVENT: Record<string, AgendaObservation[]> = DEV_BYPASS
   ? {
       "ev-2": [
@@ -74,7 +72,6 @@ const MOCK_OBSERVATIONS_BY_EVENT: Record<string, AgendaObservation[]> = DEV_BYPA
     }
   : {};
 
-// Pendentes apontando para "Dra. Carla" (Retorno neuropediatra = ev-3).
 const MOCK_PENDING_FOR_EVENT_3: AgendaObservation[] = DEV_BYPASS
   ? [
       {
@@ -122,12 +119,22 @@ const MOCK_PENDING_FOR_EVENT_3: AgendaObservation[] = DEV_BYPASS
     ]
   : [];
 
-// Origem dos eventos referenciados pelos mocks pendentes (pra mostrar "Terapia ABA · 17/05" etc.)
-export const MOCK_EVENT_ORIGIN: Record<string, { title: string; type: string; dateLabel: string }> = DEV_BYPASS
+export const MOCK_EVENT_ORIGIN: Record<
+  string,
+  { title: string; type: string; dateLabel: string }
+> = DEV_BYPASS
   ? {
       "ev-2": { title: "Terapia ABA", type: "terapia", dateLabel: "Hoje" },
-      "ev-fono-prev": { title: "Fonoaudiologia", type: "terapia", dateLabel: "Há 5 dias" },
-      "ev-aee-prev": { title: "Reunião AEE", type: "escola", dateLabel: "Há 9 dias" },
+      "ev-fono-prev": {
+        title: "Fonoaudiologia",
+        type: "terapia",
+        dateLabel: "Há 5 dias",
+      },
+      "ev-aee-prev": {
+        title: "Reunião AEE",
+        type: "escola",
+        dateLabel: "Há 9 dias",
+      },
     }
   : {};
 
@@ -142,38 +149,17 @@ export async function listObservationsByEvent(
   eventId: string,
 ): Promise<AgendaObservation[]> {
   if (DEV_BYPASS) return MOCK_OBSERVATIONS_BY_EVENT[eventId] ?? [];
-  const { data, error } = await (
-    supabase as unknown as {
-      from: (t: string) => {
-        select: (s: string) => {
-          eq: (
-            col: string,
-            v: string,
-          ) => {
-            order: (
-              col: string,
-              opts: { ascending: boolean },
-            ) => Promise<{
-              data: AgendaObservation[] | null;
-              error: { message: string } | null;
-            }>;
-          };
-        };
-      };
-    }
-  )
+  const { data, error } = await supabase
     .from("agenda_observations")
     .select("*")
     .eq("event_id", eventId)
     .order("created_at", { ascending: false });
   if (error) throw new Error(mapError(error.message));
-  return data ?? [];
+  return (data ?? []) as unknown as AgendaObservation[];
 }
 
 /**
- * Observações ainda pendentes (reminder ativo, não dispensadas, não viradas
- * em registro) que apontam pra um evento específico.
- * Usado pela Tela 12 (variante pré-consulta).
+ * Observações pendentes apontando para um EVENTO específico (Tela 12).
  */
 export async function listPendingObservationsByEvent(
   targetEventId: string,
@@ -181,26 +167,7 @@ export async function listPendingObservationsByEvent(
   if (DEV_BYPASS) {
     return targetEventId === "ev-3" ? MOCK_PENDING_FOR_EVENT_3 : [];
   }
-  const { data, error } = await (
-    supabase as unknown as {
-      from: (t: string) => {
-        select: (s: string) => {
-          eq: (c: string, v: string) => {
-            eq: (c: string, v: boolean) => {
-              eq: (c: string, v: boolean) => {
-                is: (c: string, v: null) => {
-                  order: (c: string, o: { ascending: boolean }) => Promise<{
-                    data: AgendaObservation[] | null;
-                    error: { message: string } | null;
-                  }>;
-                };
-              };
-            };
-          };
-        };
-      };
-    }
-  )
+  const { data, error } = await supabase
     .from("agenda_observations")
     .select("*")
     .eq("reminder_target_event_id", targetEventId)
@@ -209,7 +176,40 @@ export async function listPendingObservationsByEvent(
     .is("promoted_to_record_id", null)
     .order("created_at", { ascending: true });
   if (error) throw new Error(mapError(error.message));
-  return data ?? [];
+  return (data ?? []) as unknown as AgendaObservation[];
+}
+
+/**
+ * Observações pendentes apontando para um PROFISSIONAL (Tela 13).
+ */
+export async function listPendingObservationsByProfessional(
+  professionalId: string,
+): Promise<AgendaObservation[]> {
+  if (DEV_BYPASS) {
+    return professionalId === "prof-carla" ? MOCK_PENDING_FOR_EVENT_3 : [];
+  }
+  const { data, error } = await supabase
+    .from("agenda_observations")
+    .select("*")
+    .eq("reminder_target_professional_id", professionalId)
+    .eq("reminder_enabled", true)
+    .eq("reminder_dismissed", false)
+    .is("promoted_to_record_id", null)
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(mapError(error.message));
+  return (data ?? []) as unknown as AgendaObservation[];
+}
+
+export async function dismissAllByProfessional(
+  professionalId: string,
+): Promise<void> {
+  if (DEV_BYPASS) return;
+  const { error } = await supabase
+    .from("agenda_observations")
+    .update({ reminder_dismissed: true })
+    .eq("reminder_target_professional_id", professionalId)
+    .eq("reminder_dismissed", false);
+  if (error) throw new Error(mapError(error.message));
 }
 
 export async function createObservation(
@@ -226,47 +226,40 @@ export async function createObservation(
     event_id: input.event_id,
     text: input.text.trim(),
     reminder_enabled: input.reminder_enabled,
-    reminder_target_professional_id: input.reminder_target_professional_id ?? null,
+    reminder_target_professional_id:
+      input.reminder_target_professional_id ?? null,
     reminder_fire_at: input.reminder_fire_at ?? null,
   };
-  const { data, error } = await (
-    supabase as unknown as {
-      from: (t: string) => {
-        insert: (p: AgendaObservationInsert) => {
-          select: () => {
-            single: () => Promise<{
-              data: AgendaObservation | null;
-              error: { message: string } | null;
-            }>;
-          };
-        };
-      };
-    }
-  )
+  const { data, error } = await supabase
     .from("agenda_observations")
     .insert(payload)
     .select()
     .single();
   if (error) throw new Error(mapError(error.message));
-  return data as AgendaObservation;
+  return data as unknown as AgendaObservation;
 }
 
 export async function dismissObservation(observationId: string): Promise<void> {
   if (DEV_BYPASS) return;
-  const { error } = await (
-    supabase as unknown as {
-      from: (t: string) => {
-        update: (p: { reminder_dismissed: boolean }) => {
-          eq: (
-            c: string,
-            v: string,
-          ) => Promise<{ error: { message: string } | null }>;
-        };
-      };
-    }
-  )
+  const { error } = await supabase
     .from("agenda_observations")
     .update({ reminder_dismissed: true })
+    .eq("id", observationId);
+  if (error) throw new Error(mapError(error.message));
+}
+
+/**
+ * Marca uma observação como promovida a um attendance_record.
+ * Mantém o vínculo bi-direcional pra evitar duplicações.
+ */
+export async function markObservationPromoted(
+  observationId: string,
+  recordId: string,
+): Promise<void> {
+  if (DEV_BYPASS) return;
+  const { error } = await supabase
+    .from("agenda_observations")
+    .update({ promoted_to_record_id: recordId })
     .eq("id", observationId);
   if (error) throw new Error(mapError(error.message));
 }

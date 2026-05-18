@@ -26,15 +26,31 @@ import {
   updateAttendanceRecord,
   type AttendanceRecordWithRelations,
 } from "@/services/attendance.service";
+import { listAgendaEvents } from "@/services/agenda/events.service";
+import { listObservationsByEvent } from "@/services/agenda/observations.service";
+import { useEffect } from "react";
 import {
   countRecordAttachments,
   uploadRecordAttachment,
 } from "@/services/attachments.service";
 import type { AttendanceRecordInput } from "@/lib/validation";
 
+interface PainelSearch {
+  prefillFromEvent?: string;
+  prefillObsId?: string;
+}
+
 export const Route = createFileRoute("/_auth/painel")({
   head: () => ({
     meta: [{ title: "Painel — TEAmo" }],
+  }),
+  validateSearch: (search: Record<string, unknown>): PainelSearch => ({
+    prefillFromEvent:
+      typeof search.prefillFromEvent === "string"
+        ? search.prefillFromEvent
+        : undefined,
+    prefillObsId:
+      typeof search.prefillObsId === "string" ? search.prefillObsId : undefined,
   }),
   component: PainelPage,
 });
@@ -42,11 +58,19 @@ export const Route = createFileRoute("/_auth/painel")({
 function PainelPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const { prefillFromEvent, prefillObsId } = Route.useSearch();
 
   const [filters, setFilters] = useState<RecordFiltersValue>(EMPTY_RECORD_FILTERS);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<AttendanceRecordWithRelations | null>(null);
   const [deleting, setDeleting] = useState<AttendanceRecordWithRelations | null>(null);
+  const [prefill, setPrefill] = useState<{
+    childId?: string;
+    professionalId?: string | null;
+    professionalName?: string;
+    content?: string;
+    recordDate?: string;
+  } | null>(null);
 
   const childrenQuery = useQuery({
     queryKey: ["children"],
@@ -63,6 +87,48 @@ function PainelPage() {
     queryFn: listAttendanceRecords,
     enabled: !!user,
   });
+
+  // Pré-fill quando vem de "Virar registro" numa obs / "Registrar atendimento" no detalhe
+  const eventsForPrefillQuery = useQuery({
+    queryKey: ["agenda-events"],
+    queryFn: listAgendaEvents,
+    enabled: !!user && !!prefillFromEvent,
+  });
+  const obsForPrefillQuery = useQuery({
+    queryKey: ["agenda-obs-prefill", prefillFromEvent],
+    queryFn: () => listObservationsByEvent(prefillFromEvent!),
+    enabled: !!user && !!prefillFromEvent,
+  });
+
+  useEffect(() => {
+    if (!prefillFromEvent) return;
+    const ev = eventsForPrefillQuery.data?.find(
+      (e) => e.id === prefillFromEvent,
+    );
+    if (!ev) return;
+    let content = "";
+    if (prefillObsId) {
+      const obs = obsForPrefillQuery.data?.find((o) => o.id === prefillObsId);
+      if (obs) content = obs.text;
+    } else if (obsForPrefillQuery.data) {
+      content = obsForPrefillQuery.data.map((o) => `• ${o.text}`).join("\n");
+    }
+    setPrefill({
+      childId: ev.child_id,
+      professionalId: ev.professional?.id ?? null,
+      professionalName:
+        ev.professional?.name ?? ev.professional_name_raw ?? "",
+      recordDate: ev.start_at.slice(0, 10),
+      content,
+    });
+    setEditing(null);
+    setFormOpen(true);
+  }, [
+    prefillFromEvent,
+    prefillObsId,
+    eventsForPrefillQuery.data,
+    obsForPrefillQuery.data,
+  ]);
 
   const createMutation = useMutation({
     mutationFn: async (vars: {
@@ -272,13 +338,17 @@ function PainelPage() {
         open={formOpen}
         onOpenChange={(o) => {
           setFormOpen(o);
-          if (!o) setEditing(null);
+          if (!o) {
+            setEditing(null);
+            setPrefill(null);
+          }
         }}
         onSubmit={handleSubmit}
         submitting={createMutation.isPending || updateMutation.isPending}
         childrenList={childrenList}
         professionals={professionalsList}
         initial={editing}
+        prefill={prefill}
       />
 
       <DeleteAttendanceDialog

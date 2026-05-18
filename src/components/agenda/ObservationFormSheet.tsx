@@ -1,13 +1,18 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Bell, Calendar, ChevronDown, FileImage, Loader2, Mic, Paperclip, X } from "lucide-react";
 import { agendaObservationSchema, type AgendaObservationInput } from "@/lib/agenda/validation";
 import { ALERT_TONE, BRAND_GRADIENT, BRAND_SHADOW } from "@/lib/agenda/tokens";
+import { validateObservationFile } from "@/services/agenda/attachments.service";
+import { toast } from "sonner";
 import type { Professional } from "@/types/database";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: AgendaObservationInput) => Promise<void> | void;
+  onSubmit: (
+    data: AgendaObservationInput,
+    pendingFiles?: File[],
+  ) => Promise<void> | void;
   submitting?: boolean;
   eventId: string;
   professionals: Professional[];
@@ -40,6 +45,26 @@ export function ObservationFormSheet({
   const [targetProfId, setTargetProfId] = useState<string>("");
   const [fireAt, setFireAt] = useState<string>("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFiles = (list: FileList | null) => {
+    if (!list) return;
+    const next: File[] = [];
+    for (const f of Array.from(list)) {
+      const v = validateObservationFile(f);
+      if (v.ok) {
+        next.push(f);
+      } else {
+        toast.error(`${f.name}: ${v.error}`);
+      }
+    }
+    if (next.length) setPendingFiles((prev) => [...prev, ...next]);
+  };
+  const removeFile = (idx: number) =>
+    setPendingFiles((prev) => prev.filter((_, i) => i !== idx));
 
   useEffect(() => {
     if (open && currentEventProfessional?.id) {
@@ -77,11 +102,12 @@ export function ObservationFormSheet({
       return;
     }
     setErrors({});
-    await onSubmit(parsed.data);
+    await onSubmit(parsed.data, pendingFiles);
     setText("");
     setReminderEnabled(false);
     setTargetProfId("");
     setFireAt("");
+    setPendingFiles([]);
   };
 
   const handleClose = () => {
@@ -168,19 +194,106 @@ export function ObservationFormSheet({
             <span style={{ color: "#9CA3AF", fontWeight: 500 }}>(opcional)</span>
           </label>
           <div className="flex gap-2">
-            <AttachButton icon={<FileImage size={16} strokeWidth={1.7} color="#7C3AED" />}>
+            <AttachBtn
+              icon={<FileImage size={16} strokeWidth={1.7} color="#7C3AED" />}
+              onClick={() => photoInputRef.current?.click()}
+            >
               Foto
-            </AttachButton>
-            <AttachButton icon={<Mic size={16} strokeWidth={1.7} color="#EC4899" />}>
+            </AttachBtn>
+            <AttachBtn
+              icon={<Mic size={16} strokeWidth={1.7} color="#EC4899" />}
+              onClick={() => audioInputRef.current?.click()}
+            >
               Áudio
-            </AttachButton>
-            <AttachButton icon={<Paperclip size={16} strokeWidth={1.7} color="#6B7280" />}>
+            </AttachBtn>
+            <AttachBtn
+              icon={<Paperclip size={16} strokeWidth={1.7} color="#6B7280" />}
+              onClick={() => fileInputRef.current?.click()}
+            >
               Arquivo
-            </AttachButton>
+            </AttachBtn>
           </div>
-          <p className="mt-1.5 text-[11.5px]" style={{ color: "#9CA3AF" }}>
-            Upload de anexos chega em breve. Por ora você pode salvar a observação por texto.
-          </p>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+            className="hidden"
+            multiple
+            onChange={(e) => {
+              handleFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          <input
+            ref={audioInputRef}
+            type="file"
+            accept="audio/mpeg,audio/mp4,audio/wav,audio/webm"
+            className="hidden"
+            multiple
+            onChange={(e) => {
+              handleFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf,image/jpeg,image/png,image/webp"
+            className="hidden"
+            multiple
+            onChange={(e) => {
+              handleFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          {pendingFiles.length > 0 && (
+            <div className="mt-2 flex flex-col gap-1.5">
+              {pendingFiles.map((f, idx) => (
+                <div
+                  key={`${f.name}-${idx}`}
+                  className="flex items-center gap-2.5 rounded-[10px] px-3 py-2"
+                  style={{ background: "#F6F7FB" }}
+                >
+                  <div
+                    className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg"
+                    style={{ background: "#F3E8FF" }}
+                  >
+                    {f.type.startsWith("image/") ? (
+                      <FileImage size={14} strokeWidth={1.7} color="#7C3AED" />
+                    ) : f.type.startsWith("audio/") ? (
+                      <Mic size={14} strokeWidth={1.7} color="#EC4899" />
+                    ) : (
+                      <Paperclip size={14} strokeWidth={1.7} color="#7C3AED" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div
+                      className="truncate text-[13px] font-semibold"
+                      style={{ color: "#0F172A" }}
+                    >
+                      {f.name}
+                    </div>
+                    <div
+                      className="text-[11px]"
+                      style={{ color: "#9CA3AF" }}
+                    >
+                      {(f.size / 1024 < 1024
+                        ? `${(f.size / 1024).toFixed(0)} KB`
+                        : `${(f.size / 1024 / 1024).toFixed(1)} MB`)}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(idx)}
+                    aria-label="Remover anexo"
+                    className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-[#E5E7EB]"
+                  >
+                    <X size={14} strokeWidth={2} color="#6B7280" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Bloco laranja "Lembrar de mencionar" */}
           <div
@@ -323,20 +436,21 @@ export function ObservationFormSheet({
   );
 }
 
-function AttachButton({
+function AttachBtn({
   icon,
   children,
+  onClick,
 }: {
   icon: React.ReactNode;
   children: React.ReactNode;
+  onClick: () => void;
 }) {
   return (
     <button
       type="button"
-      disabled
-      className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border bg-white text-[12.5px] font-bold opacity-60"
-      style={{ borderColor: "#E5E7EB", color: "#374151", cursor: "not-allowed" }}
-      title="Em breve"
+      onClick={onClick}
+      className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border bg-white text-[12.5px] font-bold transition-colors hover:bg-[#F4F5FA]"
+      style={{ borderColor: "#E5E7EB", color: "#374151" }}
     >
       {icon}
       {children}

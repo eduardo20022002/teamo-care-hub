@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -31,8 +31,18 @@ import { RenewShareDialog } from "@/components/sharing/RenewShareDialog";
 import type { ExpiryHours } from "@/components/sharing/ShareExpiryStep";
 import { useState } from "react";
 
+interface SharesSearch {
+  prefillEventId?: string;
+}
+
 export const Route = createFileRoute("/_auth/compartilhamentos")({
   head: () => ({ meta: [{ title: "Compartilhamentos — TEAmo" }] }),
+  validateSearch: (search: Record<string, unknown>): SharesSearch => ({
+    prefillEventId:
+      typeof search.prefillEventId === "string"
+        ? search.prefillEventId
+        : undefined,
+  }),
   component: SharesPage,
 });
 
@@ -73,8 +83,20 @@ function SharesPage() {
   const listFn = useListShares();
   const revokeFn = useRevokeShare();
   const renewFn = useRenewShare();
+  const { prefillEventId } = Route.useSearch();
   const [shareOpen, setShareOpen] = useState(false);
   const [renewTarget, setRenewTarget] = useState<ShareSummary | null>(null);
+
+  // Quando chega de "Compartilhar evento via link" no detalhe da Agenda,
+  // abre o modal direto com hint visual.
+  useEffect(() => {
+    if (prefillEventId) {
+      setShareOpen(true);
+      toast.message(
+        "Pré-selecione conteúdo do evento abaixo (anexos/registros associados).",
+      );
+    }
+  }, [prefillEventId]);
 
   const sharesQuery = useQuery({
     queryKey: ["shares"],

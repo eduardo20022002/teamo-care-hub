@@ -1,8 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { listAgendaEvents } from "@/services/agenda/events.service";
-import { listPendingObservationsByEvent } from "@/services/agenda/observations.service";
 import type { AgendaEventType } from "@/types/agenda";
+
+const DEV_BYPASS =
+  import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_AUTH === "true";
 
 type NotifTone = "neutral" | "sage" | "warm" | "rose";
 
@@ -18,6 +21,21 @@ export interface AgendaNotifItem {
   group: "Hoje" | "Ontem" | "Mais antigas";
 }
 
+interface AgendaNotificationRow {
+  id: string;
+  kind:
+    | "event_one_day_before"
+    | "event_one_hour_before"
+    | "pending_observations"
+    | "post_event_register_prompt"
+    | "medication_due";
+  event_id: string | null;
+  fire_at: string;
+  body: string;
+  deep_link: string;
+  read_at: string | null;
+}
+
 function isSameDay(a: Date, b: Date): boolean {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -25,61 +43,106 @@ function isSameDay(a: Date, b: Date): boolean {
     a.getDate() === b.getDate()
   );
 }
-
 function isYesterday(d: Date): boolean {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  return isSameDay(d, yesterday);
+  const y = new Date();
+  y.setDate(y.getDate() - 1);
+  return isSameDay(d, y);
 }
-
 function fmtHourMin(d: Date): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-function diffMs(a: Date, b: Date): number {
-  return a.getTime() - b.getTime();
-}
+const KIND_TONE: Record<AgendaNotificationRow["kind"], NotifTone> = {
+  event_one_day_before: "sage",
+  event_one_hour_before: "sage",
+  pending_observations: "warm",
+  post_event_register_prompt: "neutral",
+  medication_due: "rose",
+};
+
+const KIND_CTA: Partial<Record<AgendaNotificationRow["kind"], string>> = {
+  pending_observations: "Abrir lista",
+  post_event_register_prompt: "Registrar atendimento",
+};
 
 /**
- * Calcula notificações on-demand a partir do estado atual de eventos e
- * observações pendentes. Em uma fase posterior, isso será substituído por
- * notificações pré-computadas em tabela (com scheduler real).
+ * Lê notificações da tabela agenda_notifications (materializadas server-side
+ * por public.schedule_agenda_notifications via pg_cron).
+ *
+ * Em DEV bypass, fallback pra cálculo client-side a partir dos eventos atuais.
  */
 export function useAgendaNotifications(): AgendaNotifItem[] {
   const { user } = useAuth();
+
+  const dbQuery = useQuery({
+    queryKey: ["agenda-notifications", user?.id],
+    queryFn: async (): Promise<AgendaNotificationRow[]> => {
+      const { data, error } = await supabase
+        .from("agenda_notifications")
+        .select("id, kind, event_id, fire_at, body, deep_link, read_at")
+        .lte("fire_at", new Date().toISOString())
+        .order("fire_at", { ascending: false })
+        .limit(20);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as AgendaNotificationRow[];
+    },
+    enabled: !!user && !DEV_BYPASS,
+    refetchInterval: 60_000, // refresh a cada 1 min
+  });
+
+  // Fallback DEV: calcula localmente a partir dos eventos mock
   const eventsQuery = useQuery({
     queryKey: ["agenda-events"],
     queryFn: listAgendaEvents,
-    enabled: !!user,
+    enabled: !!user && DEV_BYPASS,
   });
 
-  const events = eventsQuery.data ?? [];
-  const now = new Date();
+  if (DEV_BYPASS) {
+    return computeLocal(eventsQuery.data ?? []);
+  }
+
   const items: AgendaNotifItem[] = [];
+  const now = new Date();
+  for (const row of dbQuery.data ?? []) {
+    const fireAt = new Date(row.fire_at);
+    const group: AgendaNotifItem["group"] = isSameDay(fireAt, now)
+      ? "Hoje"
+      : isYesterday(fireAt)
+      ? "Ontem"
+      : "Mais antigas";
+    items.push({
+      id: row.id,
+      time: group === "Hoje" ? fmtHourMin(fireAt) : `${group.toLowerCase()} ${fmtHourMin(fireAt)}`,
+      title: row.body,
+      body: "",
+      tone: KIND_TONE[row.kind],
+      cta: KIND_CTA[row.kind],
+      deepLink: row.deep_link,
+      group,
+    });
+  }
+  return items;
+}
 
-  // Pendentes — apontando para o próximo evento do profissional.
-  // Por ora só pra o ev-3 (mocks); a versão real virá com server-side.
-  // Mantemos via query separada por evento futuro.
-  // Para evitar muitas queries, só processamos eventos de hoje.
-  // (Skip on first pass since the listPendingObservationsByEvent needs a per-event query)
-
+function computeLocal(
+  events: Awaited<ReturnType<typeof listAgendaEvents>>,
+): AgendaNotifItem[] {
+  const items: AgendaNotifItem[] = [];
+  const now = new Date();
   for (const ev of events) {
     const startAt = new Date(ev.start_at);
     if (!isSameDay(startAt, now) && !isYesterday(startAt)) continue;
     if (ev.status === "missed" || ev.status === "rescheduled") continue;
-
     const group: AgendaNotifItem["group"] = isSameDay(startAt, now)
       ? "Hoje"
       : "Ontem";
-
-    // 1 hora antes (eventos futuros de hoje)
     const oneHourBefore = new Date(startAt);
     oneHourBefore.setHours(startAt.getHours() - 1);
     if (
       isSameDay(startAt, now) &&
       ev.reminders.oneHourBefore &&
-      diffMs(now, oneHourBefore) >= 0 &&
-      diffMs(now, startAt) <= 0
+      now.getTime() >= oneHourBefore.getTime() &&
+      now.getTime() <= startAt.getTime()
     ) {
       items.push({
         id: `${ev.id}-1h`,
@@ -87,19 +150,17 @@ export function useAgendaNotifications(): AgendaNotifItem[] {
         title: `Em 1 hora · ${ev.title}`,
         body: ev.locale
           ? `Saia em 30 minutos · ${ev.locale}`
-          : "Preparar materiais e profissional.",
+          : "Preparar materiais.",
         tone: "sage",
         type: ev.type,
         group,
         deepLink: `/agenda/${ev.id}`,
       });
     }
-
-    // Medicação no horário
     if (
       ev.type === "medicacao" &&
       isSameDay(startAt, now) &&
-      Math.abs(diffMs(now, startAt)) <= 30 * 60 * 1000
+      Math.abs(now.getTime() - startAt.getTime()) <= 30 * 60 * 1000
     ) {
       items.push({
         id: `${ev.id}-med`,
@@ -112,8 +173,6 @@ export function useAgendaNotifications(): AgendaNotifItem[] {
         deepLink: `/agenda/${ev.id}`,
       });
     }
-
-    // Pós-atendimento sem registro
     if (
       isYesterday(startAt) &&
       ev.status === "upcoming" &&
@@ -124,7 +183,7 @@ export function useAgendaNotifications(): AgendaNotifItem[] {
         id: `${ev.id}-post`,
         time: `ontem ${fmtHourMin(startAt)}`,
         title: `Como foi ${ev.title}?`,
-        body: "Você não registrou o atendimento. Quer registrar agora?",
+        body: "Você não registrou o atendimento. Quer registrar?",
         tone: "neutral",
         cta: "Registrar atendimento",
         group,
@@ -132,9 +191,5 @@ export function useAgendaNotifications(): AgendaNotifItem[] {
       });
     }
   }
-
   return items;
 }
-
-// Re-export pra evitar warnings de unused
-export { listPendingObservationsByEvent };

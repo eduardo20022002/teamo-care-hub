@@ -161,22 +161,12 @@ const SELECT_WITH_RELATIONS =
 
 export async function listAgendaEvents(): Promise<AgendaEventWithRelations[]> {
   if (DEV_BYPASS) return MOCK_EVENTS;
-  // Cast pra burlar tipos gerados (que ainda não conhecem agenda_events)
-  const { data, error } = await (supabase as unknown as {
-    from: (table: string) => {
-      select: (s: string) => {
-        order: (col: string, opts: { ascending: boolean }) => Promise<{
-          data: AgendaEventWithRelations[] | null;
-          error: { message: string } | null;
-        }>;
-      };
-    };
-  })
+  const { data, error } = await supabase
     .from("agenda_events")
     .select(SELECT_WITH_RELATIONS)
     .order("start_at", { ascending: true });
   if (error) throw new Error(mapError(error.message));
-  return (data ?? []) as AgendaEventWithRelations[];
+  return (data ?? []) as unknown as AgendaEventWithRelations[];
 }
 
 export async function createAgendaEvent(
@@ -205,37 +195,21 @@ export async function createAgendaEvent(
     recurrence: input.recurrence,
     reminders: input.reminders,
   };
-  const { data, error } = await (supabase as unknown as {
-    from: (t: string) => {
-      insert: (p: AgendaEventInsert) => {
-        select: () => {
-          single: () => Promise<{
-            data: AgendaEvent | null;
-            error: { message: string } | null;
-          }>;
-        };
-      };
-    };
-  })
+  const { data, error } = await supabase
     .from("agenda_events")
-    .insert(payload)
+    // recurrence/reminders são JSONB no schema — TS gera tipo Json estrito;
+    // o payload já tem o shape correto então fazemos cast pra simplificar.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .insert(payload as any)
     .select()
     .single();
   if (error) throw new Error(mapError(error.message));
-  return data as AgendaEvent;
+  return data as unknown as AgendaEvent;
 }
 
 export async function deleteAgendaEvent(id: string): Promise<void> {
   if (DEV_BYPASS) return;
-  const { error } = await (supabase as unknown as {
-    from: (t: string) => {
-      delete: () => {
-        eq: (col: string, val: string) => Promise<{
-          error: { message: string } | null;
-        }>;
-      };
-    };
-  })
+  const { error } = await supabase
     .from("agenda_events")
     .delete()
     .eq("id", id);
@@ -249,15 +223,7 @@ export async function updateAgendaEventStatus(
   status: AgendaEventStatus,
 ): Promise<void> {
   if (DEV_BYPASS) return;
-  const { error } = await (supabase as unknown as {
-    from: (t: string) => {
-      update: (p: { status: AgendaEventStatus }) => {
-        eq: (col: string, val: string) => Promise<{
-          error: { message: string } | null;
-        }>;
-      };
-    };
-  })
+  const { error } = await supabase
     .from("agenda_events")
     .update({ status })
     .eq("id", id);

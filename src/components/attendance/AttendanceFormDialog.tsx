@@ -43,6 +43,18 @@ interface Props {
   professionals: Professional[];
   initial?: AttendanceRecord | null;
   defaultChildId?: string;
+  /**
+   * Valores a pré-popular ao abrir (sem editar registro existente).
+   * Usado quando o usuário vem de "Virar registro" numa observação.
+   */
+  prefill?: {
+    childId?: string;
+    professionalId?: string | null;
+    professionalName?: string;
+    content?: string;
+    recordDate?: string; // YYYY-MM-DD
+    category?: string;
+  } | null;
 }
 
 type FieldErrors = Partial<Record<keyof AttendanceRecordInput, string>>;
@@ -58,6 +70,7 @@ export function AttendanceFormDialog({
   professionals,
   initial,
   defaultChildId,
+  prefill,
 }: Props) {
   const [childId, setChildId] = useState("");
   const [professional, setProfessional] = useState<ProfessionalSelection>({
@@ -81,6 +94,19 @@ export function AttendanceFormDialog({
       setCategory(initial.category);
       setContent(initial.content);
       setRecordDate(initial.record_date);
+    } else if (prefill) {
+      setChildId(
+        prefill.childId ??
+          defaultChildId ??
+          (childrenList.length === 1 ? childrenList[0].id : ""),
+      );
+      setProfessional({
+        professional_id: prefill.professionalId ?? null,
+        professional_name: prefill.professionalName ?? "",
+      });
+      setCategory(prefill.category ?? "");
+      setContent(prefill.content ?? "");
+      setRecordDate(prefill.recordDate ?? todayISO());
     } else {
       setChildId(defaultChildId ?? (childrenList.length === 1 ? childrenList[0].id : ""));
       setProfessional({ professional_id: null, professional_name: "" });
@@ -90,7 +116,7 @@ export function AttendanceFormDialog({
     }
     setErrors({});
     setPendingFiles([]);
-  }, [open, initial, defaultChildId, childrenList]);
+  }, [open, initial, defaultChildId, childrenList, prefill]);
 
   const isEdit = !!initial;
 

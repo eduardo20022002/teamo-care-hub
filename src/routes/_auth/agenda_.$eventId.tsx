@@ -28,6 +28,10 @@ import {
   listPendingObservationsByEvent,
   createObservation,
 } from "@/services/agenda/observations.service";
+import {
+  listObservationAttachments,
+  uploadObservationAttachment,
+} from "@/services/agenda/attachments.service";
 import { listProfessionals } from "@/services/professionals.service";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -177,10 +181,34 @@ function AgendaEventDetailPage() {
   });
 
   const createObsMutation = useMutation({
-    mutationFn: (data: AgendaObservationInput) =>
-      createObservation(user!.id, data),
-    onSuccess: () => {
+    mutationFn: async (vars: {
+      data: AgendaObservationInput;
+      pendingFiles?: File[];
+    }) => {
+      const obs = await createObservation(user!.id, vars.data);
+      const files = vars.pendingFiles ?? [];
+      let success = 0;
+      const failed: string[] = [];
+      for (const file of files) {
+        try {
+          await uploadObservationAttachment(user!.id, obs.id, file);
+          success++;
+        } catch (e) {
+          failed.push(`${file.name}: ${(e as Error).message}`);
+        }
+      }
+      return { attachmentSuccess: success, attachmentFailed: failed };
+    },
+    onSuccess: ({ attachmentSuccess, attachmentFailed }) => {
       toast.success("Observação salva.");
+      if (attachmentSuccess > 0) {
+        toast.success(
+          attachmentSuccess === 1
+            ? "Anexo enviado."
+            : `${attachmentSuccess} anexos enviados.`,
+        );
+      }
+      for (const msg of attachmentFailed) toast.error(msg);
       qc.invalidateQueries({ queryKey: ["agenda-observations", eventId] });
       qc.invalidateQueries({ queryKey: ["agenda-events"] });
       setSheetOpen(false);
@@ -234,15 +262,10 @@ function AgendaEventDetailPage() {
   };
 
   const promoteToRegistro = (obsId: string) => {
-    const obs = observations.find((o) => o.id === obsId);
-    if (!obs) return;
     navigate({
       to: "/painel",
-      search: {
-        // ainda não temos query params; o painel pode ignorar e mostrar o form.
-      },
+      search: { prefillFromEvent: eventId, prefillObsId: obsId },
     });
-    toast.message("Abra o painel de Registros e crie um a partir da observação.");
   };
 
   return (
@@ -356,8 +379,9 @@ function AgendaEventDetailPage() {
         ) : (
           <div className="flex flex-col gap-2.5">
             {observations.map((obs) => (
-              <NoteCard
+              <NoteCardWithAttachments
                 key={obs.id}
+                observationId={obs.id}
                 observation={obs}
                 reminderLabel={
                   obs.reminder_enabled && obs.reminder_fire_at
@@ -369,7 +393,9 @@ function AgendaEventDetailPage() {
                     : null
                 }
                 onPromote={() => promoteToRegistro(obs.id)}
-                onEdit={() => toast.message("Edição de observação — em breve.")}
+                onEdit={() =>
+                  toast.message("Edição de observação — em breve.")
+                }
               />
             ))}
           </div>
@@ -389,7 +415,12 @@ function AgendaEventDetailPage() {
         <div className="mt-6 flex flex-col gap-2">
           <button
             type="button"
-            onClick={() => navigate({ to: "/painel" })}
+            onClick={() =>
+              navigate({
+                to: "/painel",
+                search: { prefillFromEvent: eventId },
+              })
+            }
             className="flex h-12 items-center justify-center gap-2 rounded-xl text-[14px] font-bold text-white transition-transform hover:-translate-y-px"
             style={{ background: BRAND_GRADIENT, boxShadow: BRAND_SHADOW }}
           >
@@ -398,7 +429,12 @@ function AgendaEventDetailPage() {
           </button>
           <button
             type="button"
-            onClick={() => navigate({ to: "/compartilhamentos" })}
+            onClick={() =>
+              navigate({
+                to: "/compartilhamentos",
+                search: { prefillEventId: eventId },
+              })
+            }
             className="flex h-[46px] items-center justify-center gap-2 rounded-xl border bg-white text-[14px] font-bold transition-colors hover:bg-[#F4F5FA]"
             style={{ borderColor: "#E5E7EB", color: "#0F172A" }}
           >
@@ -413,8 +449,8 @@ function AgendaEventDetailPage() {
       <ObservationFormSheet
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        onSubmit={async (data) => {
-          await createObsMutation.mutateAsync(data);
+        onSubmit={async (data, pendingFiles) => {
+          await createObsMutation.mutateAsync({ data, pendingFiles });
         }}
         submitting={createObsMutation.isPending}
         eventId={eventId}
@@ -426,5 +462,39 @@ function AgendaEventDetailPage() {
         }
       />
     </AppShell>
+  );
+}
+
+function NoteCardWithAttachments({
+  observationId,
+  observation,
+  reminderLabel,
+  onPromote,
+  onEdit,
+}: {
+  observationId: string;
+  observation: Parameters<typeof NoteCard>[0]["observation"];
+  reminderLabel: string | null;
+  onPromote: () => void;
+  onEdit: () => void;
+}) {
+  const attsQuery = useQuery({
+    queryKey: ["agenda-obs-attachments", observationId],
+    queryFn: () => listObservationAttachments(observationId),
+  });
+  const attachments = (attsQuery.data ?? []).map((a) => ({
+    filename: a.filename,
+    kind: a.kind,
+    durationSeconds: a.duration_seconds,
+    sizeBytes: a.size_bytes,
+  }));
+  return (
+    <NoteCard
+      observation={observation}
+      attachments={attachments}
+      reminderLabel={reminderLabel}
+      onPromote={onPromote}
+      onEdit={onEdit}
+    />
   );
 }

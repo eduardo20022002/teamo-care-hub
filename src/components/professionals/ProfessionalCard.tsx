@@ -1,3 +1,4 @@
+import { useNavigate } from "@tanstack/react-router";
 import { Mail, Pencil, Phone, Trash2 } from "lucide-react";
 import type { Professional } from "@/types/database";
 import { getInitial } from "@/lib/formatters";
@@ -10,9 +11,19 @@ interface Props {
 }
 
 export function ProfessionalCard({ professional, onEdit, onDelete }: Props) {
+  const navigate = useNavigate();
+  const openDetail = () =>
+    navigate({
+      to: "/profissionais/$professionalId",
+      params: { professionalId: professional.id },
+    });
   return (
     <div className="flex flex-col rounded-xl border border-border bg-card p-4 shadow-sm">
-      <div className="flex items-start gap-3">
+      <button
+        type="button"
+        onClick={openDetail}
+        className="flex items-start gap-3 text-left transition-opacity hover:opacity-90"
+      >
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-soft text-sm font-semibold text-primary">
           {getInitial(professional.name)}
         </div>
@@ -24,7 +35,7 @@ export function ProfessionalCard({ professional, onEdit, onDelete }: Props) {
             {professional.specialty}
           </p>
         </div>
-      </div>
+      </button>
 
       <div className="mt-3 space-y-1.5 text-xs text-muted-foreground">
         <p className="flex items-center gap-2 truncate">
