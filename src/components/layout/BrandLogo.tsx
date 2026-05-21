@@ -3,16 +3,9 @@ export function BrandLogo({ className = "" }: { className?: string }) {
     <span
       className={`inline-block font-bold tracking-tight ${className}`}
       aria-label="TEAmo"
-      style={{
-        color: "var(--primary)",
-        backgroundImage:
-          "linear-gradient(90deg, var(--primary) 0%, var(--primary) 60%, var(--accent) 100%)",
-        backgroundClip: "text",
-        WebkitBackgroundClip: "text",
-        WebkitTextFillColor: "transparent",
-      }}
     >
-      TEAmo
+      <span style={{ color: "var(--primary)" }}>TEA</span>
+      <span style={{ color: "var(--accent)" }}>mo</span>
     </span>
   );
 }
