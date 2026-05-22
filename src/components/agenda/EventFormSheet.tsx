@@ -216,7 +216,18 @@ export function EventFormSheet({
           )}
 
           {/* Criança */}
-          {childrenList.length > 1 && (
+          {childrenList.length === 0 ? (
+            <div
+              className="mb-1 rounded-xl border px-3.5 py-3 text-[13px] leading-snug"
+              style={{
+                background: "#FFF7ED",
+                borderColor: "#FED7AA",
+                color: "#9A3412",
+              }}
+            >
+              Cadastre uma criança no Painel antes de criar compromissos.
+            </div>
+          ) : childrenList.length > 1 ? (
             <>
               <FieldLabel className="mt-3.5">Criança</FieldLabel>
               <div className="relative">
@@ -239,7 +250,14 @@ export function EventFormSheet({
                   className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]"
                 />
               </div>
+              {errors.child_id && (
+                <p className="mt-1 text-xs text-red-500">{errors.child_id}</p>
+              )}
             </>
+          ) : null}
+          {/* Mostra erro de criança mesmo quando o select não está visível (0 crianças). */}
+          {errors.child_id && childrenList.length <= 1 && (
+            <p className="mt-1 text-xs text-red-500">{errors.child_id}</p>
           )}
 
           {/* Profissional */}
@@ -414,7 +432,7 @@ export function EventFormSheet({
           {/* CTA */}
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || childrenList.length === 0}
             className="mt-5 flex h-[50px] w-full items-center justify-center gap-2 rounded-xl text-[15px] font-bold text-white transition-all hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
             style={{
               background: BRAND_GRADIENT,

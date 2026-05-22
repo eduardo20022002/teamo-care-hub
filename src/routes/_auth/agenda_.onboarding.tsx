@@ -155,8 +155,18 @@ function AgendaOnboardingPage() {
           post_event_register: reminderPrefs.postEventRegister,
           onboarding_completed: true,
         });
+        qc.invalidateQueries({ queryKey: ["agenda-prefs", user.id] });
       } catch {
-        // dev bypass / network falha → segue
+        // Não conseguimos persistir — guardamos localmente pra não ficar em loop
+        // de redirect com /agenda. O fluxo principal segue.
+        try {
+          window.localStorage.setItem(
+            `agenda_onboarding_skipped:${user.id}`,
+            "1",
+          );
+        } catch {
+          /* localStorage indisponível — segue */
+        }
       }
     }
     navigate({ to: "/agenda" });

@@ -87,11 +87,24 @@ function AgendaPage() {
   // Auto-redirect ao tutorial se for primeira vez E não tem compromisso ainda.
   // Se o usuário já cadastrou algo manualmente sem terminar o tutorial,
   // respeitamos isso (não interrompemos com fluxo guiado).
+  // Também respeitamos um flag local caso o upsert de prefs tenha falhado —
+  // evita loop infinito de redirect.
   useEffect(() => {
     if (eventsQuery.isLoading || prefsQuery.isLoading) return;
     const events = eventsQuery.data ?? [];
     const completed = prefsQuery.data?.onboarding_completed ?? false;
-    if (events.length === 0 && !completed) {
+    let locallySkipped = false;
+    try {
+      locallySkipped =
+        !!user &&
+        typeof window !== "undefined" &&
+        window.localStorage.getItem(
+          `agenda_onboarding_skipped:${user.id}`,
+        ) === "1";
+    } catch {
+      /* localStorage indisponível */
+    }
+    if (events.length === 0 && !completed && !locallySkipped) {
       navigate({ to: "/agenda/onboarding" });
     }
   }, [
@@ -100,6 +113,7 @@ function AgendaPage() {
     prefsQuery.data,
     prefsQuery.isLoading,
     navigate,
+    user,
   ]);
 
   const childrenQuery = useQuery({
