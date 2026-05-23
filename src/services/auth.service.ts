@@ -5,6 +5,8 @@ import { logAuthEvent } from "./audit.service";
 export interface AuthResult {
   ok: boolean;
   error?: string;
+  /** true quando o Supabase exige confirmação de e-mail antes de criar sessão */
+  needsConfirmation?: boolean;
 }
 
 function translateAuthError(message: string): string {
@@ -62,7 +64,9 @@ export async function signUp(
     };
   }
   await logAuthEvent(data.user?.id ?? null, "auth.signup_success", {});
-  return { ok: true };
+  // Quando e-mail de confirmação está habilitado, Supabase retorna session null.
+  // Nesse caso, o usuário precisa confirmar antes de ter acesso autenticado.
+  return { ok: true, needsConfirmation: !data.session };
 }
 
 export async function resendVerification(email: string): Promise<AuthResult> {

@@ -74,8 +74,16 @@ function SignupPage() {
       toast.error(res.error ?? "Não foi possível criar a conta.");
       return;
     }
-    toast.success("Conta criada com sucesso!");
-    navigate({ to: "/onboarding" });
+    if (res.needsConfirmation) {
+      // Confirmação de e-mail pendente — salva email para exibir na tela de verificação
+      sessionStorage.setItem("teamo:pendingEmail", email);
+      toast.success("Conta criada! Verifique seu e-mail para confirmar.");
+      navigate({ to: "/verificar-conta" });
+    } else {
+      // Confirmação desativada no Supabase — sessão já está ativa
+      toast.success("Conta criada com sucesso!");
+      navigate({ to: "/onboarding" });
+    }
   };
 
   return (
