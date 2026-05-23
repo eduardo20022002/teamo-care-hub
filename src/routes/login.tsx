@@ -30,6 +30,13 @@ function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [submitting, setSubmitting] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
   useEffect(() => {
     if (!loading && user) navigate({ to: "/dashboard" });
@@ -53,6 +60,7 @@ function LoginPage() {
     setSubmitting(false);
     if (!res.ok) {
       toast.error(res.error ?? "Não foi possível entrar.");
+      if (res.rateLimitSeconds) setCooldown(res.rateLimitSeconds);
       return;
     }
     toast.success("Bem-vindo de volta!");
@@ -151,7 +159,7 @@ function LoginPage() {
           {/* Botão entrar */}
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || cooldown > 0}
             className="flex items-center justify-center gap-2 w-full text-white font-semibold text-sm transition-all duration-200 hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             style={{
               height: 52,
@@ -165,6 +173,8 @@ function LoginPage() {
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Entrando…
               </>
+            ) : cooldown > 0 ? (
+              `Aguarde ${cooldown}s`
             ) : (
               "Entrar"
             )}

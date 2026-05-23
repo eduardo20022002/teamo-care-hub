@@ -7,17 +7,32 @@ export interface AuthResult {
   error?: string;
   /** true quando o Supabase exige confirmação de e-mail antes de criar sessão */
   needsConfirmation?: boolean;
+  /** segundos de espera quando o erro é rate limit — para a UI travar o botão */
+  rateLimitSeconds?: number;
 }
 
 function translateAuthError(message: string): string {
   const m = message.toLowerCase();
-  if (m.includes("invalid login")) return "E-mail ou senha incorretos.";
-  if (m.includes("already registered") || m.includes("already exists"))
-    return "Este e-mail já está cadastrado. Faça login.";
-  if (m.includes("user already registered"))
+  if (m.includes("invalid login") || m.includes("invalid credentials"))
+    return "E-mail ou senha incorretos.";
+  if (m.includes("already registered") || m.includes("already exists") || m.includes("user already registered"))
     return "Este e-mail já está cadastrado. Faça login.";
   if (m.includes("password") && m.includes("pwned"))
     return "Esta senha aparece em vazamentos conhecidos. Escolha outra.";
+  if (m.includes("email not confirmed"))
+    return "Confirme seu e-mail antes de entrar. Verifique sua caixa de entrada.";
+  if (m.includes("invalid token") || m.includes("token has expired") || m.includes("otp expired"))
+    return "Este link expirou ou já foi usado. Solicite um novo.";
+  if (m.includes("new password should be different"))
+    return "A nova senha deve ser diferente da senha atual.";
+  if ((m.includes("password") && m.includes("at least")) || m.includes("weak password"))
+    return "A senha é muito fraca. Use ao menos 8 caracteres com letras, números e um símbolo.";
+  if (m.includes("signup_disabled") || m.includes("signups not allowed"))
+    return "O cadastro está temporariamente desativado. Tente mais tarde.";
+  if (m.includes("email address") && m.includes("invalid"))
+    return "O endereço de e-mail é inválido.";
+  if (m.includes("user not found") || m.includes("no user found"))
+    return "Não foi possível concluir. Verifique os dados e tente novamente.";
   if (
     m.includes("rate limit") ||
     m.includes("for security purposes") ||
@@ -33,6 +48,20 @@ function translateAuthError(message: string): string {
   if (m.includes("network") || m.includes("fetch"))
     return "Falha de conexão. Verifique sua internet e tente novamente.";
   return "Não foi possível concluir. Tente novamente.";
+}
+
+/** Extrai segundos de espera de mensagens de rate limit do Supabase. */
+function getRateLimitSeconds(message: string): number | undefined {
+  const m = message.toLowerCase();
+  const isRateLimit =
+    m.includes("rate limit") ||
+    m.includes("for security purposes") ||
+    m.includes("you can only request") ||
+    m.includes("over_email_send_rate_limit") ||
+    m.includes("too many");
+  if (!isRateLimit) return undefined;
+  const match = message.match(/(\d+)\s*seconds?/i);
+  return match ? parseInt(match[1]) : 60;
 }
 
 export async function signUp(
@@ -53,7 +82,7 @@ export async function signUp(
   });
   if (error) {
     await logAuthEvent(null, "auth.login_failure", { stage: "signup" });
-    return { ok: false, error: translateAuthError(error.message) };
+    return { ok: false, error: translateAuthError(error.message), rateLimitSeconds: getRateLimitSeconds(error.message) };
   }
   // Supabase retorna user com identities vazio quando o email já está cadastrado
   // (proteção contra enumeração). Detectamos aqui para dar feedback claro.
@@ -77,7 +106,7 @@ export async function resendVerification(email: string): Promise<AuthResult> {
     email,
     options: { emailRedirectTo: redirectTo },
   });
-  if (error) return { ok: false, error: translateAuthError(error.message) };
+  if (error) return { ok: false, error: translateAuthError(error.message), rateLimitSeconds: getRateLimitSeconds(error.message) };
   return { ok: true };
 }
 
@@ -85,7 +114,7 @@ export async function signIn(email: string, password: string): Promise<AuthResul
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     await logAuthEvent(null, "auth.login_failure", {});
-    return { ok: false, error: translateAuthError(error.message) };
+    return { ok: false, error: translateAuthError(error.message), rateLimitSeconds: getRateLimitSeconds(error.message) };
   }
   await logAuthEvent(data.user?.id ?? null, "auth.login_success", {});
   return { ok: true };
@@ -121,7 +150,7 @@ export async function requestPasswordReset(email: string): Promise<AuthResult> {
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
   if (error) {
     await logAuthEvent(null, "auth.login_failure", { stage: "password_reset_request" });
-    return { ok: false, error: translateAuthError(error.message) };
+    return { ok: false, error: translateAuthError(error.message), rateLimitSeconds: getRateLimitSeconds(error.message) };
   }
   // Intentionally generic — never confirm if email exists (prevents enumeration)
   return { ok: true };

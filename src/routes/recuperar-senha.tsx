@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,13 @@ function RecoverPasswordPage() {
   const [emailError, setEmailError] = useState<string | undefined>();
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -35,9 +42,15 @@ function RecoverPasswordPage() {
     }
     setEmailError(undefined);
     setSubmitting(true);
-    // Always show success to avoid email enumeration
-    await requestPasswordReset(parsed.data);
+    const res = await requestPasswordReset(parsed.data);
     setSubmitting(false);
+    // Rate limit: único erro que expomos explicitamente (os demais são genéricos para evitar enumeração)
+    if (!res.ok && res.rateLimitSeconds) {
+      toast.error(res.error ?? "Muitas tentativas. Aguarde antes de tentar novamente.");
+      setCooldown(res.rateLimitSeconds);
+      return;
+    }
+    // Para todos os outros casos (sucesso ou e-mail não encontrado), mostramos sucesso genérico
     setSent(true);
   };
 
@@ -93,9 +106,9 @@ function RecoverPasswordPage() {
                 {emailError && <p className="text-xs text-destructive">{emailError}</p>}
               </div>
 
-              <Button type="submit" className="w-full" disabled={submitting}>
+              <Button type="submit" className="w-full" disabled={submitting || cooldown > 0}>
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Enviar link de recuperação
+                {cooldown > 0 ? `Aguarde ${cooldown}s` : "Enviar link de recuperação"}
               </Button>
             </form>
           </>

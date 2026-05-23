@@ -33,8 +33,8 @@ function ResetPasswordPage() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    // Supabase sends a PASSWORD_RECOVERY event when the magic link is followed.
-    // We wait for it to establish an authenticated session before allowing form submission.
+    // Supabase envia PASSWORD_RECOVERY quando o link de redefinição é seguido.
+    // Aguardamos esse evento antes de liberar o formulário.
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY" && session) {
         setSessionReady(true);
@@ -42,12 +42,17 @@ function ResetPasswordPage() {
         setSessionError(true);
       }
     });
-    // Also check if there's already an active recovery session (e.g. page refresh)
-    supabase.auth.getSession().then(({ data: d }) => {
-      if (d.session) setSessionReady(true);
-    });
     return () => data.subscription.unsubscribe();
   }, []);
+
+  // Se o evento PASSWORD_RECOVERY não chegar em 12s, o link é inválido ou expirado.
+  useEffect(() => {
+    if (sessionReady) return;
+    const timer = setTimeout(() => {
+      setSessionError(true);
+    }, 12_000);
+    return () => clearTimeout(timer);
+  }, [sessionReady]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();

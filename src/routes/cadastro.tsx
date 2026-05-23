@@ -40,6 +40,13 @@ function SignupPage() {
     terms?: string;
   }>({});
   const [submitting, setSubmitting] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
   useEffect(() => {
     if (!loading && user) {
@@ -72,11 +79,13 @@ function SignupPage() {
     setSubmitting(false);
     if (!res.ok) {
       toast.error(res.error ?? "Não foi possível criar a conta.");
+      if (res.rateLimitSeconds) setCooldown(res.rateLimitSeconds);
       return;
     }
     if (res.needsConfirmation) {
       // Confirmação de e-mail pendente — salva email para exibir na tela de verificação
-      sessionStorage.setItem("teamo:pendingEmail", email);
+      // try/catch: Safari em modo privado pode bloquear sessionStorage
+      try { sessionStorage.setItem("teamo:pendingEmail", email); } catch { /* não crítico */ }
       toast.success("Conta criada! Verifique seu e-mail para confirmar.");
       navigate({ to: "/verificar-conta" });
     } else {
@@ -254,7 +263,7 @@ function SignupPage() {
           {/* Botão criar conta */}
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || cooldown > 0}
             className="flex items-center justify-center gap-2 w-full text-white font-semibold text-sm transition-all duration-200 hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             style={{
               height: 52,
@@ -268,6 +277,8 @@ function SignupPage() {
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Criando conta…
               </>
+            ) : cooldown > 0 ? (
+              `Aguarde ${cooldown}s`
             ) : (
               "Criar minha conta"
             )}
