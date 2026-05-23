@@ -68,12 +68,12 @@ const EXPLORE_TILES = [
     desc: "Médicos, terapeutas e equipe escolar.",
   },
   {
-    to: "/painel" as const,
+    to: "/registros" as const,
     tint: "#FDF2F8",
     color: "#EC4899",
     icon: ClipboardList,
     title: "Registros",
-    desc: "Painel consolidado com filtros.",
+    desc: "Histórico diário — comportamentos, conquistas e mais.",
   },
   {
     to: "/documentos" as const,

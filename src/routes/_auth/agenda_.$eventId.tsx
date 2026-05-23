@@ -168,7 +168,7 @@ function AgendaEventDetailPage() {
         toast.success("Marcado como aconteceu. Quer registrar?", {
           action: {
             label: "Registrar",
-            onClick: () => navigate({ to: "/painel" }),
+            onClick: () => navigate({ to: "/registros" }),
           },
         });
       } else if (vars.status === "rescheduled") {
@@ -263,7 +263,7 @@ function AgendaEventDetailPage() {
 
   const promoteToRegistro = (obsId: string) => {
     navigate({
-      to: "/painel",
+      to: "/registros",
       search: { prefillFromEvent: eventId, prefillObsId: obsId },
     });
   };
@@ -417,7 +417,7 @@ function AgendaEventDetailPage() {
             type="button"
             onClick={() =>
               navigate({
-                to: "/painel",
+                to: "/registros",
                 search: { prefillFromEvent: eventId },
               })
             }

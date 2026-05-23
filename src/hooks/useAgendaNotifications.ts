@@ -187,7 +187,7 @@ function computeLocal(
         tone: "neutral",
         cta: "Registrar atendimento",
         group,
-        deepLink: "/painel",
+        deepLink: "/registros",
       });
     }
   }
