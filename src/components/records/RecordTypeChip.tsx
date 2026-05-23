@@ -1,10 +1,10 @@
-import type { ComponentType } from "react";
+import type { ComponentType, CSSProperties } from "react";
 import {
   Star, Trophy, Moon, Activity, Utensils, Sparkles, PenLine,
 } from "lucide-react";
 import { RECORD_TYPE_CONFIG, type RecordType } from "@/lib/validation";
 
-type IconComponent = ComponentType<{ className?: string; strokeWidth?: number }>;
+type IconComponent = ComponentType<{ className?: string; strokeWidth?: number; style?: CSSProperties }>;
 
 const ICONS: Record<RecordType, IconComponent> = {
   comportamento: Star,

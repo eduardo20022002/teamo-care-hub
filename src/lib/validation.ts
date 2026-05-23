@@ -230,7 +230,7 @@ export const diaryRecordSchema = z.object({
     }, "A data não pode ser futura."),
   title: z.string().trim().max(200).nullable().optional(),
   content: z.string().trim().max(5000).nullable().optional(),
-  type_data: z.record(z.unknown()).nullable().optional(),
+  type_data: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 
 export type DiaryRecordInput = z.infer<typeof diaryRecordSchema>;
