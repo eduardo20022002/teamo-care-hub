@@ -439,6 +439,30 @@ export type Database = {
         }
         Relationships: []
       }
+      feedback: {
+        Row: {
+          created_at: string
+          id: string
+          message: string | null
+          rating: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          rating: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          rating?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       professionals: {
         Row: {
           created_at: string
@@ -478,18 +502,21 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          is_admin: boolean
         }
         Insert: {
           created_at?: string
           email: string
           full_name?: string | null
           id: string
+          is_admin?: boolean
         }
         Update: {
           created_at?: string
           email?: string
           full_name?: string | null
           id?: string
+          is_admin?: boolean
         }
         Relationships: []
       }

@@ -3,6 +3,7 @@ import { Bell, LogOut, Menu, Share2, ShieldCheck } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { NotificationsDrawer } from "@/components/agenda/NotificationsDrawer";
+import { FeedbackButton } from "@/components/feedback/FeedbackButton";
 import { useAgendaNotifications } from "@/hooks/useAgendaNotifications";
 import {
   DropdownMenu,
@@ -113,6 +114,9 @@ export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu
             : undefined,
         }))}
       />
+
+      {/* Botão de feedback — oculto em páginas de onboarding (hideMenu) */}
+      {!hideMenu && <FeedbackButton />}
     </div>
   );
 }

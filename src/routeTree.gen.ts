@@ -19,6 +19,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as CompartilhamentoTokenRouteImport } from './routes/compartilhamento.$token'
 import { Route as AuthSegurancaRouteImport } from './routes/_auth/seguranca'
 import { Route as AuthRegistrosRouteImport } from './routes/_auth/registros'
+import { Route as AuthFeedbacksRouteImport } from './routes/_auth/feedbacks'
 import { Route as AuthProfissionaisRouteImport } from './routes/_auth/profissionais'
 import { Route as AuthPainelRouteImport } from './routes/_auth/painel'
 import { Route as AuthOnboardingRouteImport } from './routes/_auth/onboarding'
@@ -82,6 +83,11 @@ const AuthSegurancaRoute = AuthSegurancaRouteImport.update({
 const AuthRegistrosRoute = AuthRegistrosRouteImport.update({
   id: '/registros',
   path: '/registros',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthFeedbacksRoute = AuthFeedbacksRouteImport.update({
+  id: '/feedbacks',
+  path: '/feedbacks',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthProfissionaisRoute = AuthProfissionaisRouteImport.update({
@@ -176,6 +182,7 @@ export interface FileRoutesByFullPath {
   '/compartilhamentos': typeof AuthCompartilhamentosRoute
   '/dashboard': typeof AuthDashboardRoute
   '/documentos': typeof AuthDocumentosRoute
+  '/feedbacks': typeof AuthFeedbacksRoute
   '/onboarding': typeof AuthOnboardingRoute
   '/painel': typeof AuthPainelRoute
   '/profissionais': typeof AuthProfissionaisRoute
@@ -202,6 +209,7 @@ export interface FileRoutesByTo {
   '/compartilhamentos': typeof AuthCompartilhamentosRoute
   '/dashboard': typeof AuthDashboardRoute
   '/documentos': typeof AuthDocumentosRoute
+  '/feedbacks': typeof AuthFeedbacksRoute
   '/onboarding': typeof AuthOnboardingRoute
   '/painel': typeof AuthPainelRoute
   '/profissionais': typeof AuthProfissionaisRoute
@@ -230,6 +238,7 @@ export interface FileRoutesById {
   '/_auth/compartilhamentos': typeof AuthCompartilhamentosRoute
   '/_auth/dashboard': typeof AuthDashboardRoute
   '/_auth/documentos': typeof AuthDocumentosRoute
+  '/_auth/feedbacks': typeof AuthFeedbacksRoute
   '/_auth/onboarding': typeof AuthOnboardingRoute
   '/_auth/painel': typeof AuthPainelRoute
   '/_auth/profissionais': typeof AuthProfissionaisRoute
@@ -258,6 +267,7 @@ export interface FileRouteTypes {
     | '/compartilhamentos'
     | '/dashboard'
     | '/documentos'
+    | '/feedbacks'
     | '/onboarding'
     | '/painel'
     | '/profissionais'
@@ -284,6 +294,7 @@ export interface FileRouteTypes {
     | '/compartilhamentos'
     | '/dashboard'
     | '/documentos'
+    | '/feedbacks'
     | '/onboarding'
     | '/painel'
     | '/profissionais'
@@ -311,6 +322,7 @@ export interface FileRouteTypes {
     | '/_auth/compartilhamentos'
     | '/_auth/dashboard'
     | '/_auth/documentos'
+    | '/_auth/feedbacks'
     | '/_auth/onboarding'
     | '/_auth/painel'
     | '/_auth/profissionais'
@@ -440,6 +452,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthDocumentosRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/feedbacks': {
+      id: '/_auth/feedbacks'
+      path: '/feedbacks'
+      fullPath: '/feedbacks'
+      preLoaderRoute: typeof AuthFeedbacksRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/dashboard': {
       id: '/_auth/dashboard'
       path: '/dashboard'
@@ -526,6 +545,7 @@ interface AuthRouteChildren {
   AuthCompartilhamentosRoute: typeof AuthCompartilhamentosRoute
   AuthDashboardRoute: typeof AuthDashboardRoute
   AuthDocumentosRoute: typeof AuthDocumentosRoute
+  AuthFeedbacksRoute: typeof AuthFeedbacksRoute
   AuthOnboardingRoute: typeof AuthOnboardingRoute
   AuthPainelRoute: typeof AuthPainelRoute
   AuthProfissionaisRoute: typeof AuthProfissionaisRoute
@@ -543,6 +563,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthCompartilhamentosRoute: AuthCompartilhamentosRoute,
   AuthDashboardRoute: AuthDashboardRoute,
   AuthDocumentosRoute: AuthDocumentosRoute,
+  AuthFeedbacksRoute: AuthFeedbacksRoute,
   AuthOnboardingRoute: AuthOnboardingRoute,
   AuthPainelRoute: AuthPainelRoute,
   AuthProfissionaisRoute: AuthProfissionaisRoute,
