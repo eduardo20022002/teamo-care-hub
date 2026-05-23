@@ -1,17 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ShareStepper } from "./ShareStepper";
+
+const BRAND_GRADIENT =
+  "linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)";
+const BRAND_SHADOW =
+  "0 8px 18px -8px rgba(79,70,229,0.45), 0 3px 8px -3px rgba(236,72,153,0.25)";
 import { ShareContentStep } from "./ShareContentStep";
 import { ShareProfessionalStep } from "./ShareProfessionalStep";
 import { ShareExpiryStep, type ExpiryHours } from "./ShareExpiryStep";
@@ -172,19 +169,47 @@ export function ShareDialog({
   const url = result ? buildPublicShareUrl(result.token) : "";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Compartilhar com profissional</DialogTitle>
-          <DialogDescription>
-            Gere um link seguro com prazo. O profissional confirma o acesso com um código de 6
-            dígitos enviado para o e-mail dele.
-          </DialogDescription>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="bottom"
+        className="max-h-[92vh] overflow-y-auto rounded-t-[24px] px-0 pb-0 pt-0"
+      >
+        <SheetTitle className="sr-only">Compartilhar com profissional</SheetTitle>
 
-        <ShareStepper step={step} />
+        {/* Drag handle */}
+        <div className="flex justify-center pb-1 pt-3">
+          <div className="h-1 w-10 rounded-full bg-[#E5E7EB]" />
+        </div>
 
-        <div className="min-h-[280px]">
+        {/* Header */}
+        <div className="flex items-start justify-between px-5 pb-4 pt-3">
+          <div>
+            <h2 className="text-[17px] font-bold text-foreground">
+              Compartilhar com profissional
+            </h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Gere um link seguro com prazo. O profissional confirma o acesso com
+              um código de 6 dígitos enviado por e-mail.
+            </p>
+          </div>
+          {step !== 4 && (
+            <button
+              type="button"
+              onClick={handleClose}
+              className="ml-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F6F7FB] text-muted-foreground hover:bg-[#EEF0F4]"
+            >
+              <X className="h-4 w-4" strokeWidth={2} />
+            </button>
+          )}
+        </div>
+
+        <div className="h-px bg-[#EEF0F4]" />
+
+        <div className="px-5 pt-4">
+          <ShareStepper step={step} />
+        </div>
+
+        <div className="min-h-[260px] px-5 py-4">
           {step === 1 && (
             <ShareContentStep
               records={recordsQuery.data ?? []}
@@ -216,26 +241,36 @@ export function ShareDialog({
         </div>
 
         {step !== 4 && (
-          <DialogFooter className="flex-row justify-between gap-2 sm:flex-row sm:justify-between">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={step === 1 ? handleClose : handleBack}
-              disabled={submitShare.isPending}
-            >
-              {step === 1 ? "Cancelar" : "Voltar"}
-            </Button>
-            <Button
+          <div className="space-y-3 px-5 pb-8 pt-2">
+            <button
               type="button"
               onClick={handleNext}
               disabled={!canNext || submitShare.isPending}
+              className="flex h-[50px] w-full items-center justify-center rounded-[12px] text-sm font-semibold text-white disabled:opacity-45"
+              style={{
+                background: BRAND_GRADIENT,
+                boxShadow: canNext && !submitShare.isPending ? BRAND_SHADOW : "none",
+              }}
             >
-              {submitShare.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {step === 3 ? "Gerar link" : "Avançar"}
-            </Button>
-          </DialogFooter>
+              {submitShare.isPending ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : step === 3 ? (
+                "Gerar link"
+              ) : (
+                "Avançar"
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={step === 1 ? handleClose : handleBack}
+              disabled={submitShare.isPending}
+              className="w-full py-2 text-sm text-muted-foreground"
+            >
+              {step === 1 ? "Cancelar" : "Voltar"}
+            </button>
+          </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

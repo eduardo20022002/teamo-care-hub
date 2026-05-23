@@ -5,7 +5,11 @@ import { ArrowLeft, FolderOpen, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
-import { Button } from "@/components/ui/button";
+
+const BRAND_GRADIENT =
+  "linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)";
+const BRAND_SHADOW =
+  "0 8px 18px -8px rgba(79,70,229,0.45), 0 3px 8px -3px rgba(236,72,153,0.25)";
 import { useAuth } from "@/hooks/useAuth";
 import { listChildren } from "@/services/children.service";
 import {
@@ -146,7 +150,7 @@ function DocumentosPage() {
 
   return (
     <AppShell>
-      <div className="mb-6">
+      <div className="mb-5">
         <Link
           to="/dashboard"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -156,21 +160,33 @@ function DocumentosPage() {
         </Link>
       </div>
 
-      <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground md:text-3xl">
-            <FolderOpen className="h-6 w-6 text-primary" strokeWidth={1.75} />
-            Documentos
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Todos os laudos, relatórios e anexos em um só lugar.
-          </p>
+      <header className="mb-6 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]"
+            style={{ background: "#F3E8FF" }}
+          >
+            <FolderOpen className="h-5 w-5" style={{ color: "#7C3AED" }} strokeWidth={1.75} />
+          </div>
+          <div>
+            <h1 className="text-[19px] font-bold text-foreground leading-tight">
+              Documentos
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Laudos, relatórios e anexos — em um só lugar.
+            </p>
+          </div>
         </div>
         {hasChildren && (
-          <Button onClick={() => setAddOpen(true)}>
-            <Plus className="mr-1 h-4 w-4" strokeWidth={2} />
-            Adicionar documento
-          </Button>
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] px-4 text-sm font-semibold text-white"
+            style={{ background: BRAND_GRADIENT, boxShadow: BRAND_SHADOW }}
+          >
+            <Plus className="h-4 w-4" strokeWidth={2.5} />
+            <span className="hidden sm:inline">Adicionar</span>
+          </button>
         )}
       </header>
 
