@@ -35,12 +35,12 @@ CREATE INDEX IF NOT EXISTS idx_agenda_notif_unread
 
 ALTER TABLE public.agenda_notifications ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "agenda_notif_select_own"
-  ON public.agenda_notifications FOR SELECT
-  TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "agenda_notif_update_own"
-  ON public.agenda_notifications FOR UPDATE
-  TO authenticated USING (auth.uid() = user_id);
+DO $$ BEGIN
+  CREATE POLICY "agenda_notif_select_own" ON public.agenda_notifications FOR SELECT TO authenticated USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE POLICY "agenda_notif_update_own" ON public.agenda_notifications FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 -- INSERT só pelo scheduler (service_role) — não há policy de INSERT pra authenticated.
 -- DELETE também só pelo scheduler.
 
