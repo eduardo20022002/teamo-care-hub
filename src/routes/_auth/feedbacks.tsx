@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { listFeedbackServer } from "@/lib/feedback.functions";
 import type { FeedbackItem } from "@/lib/feedback.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_auth/feedbacks")({
   head: () => ({ meta: [{ title: "Feedbacks — TEAmo" }] }),
@@ -69,7 +70,12 @@ function FeedbackCard({ item }: { item: FeedbackItem }) {
 function FeedbacksPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-feedbacks"],
-    queryFn: () => listFeedbackServer(),
+    queryFn: async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      return listFeedbackServer({ headers } as any);
+    },
     retry: false,
   });
 

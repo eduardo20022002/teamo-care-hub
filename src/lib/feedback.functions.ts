@@ -177,7 +177,7 @@ export const submitFeedbackServer = createServerFn({ method: "POST" })
 
 // ─── listFeedbackServer (admin-only) ─────────────────────────────────────────
 
-export const listFeedbackServer = createServerFn({ method: "GET" })
+export const listFeedbackServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId } = context;

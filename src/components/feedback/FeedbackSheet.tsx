@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { submitFeedbackServer } from "@/lib/feedback.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   open: boolean;
@@ -19,8 +20,15 @@ export function FeedbackSheet({ open, onOpenChange }: Props) {
   const [message, setMessage] = useState("");
 
   const mutation = useMutation({
-    mutationFn: () =>
-      submitFeedbackServer({ data: { rating: rating!, message: message.trim() || undefined } }),
+    mutationFn: async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      return submitFeedbackServer({
+        data: { rating: rating!, message: message.trim() || undefined },
+        headers,
+      } as any);
+    },
     onSuccess: () => {
       toast.success("Obrigado pelo seu feedback! 💜");
       onOpenChange(false);
