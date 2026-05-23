@@ -138,6 +138,103 @@ export const attendanceRecordSchema = z.object({
 
 export type AttendanceRecordInput = z.infer<typeof attendanceRecordSchema>;
 
+// ===== Diário de registros do cuidador (RF-05) =====
+
+export const RECORD_TYPES = [
+  "comportamento",
+  "conquista",
+  "sono",
+  "saude",
+  "alimentacao",
+  "sensorial",
+  "livre",
+] as const;
+
+export type RecordType = (typeof RECORD_TYPES)[number];
+
+export const RECORD_SHIFTS = ["manha", "tarde", "noite", "madrugada"] as const;
+export type RecordShift = (typeof RECORD_SHIFTS)[number];
+
+export const SHIFT_LABELS: Record<RecordShift, string> = {
+  manha: "manhã",
+  tarde: "tarde",
+  noite: "noite",
+  madrugada: "madrugada",
+};
+
+export interface RecordTypeConfig {
+  label: string;
+  color: string;   // primary color
+  tint: string;    // pastel background
+  description: string;
+}
+
+export const RECORD_TYPE_CONFIG: Record<RecordType, RecordTypeConfig> = {
+  comportamento: {
+    label: "Comportamento",
+    color: "#D97706",
+    tint: "#FEF3C7",
+    description: "Crises, agitação, autorregulação",
+  },
+  conquista: {
+    label: "Conquista",
+    color: "#EC4899",
+    tint: "#FDF2F8",
+    description: "Avanços, primeiras vezes",
+  },
+  sono: {
+    label: "Sono",
+    color: "#4F46E5",
+    tint: "#EEF1FF",
+    description: "Horários, qualidade",
+  },
+  saude: {
+    label: "Saúde",
+    color: "#E11D48",
+    tint: "#FFE4E6",
+    description: "Sintomas, medicações",
+  },
+  alimentacao: {
+    label: "Alimentação",
+    color: "#16A34A",
+    tint: "#DCFCE7",
+    description: "Refeições, recusas",
+  },
+  sensorial: {
+    label: "Sensorial",
+    color: "#7C3AED",
+    tint: "#F3E8FF",
+    description: "Gatilhos e reações",
+  },
+  livre: {
+    label: "Anotação livre",
+    color: "#6B7280",
+    tint: "#F4F5FA",
+    description: "Qualquer outra observação",
+  },
+};
+
+export const diaryRecordSchema = z.object({
+  child_id: z.string().uuid("Selecione uma criança."),
+  record_type: z.enum(RECORD_TYPES, { message: "Selecione o tipo de registro." }),
+  shift: z.enum(RECORD_SHIFTS).nullable().optional(),
+  record_date: z
+    .string()
+    .min(1, "Informe a data.")
+    .refine((v) => {
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return false;
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      return d <= today;
+    }, "A data não pode ser futura."),
+  title: z.string().trim().max(200).nullable().optional(),
+  content: z.string().trim().max(5000).nullable().optional(),
+  type_data: z.record(z.unknown()).nullable().optional(),
+});
+
+export type DiaryRecordInput = z.infer<typeof diaryRecordSchema>;
+
 // ===== Anexos (RF-03) =====
 export const ALLOWED_ATTACHMENT_MIME = [
   "application/pdf",

@@ -294,6 +294,10 @@ export type Database = {
           professional_id: string | null
           professional_name: string
           record_date: string
+          record_type: string | null
+          shift: string | null
+          title: string | null
+          type_data: Record<string, unknown>
           updated_at: string
           user_id: string
         }
@@ -306,6 +310,10 @@ export type Database = {
           professional_id?: string | null
           professional_name: string
           record_date: string
+          record_type?: string | null
+          shift?: string | null
+          title?: string | null
+          type_data?: Record<string, unknown>
           updated_at?: string
           user_id: string
         }
@@ -318,6 +326,10 @@ export type Database = {
           professional_id?: string | null
           professional_name?: string
           record_date?: string
+          record_type?: string | null
+          shift?: string | null
+          title?: string | null
+          type_data?: Record<string, unknown>
           updated_at?: string
           user_id?: string
         }

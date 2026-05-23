@@ -4,12 +4,25 @@ import type {
   AttendanceRecordInsert,
   AttendanceRecordUpdate,
 } from "@/types/database";
-import type { AttendanceRecordInput } from "@/lib/validation";
+import type {
+  AttendanceRecordInput,
+  DiaryRecordInput,
+  RecordType,
+  RecordShift,
+} from "@/lib/validation";
 import { deleteAllRecordAttachments } from "./attachments.service";
 
 export interface AttendanceRecordWithRelations extends AttendanceRecord {
   child: { id: string; name: string } | null;
   professional: { id: string; name: string } | null;
+}
+
+/** Extended type that includes the new diary fields (added via migration). */
+export interface DiaryRecordWithRelations extends AttendanceRecordWithRelations {
+  record_type: RecordType | null;
+  shift: RecordShift | null;
+  title: string | null;
+  type_data: Record<string, unknown>;
 }
 
 const SELECT_WITH_RELATIONS =
@@ -85,4 +98,67 @@ export async function deleteAttendanceRecord(id: string): Promise<void> {
     .delete()
     .eq("id", id);
   if (error) throw new Error(mapError(error.message));
+}
+
+// ───────────────────────────────────────────────
+// Diário tipado do cuidador
+// ───────────────────────────────────────────────
+
+export async function listDiaryRecords(): Promise<DiaryRecordWithRelations[]> {
+  const { data, error } = await supabase
+    .from("attendance_records")
+    .select(SELECT_WITH_RELATIONS)
+    .not("record_type", "is", null)
+    .order("record_date", { ascending: false })
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(mapError(error.message));
+  return (data ?? []) as unknown as DiaryRecordWithRelations[];
+}
+
+export async function createDiaryRecord(
+  userId: string,
+  input: DiaryRecordInput,
+): Promise<DiaryRecordWithRelations> {
+  const payload = {
+    user_id: userId,
+    child_id: input.child_id,
+    record_type: input.record_type,
+    shift: input.shift ?? null,
+    title: input.title?.trim() ?? null,
+    content: input.content?.trim() ?? "",
+    type_data: input.type_data ?? {},
+    record_date: input.record_date,
+    // legacy required fields — not used in diary mode
+    professional_name: "",
+    professional_id: null,
+    category: "orientacao",
+  };
+  const { data, error } = await supabase
+    .from("attendance_records")
+    .insert(payload as unknown as AttendanceRecordInsert)
+    .select(SELECT_WITH_RELATIONS)
+    .single();
+  if (error) throw new Error(mapError(error.message));
+  return data as unknown as DiaryRecordWithRelations;
+}
+
+export async function updateDiaryRecord(
+  id: string,
+  input: DiaryRecordInput,
+): Promise<DiaryRecordWithRelations> {
+  const payload = {
+    shift: input.shift ?? null,
+    title: input.title?.trim() ?? null,
+    content: input.content?.trim() ?? "",
+    type_data: input.type_data ?? {},
+    record_date: input.record_date,
+  };
+  const { data, error } = await supabase
+    .from("attendance_records")
+    .update(payload as unknown as AttendanceRecordUpdate)
+    .eq("id", id)
+    .select(SELECT_WITH_RELATIONS)
+    .single();
+  if (error) throw new Error(mapError(error.message));
+  return data as unknown as DiaryRecordWithRelations;
 }
