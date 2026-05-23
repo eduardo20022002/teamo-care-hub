@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Bell, LogOut, Menu, Share2, ShieldCheck } from "lucide-react";
+import { Bell, LogOut, Menu, MessageSquare, Share2, ShieldCheck } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { NotificationsDrawer } from "@/components/agenda/NotificationsDrawer";
 import { FeedbackButton } from "@/components/feedback/FeedbackButton";
@@ -16,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/services/auth.service";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { BrandLogo } from "./BrandLogo";
 
 export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu?: boolean }) {
@@ -25,6 +27,22 @@ export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu
   const [notifOpen, setNotifOpen] = useState(false);
   const notifications = useAgendaNotifications();
   const hasUnread = notifications.length > 0;
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile-admin", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user!.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000, // 5 min — is_admin não muda frequentemente
+  });
+
+  const isAdmin = profile?.is_admin === true;
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -85,6 +103,17 @@ export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu
                     Segurança
                   </Link>
                 </DropdownMenuItem>
+                {isAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild className="text-foreground">
+                      <Link to="/feedbacks">
+                        <MessageSquare className="mr-2 h-4 w-4" strokeWidth={1.75} />
+                        Feedbacks
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleLogout}
