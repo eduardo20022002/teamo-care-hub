@@ -1,6 +1,7 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
+import { useEffect } from "react";
 
 import appCss from "../styles.css?url";
 import { queryClient } from "@/lib/queryClient";
@@ -39,7 +40,14 @@ export const Route = createRootRoute({
         content:
           "TEAmo ajuda pais e responsáveis a organizar o cuidado de crianças com TEA, consolidando informações e facilitando a comunicação com a rede de profissionais.",
       },
-      { name: "theme-color", content: "#3B5BDB" },
+      { name: "theme-color", content: "#4F46E5" },
+      // PWA — iOS
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "TEAmo" },
+      // PWA — Android/geral
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "application-name", content: "TEAmo" },
       { property: "og:title", content: "TEAmo — Cuidado coordenado para crianças com TEA" },
       {
         property: "og:description",
@@ -62,6 +70,10 @@ export const Route = createRootRoute({
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
       },
+      // PWA
+      { rel: "manifest", href: "/manifest.json" },
+      { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
+      { rel: "icon", type: "image/png", sizes: "32x32", href: "/icons/favicon-32.png" },
     ],
   }),
   shellComponent: RootShell,
@@ -84,6 +96,15 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  useEffect(() => {
+    // Registra o service worker para funcionalidades PWA (cache, offline)
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {
+        // Falha silenciosa — app funciona normalmente sem SW
+      });
+    }
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
