@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { logger } from "@/lib/logger";
+import type { Json } from "@/integrations/supabase/types";
 
 const ALLOWED_EVENTS = [
   "auth.signup_success",
@@ -50,7 +51,7 @@ export const logAuthEventServer = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.from("audit_logs").insert({
       user_id: data.userId,
       event_type: data.eventType,
-      metadata,
+      metadata: metadata as Json,
     });
     if (error) {
       logger.error("audit.log_insert_failed", {
