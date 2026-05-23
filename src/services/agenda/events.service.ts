@@ -45,6 +45,8 @@ const MOCK_EVENTS: AgendaEventWithRelations[] = DEV_BYPASS
         status: "upcoming",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        type_data: {},
+        linked_event_id: null,
         child: { id: MOCK_CHILD_ID, name: "Lucas" },
         professional: null,
       },
@@ -64,6 +66,8 @@ const MOCK_EVENTS: AgendaEventWithRelations[] = DEV_BYPASS
         status: "upcoming",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        type_data: {},
+        linked_event_id: null,
         child: { id: MOCK_CHILD_ID, name: "Lucas" },
         professional: null,
         observation_count: 2,
@@ -73,7 +77,7 @@ const MOCK_EVENTS: AgendaEventWithRelations[] = DEV_BYPASS
         id: "ev-3",
         user_id: MOCK_USER_ID,
         child_id: MOCK_CHILD_ID,
-        type: "medica",
+        type: "consulta",
         title: "Retorno neuropediatra",
         professional_id: null,
         professional_name_raw: "Dra. Carla Mendes",
@@ -85,6 +89,8 @@ const MOCK_EVENTS: AgendaEventWithRelations[] = DEV_BYPASS
         status: "upcoming",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        type_data: {},
+        linked_event_id: null,
         child: { id: MOCK_CHILD_ID, name: "Lucas" },
         professional: null,
         observation_count: 3,
@@ -105,6 +111,8 @@ const MOCK_EVENTS: AgendaEventWithRelations[] = DEV_BYPASS
         status: "upcoming",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        type_data: {},
+        linked_event_id: null,
         child: { id: MOCK_CHILD_ID, name: "Lucas" },
         professional: null,
       },
@@ -124,6 +132,8 @@ const MOCK_EVENTS: AgendaEventWithRelations[] = DEV_BYPASS
         status: "upcoming",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        type_data: {},
+        linked_event_id: null,
         child: { id: MOCK_CHILD_ID, name: "Lucas" },
         professional: null,
       },
@@ -143,6 +153,8 @@ const MOCK_EVENTS: AgendaEventWithRelations[] = DEV_BYPASS
         status: "upcoming",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        type_data: {},
+        linked_event_id: null,
         child: { id: MOCK_CHILD_ID, name: "Lucas" },
         professional: null,
       },
@@ -182,6 +194,20 @@ export async function createAgendaEvent(
   const endAt = input.end_time
     ? combineDateTime(input.date, input.end_time)
     : null;
+
+  // Separa campos auxiliares de Consulta (returnDate/returnTime) — não vão
+  // para o JSONB persistido; servem só para criar o evento vinculado.
+  const typeData = input.type_data;
+  let storedTypeData: Record<string, unknown> = typeData;
+  let returnSpec: { date: string; time: string } | null = null;
+  if (typeData.kind === "consulta") {
+    const { returnDate, returnTime, ...rest } = typeData;
+    storedTypeData = rest;
+    if (typeData.returnScheduled && returnDate && returnTime) {
+      returnSpec = { date: returnDate, time: returnTime };
+    }
+  }
+
   const payload: AgendaEventInsert = {
     user_id: userId,
     child_id: input.child_id,
@@ -194,17 +220,53 @@ export async function createAgendaEvent(
     locale: input.locale?.trim() || null,
     recurrence: input.recurrence,
     reminders: input.reminders,
+    type_data: storedTypeData,
   };
   const { data, error } = await supabase
     .from("agenda_events")
-    // recurrence/reminders são JSONB no schema — TS gera tipo Json estrito;
-    // o payload já tem o shape correto então fazemos cast pra simplificar.
+    // recurrence/reminders/type_data são JSONB no schema — TS gera tipo Json
+    // estrito; o payload já tem o shape correto.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .insert(payload as any)
     .select()
     .single();
   if (error) throw new Error(mapError(error.message));
-  return data as unknown as AgendaEvent;
+  const created = data as unknown as AgendaEvent;
+
+  // Retorno vinculado (consulta) — best effort. Falha aqui não invalida o
+  // evento principal já criado; apenas mostra o erro pra mãe decidir.
+  if (returnSpec) {
+    const retornoTitle =
+      input.title.trim().toLowerCase().startsWith("retorno")
+        ? input.title.trim()
+        : `Retorno — ${input.title.trim()}`;
+    const retornoPayload: AgendaEventInsert = {
+      user_id: userId,
+      child_id: input.child_id,
+      type: "consulta",
+      title: retornoTitle.slice(0, 120),
+      professional_id: input.professional_id ?? null,
+      professional_name_raw: input.professional_name_raw?.trim() || null,
+      start_at: combineDateTime(returnSpec.date, returnSpec.time),
+      end_at: null,
+      locale: input.locale?.trim() || null,
+      recurrence: { freq: "once" },
+      reminders: input.reminders,
+      type_data: {
+        kind: "consulta",
+        consultType: "followup",
+        specialty:
+          typeData.kind === "consulta" ? typeData.specialty : "other",
+        documentsChecklist: [],
+        returnScheduled: false,
+      },
+      linked_event_id: created.id,
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await supabase.from("agenda_events").insert(retornoPayload as any);
+  }
+
+  return created;
 }
 
 export async function deleteAgendaEvent(id: string): Promise<void> {

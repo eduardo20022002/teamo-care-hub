@@ -24,7 +24,7 @@ export function TerapiaIcon({ c = "#4F46E5", size = 18 }: IconProps) {
   );
 }
 
-export function MedicaIcon({ c = "#EC4899", size = 18 }: IconProps) {
+export function ConsultaIcon({ c = "#EC4899", size = 18 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
@@ -111,8 +111,8 @@ export function TypeIcon({
   switch (type) {
     case "terapia":
       return <TerapiaIcon size={size} c={color} />;
-    case "medica":
-      return <MedicaIcon size={size} c={color} />;
+    case "consulta":
+      return <ConsultaIcon size={size} c={color} />;
     case "escola":
       return <EscolaIcon size={size} c={color} />;
     case "medicacao":

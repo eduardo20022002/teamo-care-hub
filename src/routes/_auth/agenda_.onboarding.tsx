@@ -19,6 +19,7 @@ import { listProfessionals } from "@/services/professionals.service";
 import { createAgendaEvent } from "@/services/agenda/events.service";
 import { upsertNotificationPrefs } from "@/services/agenda/prefs.service";
 import type { AgendaEventInput } from "@/lib/agenda/validation";
+import { defaultTypeData } from "@/lib/agenda/defaults";
 
 export const Route = createFileRoute("/_auth/agenda_/onboarding")({
   head: () => ({ meta: [{ title: "Agenda · Tutorial — TEAmo" }] }),
@@ -45,7 +46,7 @@ const SUGGESTIONS: RoutineSuggestion[] = [
   { id: "s-aba", type: "terapia", title: "Terapia ABA" },
   { id: "s-med", type: "medicacao", title: "Medicação diária" },
   { id: "s-fono", type: "terapia", title: "Fonoaudiologia" },
-  { id: "s-neuro", type: "medica", title: "Consulta neuropediátrica" },
+  { id: "s-neuro", type: "consulta", title: "Consulta neuropediátrica" },
   { id: "s-aee", type: "escola", title: "Reunião AEE" },
 ];
 
@@ -111,14 +112,18 @@ function AgendaOnboardingPage() {
           start_time: r.time,
           end_time: "",
           locale: "",
-          recurrence: {
-            freq: r.freq,
-            ...(r.daysOfWeek.length > 0 ? { daysOfWeek: r.daysOfWeek } : {}),
-          },
+          recurrence:
+            r.freq === "weekly" && r.daysOfWeek.length > 0
+              ? { freq: "weekly", daysOfWeek: r.daysOfWeek }
+              : { freq: r.freq },
           reminders: {
             oneDayBefore: reminderPrefs.oneDayBefore,
             oneHourBefore: reminderPrefs.oneHourBefore,
           },
+          type_data: {
+            kind: s.type,
+            ...defaultTypeData(s.type),
+          } as AgendaEventInput["type_data"],
         });
       }
       for (const input of createdAt) {
@@ -369,7 +374,7 @@ function StepTypes({
 }) {
   const items: Array<{ type: AgendaEventType; desc: string }> = [
     { type: "terapia", desc: "ABA, fonoaudiologia, psicomotricidade…" },
-    { type: "medica", desc: "Neuropediatra, retornos, exames…" },
+    { type: "consulta", desc: "Neuropediatra, retornos, exames…" },
     { type: "escola", desc: "Reunião AEE, conselho, eventos…" },
     { type: "medicacao", desc: "Doses recorrentes diárias." },
     { type: "outro", desc: "Passeio sensorial, terapia em casa…" },

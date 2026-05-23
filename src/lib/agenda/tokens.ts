@@ -21,10 +21,10 @@ interface TypeStyle {
 }
 
 export const TYPE_STYLES: Record<AgendaEventType, TypeStyle> = {
-  terapia: { col: "#4F46E5", tint: "#EEF1FF", label: "Terapia" },
-  medica: { col: "#EC4899", tint: "#FDF2F8", label: "Consulta médica" },
-  escola: { col: "#D97706", tint: "#FEF3C7", label: "Escola" },
   medicacao: { col: "#7C3AED", tint: "#F3E8FF", label: "Medicação" },
+  terapia: { col: "#4F46E5", tint: "#EEF1FF", label: "Terapia" },
+  consulta: { col: "#EC4899", tint: "#FDF2F8", label: "Consulta" },
+  escola: { col: "#D97706", tint: "#FEF3C7", label: "Escola" },
   outro: { col: "#6B7280", tint: "#F4F5FA", label: "Outro" },
 };
 

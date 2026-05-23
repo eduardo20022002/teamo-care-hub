@@ -1,20 +1,37 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Calendar, ChevronDown, Clock, Loader2, X } from "lucide-react";
 import {
   agendaEventSchema,
   AGENDA_EVENT_TYPES,
   type AgendaEventInput,
+  type TypeDataInput,
 } from "@/lib/agenda/validation";
 import {
   BRAND_GRADIENT,
   BRAND_SHADOW,
   TYPE_STYLES,
-  AGENDA_BRAND,
 } from "@/lib/agenda/tokens";
-import type { AgendaEventType } from "@/types/agenda";
-import type { Child } from "@/types/database";
-import type { Professional } from "@/types/database";
+import {
+  defaultRecurrence,
+  defaultTypeData,
+  type TypeDataFor,
+} from "@/lib/agenda/defaults";
+import type {
+  AgendaEventType,
+  RecurrenceConfig,
+} from "@/types/agenda";
+import type { Child, Professional } from "@/types/database";
 import { TypeIcon } from "./icons";
+import { FieldLabel, inputClasses } from "./form/primitives/FieldLabel";
+import { MedicacaoFields } from "./form/MedicacaoFields";
+import { TerapiaFields } from "./form/TerapiaFields";
+import { ConsultaFields } from "./form/ConsultaFields";
+import { EscolaFields } from "./form/EscolaFields";
+import { OutroFields } from "./form/OutroFields";
+import { MedicacaoRecurrence } from "./form/recurrence/MedicacaoRecurrence";
+import { TerapiaRecurrence } from "./form/recurrence/TerapiaRecurrence";
+import { ConsultaRecurrence } from "./form/recurrence/ConsultaRecurrence";
+import { GenericRecurrence } from "./form/recurrence/GenericRecurrence";
 
 interface Props {
   open: boolean;
@@ -26,16 +43,6 @@ interface Props {
   defaultChildId?: string;
 }
 
-const RECURRENCE_OPTIONS: Array<{ label: string; value: AgendaEventInput["recurrence"]["freq"]; interval?: number }> = [
-  { label: "Não repetir", value: "none" },
-  { label: "Toda semana", value: "weekly" },
-  { label: "A cada 15 dias", value: "biweekly" },
-  { label: "Todo mês", value: "monthly" },
-  { label: "Personalizar", value: "custom" },
-];
-
-const WEEKDAY_LABELS = ["D", "S", "T", "Q", "Q", "S", "S"] as const;
-
 export function EventFormSheet({
   open,
   onOpenChange,
@@ -45,7 +52,7 @@ export function EventFormSheet({
   professionals,
   defaultChildId,
 }: Props) {
-  const [type, setType] = useState<AgendaEventType>("terapia");
+  const [type, setType] = useState<AgendaEventType>("medicacao");
   const [title, setTitle] = useState("");
   const [childId, setChildId] = useState<string>(
     defaultChildId ?? childrenList[0]?.id ?? "",
@@ -56,11 +63,20 @@ export function EventFormSheet({
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [locale, setLocale] = useState("");
-  const [recurrenceFreq, setRecurrenceFreq] = useState<
-    AgendaEventInput["recurrence"]["freq"]
-  >("none");
-  const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [recurrence, setRecurrence] = useState<RecurrenceConfig>(
+    defaultRecurrence("medicacao"),
+  );
+  // type_data é armazenado por tipo (cada um isolado) para não perder o
+  // que a mãe digitou se ela alternar de tipo por engano.
+  const [typeDataByType, setTypeDataByType] = useState<{
+    [K in AgendaEventType]: TypeDataFor<K>;
+  }>(() => ({
+    medicacao: defaultTypeData("medicacao"),
+    terapia: defaultTypeData("terapia"),
+    consulta: defaultTypeData("consulta"),
+    escola: defaultTypeData("escola"),
+    outro: defaultTypeData("outro"),
+  }));
 
   useEffect(() => {
     if (open) {
@@ -68,25 +84,13 @@ export function EventFormSheet({
     }
   }, [open, defaultChildId, childrenList]);
 
-  if (!open) return null;
-
-  const toggleDay = (idx: number) => {
-    setRecurrenceDays((prev) =>
-      prev.includes(idx) ? prev.filter((d) => d !== idx) : [...prev, idx],
-    );
+  const handleTypeChange = (next: AgendaEventType) => {
+    setType(next);
+    setRecurrence(defaultRecurrence(next));
   };
 
-  const showDayPicker =
-    recurrenceFreq === "weekly" || recurrenceFreq === "biweekly";
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    const recurrence: AgendaEventInput["recurrence"] = {
-      freq: recurrenceFreq,
-      ...(showDayPicker && recurrenceDays.length > 0
-        ? { daysOfWeek: recurrenceDays }
-        : {}),
-    };
+  const candidateInput = useMemo<AgendaEventInput | null>(() => {
+    const typeData = { kind: type, ...typeDataByType[type] } as TypeDataInput;
     const parsed = agendaEventSchema.safeParse({
       child_id: childId,
       type,
@@ -99,19 +103,30 @@ export function EventFormSheet({
       locale,
       recurrence,
       reminders: { oneDayBefore: true, oneHourBefore: true },
+      type_data: typeData,
     });
-    if (!parsed.success) {
-      const fe: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        const k = issue.path[0] as string;
-        if (k && !fe[k]) fe[k] = issue.message;
-      }
-      setErrors(fe);
-      return;
-    }
-    setErrors({});
-    await onSubmit(parsed.data);
-    // Reset on success
+    return parsed.success ? parsed.data : null;
+  }, [
+    type,
+    typeDataByType,
+    childId,
+    title,
+    professionalId,
+    professionalNameRaw,
+    date,
+    startTime,
+    endTime,
+    locale,
+    recurrence,
+  ]);
+
+  const canSubmit = !!candidateInput && childrenList.length > 0 && !submitting;
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!candidateInput) return;
+    await onSubmit(candidateInput);
+    // Reset
     setTitle("");
     setProfessionalId("");
     setProfessionalNameRaw("");
@@ -119,15 +134,22 @@ export function EventFormSheet({
     setStartTime("");
     setEndTime("");
     setLocale("");
-    setRecurrenceFreq("none");
-    setRecurrenceDays([]);
+    setRecurrence(defaultRecurrence(type));
+    setTypeDataByType({
+      medicacao: defaultTypeData("medicacao"),
+      terapia: defaultTypeData("terapia"),
+      consulta: defaultTypeData("consulta"),
+      escola: defaultTypeData("escola"),
+      outro: defaultTypeData("outro"),
+    });
   };
 
   const handleClose = () => {
     if (submitting) return;
-    setErrors({});
     onOpenChange(false);
   };
+
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
@@ -183,7 +205,7 @@ export function EventFormSheet({
                 <button
                   key={k}
                   type="button"
-                  onClick={() => setType(k)}
+                  onClick={() => handleTypeChange(k)}
                   className="inline-flex h-9 flex-shrink-0 items-center gap-1.5 rounded-[10px] px-3.5 text-[12.5px] font-bold transition-shadow"
                   style={{
                     background: active ? t.tint : "#F6F7FB",
@@ -205,20 +227,17 @@ export function EventFormSheet({
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Ex.: Terapia ABA"
+            placeholder={titlePlaceholderFor(type)}
             disabled={submitting}
             maxLength={120}
-            className={inputClasses(!!errors.title)}
+            className={inputClasses()}
             style={{ color: "#0F172A" }}
           />
-          {errors.title && (
-            <p className="mt-1 text-xs text-red-500">{errors.title}</p>
-          )}
 
           {/* Criança */}
           {childrenList.length === 0 ? (
             <div
-              className="mb-1 rounded-xl border px-3.5 py-3 text-[13px] leading-snug"
+              className="mt-3.5 rounded-xl border px-3.5 py-3 text-[13px] leading-snug"
               style={{
                 background: "#FFF7ED",
                 borderColor: "#FED7AA",
@@ -235,7 +254,7 @@ export function EventFormSheet({
                   value={childId}
                   onChange={(e) => setChildId(e.target.value)}
                   disabled={submitting}
-                  className={`${inputClasses(!!errors.child_id)} appearance-none pr-10`}
+                  className={`${inputClasses()} appearance-none pr-10`}
                   style={{ color: "#0F172A" }}
                 >
                   {childrenList.map((c) => (
@@ -250,15 +269,8 @@ export function EventFormSheet({
                   className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]"
                 />
               </div>
-              {errors.child_id && (
-                <p className="mt-1 text-xs text-red-500">{errors.child_id}</p>
-              )}
             </>
           ) : null}
-          {/* Mostra erro de criança mesmo quando o select não está visível (0 crianças). */}
-          {errors.child_id && childrenList.length <= 1 && (
-            <p className="mt-1 text-xs text-red-500">{errors.child_id}</p>
-          )}
 
           {/* Profissional */}
           <FieldLabel optional className="mt-3.5">
@@ -272,7 +284,7 @@ export function EventFormSheet({
                 if (e.target.value) setProfessionalNameRaw("");
               }}
               disabled={submitting}
-              className={`${inputClasses(false)} appearance-none pr-10`}
+              className={`${inputClasses()} appearance-none pr-10`}
               style={{ color: professionalId ? "#0F172A" : "#9CA3AF" }}
             >
               <option value="">Vincular ou digitar nome</option>
@@ -296,13 +308,10 @@ export function EventFormSheet({
               placeholder="ou digite o nome do profissional"
               disabled={submitting}
               maxLength={120}
-              className={`${inputClasses(false)} mt-2`}
+              className={`${inputClasses()} mt-2`}
               style={{ color: "#0F172A" }}
             />
           )}
-          <p className="mt-1.5 text-[11.5px]" style={{ color: "#9CA3AF" }}>
-            Vincule a alguém de Profissionais ou digite o nome.
-          </p>
 
           {/* Data + Hora */}
           <div className="mt-3.5 grid grid-cols-2 gap-2.5">
@@ -314,7 +323,7 @@ export function EventFormSheet({
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   disabled={submitting}
-                  className={`${inputClasses(!!errors.date)} pr-10`}
+                  className={`${inputClasses()} pr-10`}
                   style={{ color: "#0F172A", colorScheme: "light" }}
                 />
                 <Calendar
@@ -323,9 +332,6 @@ export function EventFormSheet({
                   className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]"
                 />
               </div>
-              {errors.date && (
-                <p className="mt-1 text-xs text-red-500">{errors.date}</p>
-              )}
             </div>
             <div>
               <FieldLabel>Hora</FieldLabel>
@@ -335,7 +341,7 @@ export function EventFormSheet({
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
                   disabled={submitting}
-                  className={`${inputClasses(!!errors.start_time)} pr-10`}
+                  className={`${inputClasses()} pr-10`}
                   style={{ color: "#0F172A", colorScheme: "light" }}
                 />
                 <Clock
@@ -344,12 +350,8 @@ export function EventFormSheet({
                   className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]"
                 />
               </div>
-              {errors.start_time && (
-                <p className="mt-1 text-xs text-red-500">{errors.start_time}</p>
-              )}
             </div>
           </div>
-          {/* Hora final opcional */}
           <FieldLabel optional className="mt-3.5">
             Hora final
           </FieldLabel>
@@ -359,7 +361,7 @@ export function EventFormSheet({
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
               disabled={submitting}
-              className={`${inputClasses(false)} pr-10`}
+              className={`${inputClasses()} pr-10`}
               style={{ color: "#0F172A", colorScheme: "light" }}
             />
             <Clock
@@ -368,51 +370,6 @@ export function EventFormSheet({
               className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]"
             />
           </div>
-
-          {/* Recorrência */}
-          <FieldLabel className="mt-3.5">Recorrência</FieldLabel>
-          <div className="flex flex-wrap gap-1.5">
-            {RECURRENCE_OPTIONS.map((opt) => {
-              const active = recurrenceFreq === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setRecurrenceFreq(opt.value)}
-                  className="inline-flex h-8 items-center rounded-[9px] px-3 text-[12.5px] font-bold transition-colors"
-                  style={{
-                    background: active ? AGENDA_BRAND.tint : "#F6F7FB",
-                    border: `1px solid ${active ? AGENDA_BRAND.col : "#E5E7EB"}`,
-                    color: active ? AGENDA_BRAND.col : "#4B5563",
-                  }}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-          {showDayPicker && (
-            <div className="mt-3 flex gap-1.5">
-              {WEEKDAY_LABELS.map((label, idx) => {
-                const on = recurrenceDays.includes(idx);
-                return (
-                  <button
-                    key={`day-${idx}`}
-                    type="button"
-                    onClick={() => toggleDay(idx)}
-                    className="flex h-9 flex-1 items-center justify-center rounded-[9px] text-[12px] font-extrabold transition-colors"
-                    style={{
-                      background: on ? AGENDA_BRAND.col : "#F6F7FB",
-                      border: `1px solid ${on ? AGENDA_BRAND.col : "#E5E7EB"}`,
-                      color: on ? "white" : "#6B7280",
-                    }}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          )}
 
           {/* Local */}
           <FieldLabel optional className="mt-3.5">
@@ -425,19 +382,107 @@ export function EventFormSheet({
             placeholder="Ex.: Clínica Acolher"
             disabled={submitting}
             maxLength={200}
-            className={inputClasses(false)}
+            className={inputClasses()}
             style={{ color: "#0F172A" }}
           />
 
-          {/* CTA */}
+          {/* Separador suave */}
+          <div
+            className="my-4 h-px"
+            style={{ background: "#EEF0F4" }}
+            aria-hidden
+          />
+
+          {/* Campos específicos do tipo */}
+          {type === "medicacao" && (
+            <MedicacaoFields
+              data={typeDataByType.medicacao}
+              onChange={(d) =>
+                setTypeDataByType((prev) => ({ ...prev, medicacao: d }))
+              }
+              disabled={submitting}
+            />
+          )}
+          {type === "terapia" && (
+            <TerapiaFields
+              data={typeDataByType.terapia}
+              onChange={(d) =>
+                setTypeDataByType((prev) => ({ ...prev, terapia: d }))
+              }
+              disabled={submitting}
+            />
+          )}
+          {type === "consulta" && (
+            <ConsultaFields
+              data={typeDataByType.consulta}
+              onChange={(d) =>
+                setTypeDataByType((prev) => ({ ...prev, consulta: d }))
+              }
+              disabled={submitting}
+            />
+          )}
+          {type === "escola" && (
+            <EscolaFields
+              data={typeDataByType.escola}
+              onChange={(d) =>
+                setTypeDataByType((prev) => ({ ...prev, escola: d }))
+              }
+              disabled={submitting}
+            />
+          )}
+          {type === "outro" && (
+            <OutroFields
+              data={typeDataByType.outro}
+              onChange={(d) =>
+                setTypeDataByType((prev) => ({ ...prev, outro: d }))
+              }
+              disabled={submitting}
+            />
+          )}
+
+          {/* Recorrência */}
+          <div className="mt-4">
+            {type === "medicacao" && (
+              <MedicacaoRecurrence
+                value={recurrence}
+                onChange={setRecurrence}
+                disabled={submitting}
+              />
+            )}
+            {type === "terapia" && (
+              <TerapiaRecurrence
+                value={recurrence}
+                onChange={setRecurrence}
+                disabled={submitting}
+              />
+            )}
+            {type === "consulta" && (
+              <ConsultaRecurrence
+                value={recurrence}
+                onChange={setRecurrence}
+                disabled={submitting}
+              />
+            )}
+            {(type === "escola" || type === "outro") && (
+              <GenericRecurrence
+                value={recurrence}
+                onChange={setRecurrence}
+                activeColor={TYPE_STYLES[type].col}
+                activeTint={TYPE_STYLES[type].tint}
+                disabled={submitting}
+              />
+            )}
+          </div>
+
           <button
             type="submit"
-            disabled={submitting || childrenList.length === 0}
-            className="mt-5 flex h-[50px] w-full items-center justify-center gap-2 rounded-xl text-[15px] font-bold text-white transition-all hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+            disabled={!canSubmit}
+            className="mt-5 flex h-[50px] w-full items-center justify-center gap-2 rounded-xl text-[15px] font-bold text-white transition-all hover:-translate-y-px disabled:cursor-not-allowed disabled:hover:translate-y-0"
             style={{
               background: BRAND_GRADIENT,
               boxShadow: BRAND_SHADOW,
               letterSpacing: "-0.005em",
+              opacity: canSubmit ? 1 : 0.45,
             }}
           >
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -458,34 +503,17 @@ export function EventFormSheet({
   );
 }
 
-function FieldLabel({
-  children,
-  optional,
-  className = "",
-}: {
-  children: React.ReactNode;
-  optional?: boolean;
-  className?: string;
-}) {
-  return (
-    <label
-      className={`mb-1.5 block text-[12.5px] font-semibold ${className}`}
-      style={{ color: "#374151", letterSpacing: "-0.005em" }}
-    >
-      {children}
-      {optional && (
-        <span style={{ color: "#9CA3AF", fontWeight: 500, marginLeft: 6 }}>
-          (opcional)
-        </span>
-      )}
-    </label>
-  );
-}
-
-function inputClasses(hasError: boolean) {
-  return `h-11 w-full rounded-xl border bg-[#F6F7FB] px-3.5 text-[14.5px] outline-none transition-all ${
-    hasError
-      ? "border-red-400 focus:border-red-500 focus:shadow-[0_0_0_4px_rgba(239,68,68,0.10)]"
-      : "border-[#E5E7EB] focus:border-[#4F46E5] focus:shadow-[0_0_0_4px_rgba(79,70,229,0.10)]"
-  } disabled:opacity-60`;
+function titlePlaceholderFor(type: AgendaEventType): string {
+  switch (type) {
+    case "medicacao":
+      return "Ex.: Risperidona — 0,5 mg";
+    case "terapia":
+      return "Ex.: Terapia ABA";
+    case "consulta":
+      return "Ex.: Retorno neuropediatra";
+    case "escola":
+      return "Ex.: Reunião AEE";
+    default:
+      return "Ex.: Passeio sensorial";
+  }
 }
