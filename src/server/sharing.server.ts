@@ -160,7 +160,7 @@ export async function logShareEvent(
 
 // ---------- Resend ----------
 
-const RESEND_FROM = "TEAmo <onboarding@resend.dev>";
+const RESEND_FROM = "TEAmo <noreply@teamotech.online>";
 
 export async function sendOtpEmail(params: {
   to: string;
@@ -170,9 +170,7 @@ export async function sendOtpEmail(params: {
   expiresInMinutes: number;
   shareExpiresAt: string;
 }): Promise<{ ok: boolean; error?: string }> {
-  const LOVABLE_API_KEY = process.env.LOVABLE_API_KEY;
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  if (!LOVABLE_API_KEY) return { ok: false, error: "LOVABLE_API_KEY not configured" };
   if (!RESEND_API_KEY) return { ok: false, error: "RESEND_API_KEY not configured" };
 
   const subject = `Seu código de acesso TEAmo: ${params.otp}`;
@@ -182,7 +180,7 @@ export async function sendOtpEmail(params: {
   <body style="margin:0;background:#F8F9FA;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#212529;">
     <div style="max-width:520px;margin:0 auto;padding:32px 24px;">
       <div style="background:#fff;border:1px solid #DEE2E6;border-radius:14px;padding:28px;">
-        <h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#3B5BDB;">TEAmo</h1>
+        <h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#4F46E5;">TEAmo</h1>
         <p style="margin:0 0 16px;font-size:14px;color:#6C757D;">
           Olá ${escapeHtml(params.professionalName)},
         </p>
@@ -213,12 +211,11 @@ export async function sendOtpEmail(params: {
 </html>`;
 
   try {
-    const res = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
+    const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "X-Connection-Api-Key": RESEND_API_KEY,
+        Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
         from: RESEND_FROM,
