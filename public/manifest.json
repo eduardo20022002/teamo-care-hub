@@ -2,7 +2,7 @@
   "name": "TEAmo — Cuidado para crianças com TEA",
   "short_name": "TEAmo",
   "description": "Organize o cuidado de crianças com TEA em um só lugar.",
-  "start_url": "/login",
+  "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#4F46E5",

@@ -3,16 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  ArrowLeft,
-  Clock,
-  Loader2,
-  Mail,
-  Plus,
-  RefreshCw,
-  Share2,
-  ShieldOff,
-} from "lucide-react";
+import { ArrowLeft, Clock, Loader2, Mail, Plus, RefreshCw, Share2, ShieldOff } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import {
   AlertDialog,
@@ -38,12 +29,9 @@ import { ShareDialog } from "@/components/sharing/ShareDialog";
 import { RenewShareDialog } from "@/components/sharing/RenewShareDialog";
 import type { ExpiryHours } from "@/components/sharing/ShareExpiryStep";
 
-const BRAND_GRADIENT =
-  "linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)";
-const BRAND_SHADOW =
-  "0 8px 18px -8px rgba(79,70,229,0.45), 0 3px 8px -3px rgba(236,72,153,0.25)";
-const PASTEL_GRADIENT =
-  "linear-gradient(140deg, #E5E9FF 0%, #ECE5FE 45%, #FDE8F3 100%)";
+const BRAND_GRADIENT = "linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)";
+const BRAND_SHADOW = "0 8px 18px -8px rgba(79,70,229,0.45), 0 3px 8px -3px rgba(236,72,153,0.25)";
+const PASTEL_GRADIENT = "linear-gradient(140deg, #E5E9FF 0%, #ECE5FE 45%, #FDE8F3 100%)";
 
 const SHARE_COLOR = "#EA7B3D";
 const SHARE_TINT = "#FFF4ED";
@@ -55,10 +43,7 @@ interface SharesSearch {
 export const Route = createFileRoute("/_auth/compartilhamentos")({
   head: () => ({ meta: [{ title: "Compartilhamentos — TEAmo" }] }),
   validateSearch: (search: Record<string, unknown>): SharesSearch => ({
-    prefillEventId:
-      typeof search.prefillEventId === "string"
-        ? search.prefillEventId
-        : undefined,
+    prefillEventId: typeof search.prefillEventId === "string" ? search.prefillEventId : undefined,
   }),
   component: SharesPage,
 });
@@ -80,10 +65,7 @@ function formatDateTime(iso: string): string {
 function getInitials(name: string): string {
   const parts = name.trim().split(" ");
   if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? "?";
-  return (
-    (parts[0][0]?.toUpperCase() ?? "") +
-    (parts[parts.length - 1][0]?.toUpperCase() ?? "")
-  );
+  return (parts[0][0]?.toUpperCase() ?? "") + (parts[parts.length - 1][0]?.toUpperCase() ?? "");
 }
 
 const STATUS_CONFIG = {
@@ -92,18 +74,29 @@ const STATUS_CONFIG = {
     borderColor: "#2F9E44",
     badgeBg: "rgba(47,158,68,0.12)",
     badgeColor: "#2F9E44",
+    renewChip: null,
   },
   expired: {
     label: "Expirado",
     borderColor: "#9CA3AF",
     badgeBg: "rgba(156,163,175,0.15)",
     badgeColor: "#6B7280",
+    renewChip: {
+      label: "Renovável",
+      bg: "rgba(79,70,229,0.10)",
+      color: "#4F46E5",
+    },
   },
   revoked: {
     label: "Revogado",
     borderColor: "#EF4444",
     badgeBg: "rgba(239,68,68,0.1)",
     badgeColor: "#DC2626",
+    renewChip: {
+      label: "Expirado permanentemente",
+      bg: "rgba(239,68,68,0.08)",
+      color: "#DC2626",
+    },
   },
 } as const;
 
@@ -159,6 +152,14 @@ function ShareCard({
                 {share.professional_name}
               </p>
               <StatusBadge status={status} />
+              {cfg.renewChip && (
+                <span
+                  className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                  style={{ background: cfg.renewChip.bg, color: cfg.renewChip.color }}
+                >
+                  {cfg.renewChip.label}
+                </span>
+              )}
             </div>
             <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
               <Mail className="h-3 w-3 shrink-0" strokeWidth={1.75} />
@@ -166,11 +167,9 @@ function ShareCard({
             </p>
             <p className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <Clock className="h-3 w-3 shrink-0" strokeWidth={1.75} />
-              {share.item_count} {share.item_count === 1 ? "item" : "itens"} ·
-              Expira {formatDateTime(share.expires_at)}
-              {share.renewals_count > 0 && (
-                <> · Renovado {share.renewals_count}x</>
-              )}
+              {share.item_count} {share.item_count === 1 ? "item" : "itens"} · Expira{" "}
+              {formatDateTime(share.expires_at)}
+              {share.renewals_count > 0 && <> · Renovado {share.renewals_count}x</>}
             </p>
           </div>
         </div>
@@ -207,8 +206,7 @@ function ShareCard({
                 <AlertDialogHeader>
                   <AlertDialogTitle>Revogar acesso?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    O profissional perderá o acesso imediatamente. Esta ação
-                    não pode ser desfeita.
+                    O profissional perderá o acesso imediatamente. Esta ação não pode ser desfeita.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -218,11 +216,7 @@ function ShareCard({
                     disabled={revoking}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    {revoking ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Revogar"
-                    )}
+                    {revoking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Revogar"}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -260,12 +254,10 @@ function EmptyShares({ onNew }: { onNew: () => void }) {
         >
           <Share2 className="h-8 w-8" style={{ color: SHARE_COLOR }} strokeWidth={1.75} />
         </div>
-        <h3 className="text-lg font-bold text-foreground">
-          Nada compartilhado ainda
-        </h3>
+        <h3 className="text-lg font-bold text-foreground">Nada compartilhado ainda</h3>
         <p className="mt-1.5 max-w-xs text-sm text-muted-foreground">
-          Gere um link seguro e envie por e-mail, com prazo e código de 6
-          dígitos para o profissional.
+          Gere um link seguro e envie por e-mail, com prazo e código de 6 dígitos para o
+          profissional.
         </p>
         <button
           type="button"
@@ -321,9 +313,7 @@ function SharesPage() {
   useEffect(() => {
     if (prefillEventId) {
       setShareOpen(true);
-      toast.message(
-        "Pré-selecione conteúdo do evento abaixo (anexos/registros associados).",
-      );
+      toast.message("Pré-selecione conteúdo do evento abaixo (anexos/registros associados).");
     }
   }, [prefillEventId]);
 
@@ -460,8 +450,7 @@ function SharesPage() {
         professionalName={renewTarget?.professional_name ?? ""}
         pending={renew.isPending}
         onConfirm={(hours) =>
-          renewTarget &&
-          renew.mutate({ shareId: renewTarget.id, expiresInHours: hours })
+          renewTarget && renew.mutate({ shareId: renewTarget.id, expiresInHours: hours })
         }
       />
       <span className="hidden">{String(!!navigate)}</span>
