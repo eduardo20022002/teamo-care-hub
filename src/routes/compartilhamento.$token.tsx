@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Loader2, ShieldCheck, AlertTriangle, FileText, Image as ImageIcon, Info } from "lucide-react";
+import {
+  Loader2,
+  ShieldCheck,
+  AlertTriangle,
+  FileText,
+  Image as ImageIcon,
+  Info,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { BrandLogo } from "@/components/layout/BrandLogo";
@@ -121,9 +128,7 @@ function PublicSharePage() {
 
         {phase === "otp" && (
           <div className="mx-auto max-w-md rounded-2xl border border-border bg-card p-6 shadow-sm">
-            <h1 className="text-lg font-semibold text-foreground">
-              Confirme seu acesso
-            </h1>
+            <h1 className="text-lg font-semibold text-foreground">Confirme seu acesso</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Enviamos um código de 6 dígitos para{" "}
               <strong className="text-foreground">{emailMasked || "o e-mail cadastrado"}</strong>.
@@ -178,13 +183,8 @@ function PublicSharePage() {
 
         {phase === "error" && (
           <div className="mx-auto max-w-md rounded-2xl border border-border bg-card p-6 text-center shadow-sm">
-            <AlertTriangle
-              className="mx-auto mb-2 h-8 w-8 text-destructive"
-              strokeWidth={1.75}
-            />
-            <h1 className="text-lg font-semibold text-foreground">
-              Não foi possível abrir
-            </h1>
+            <AlertTriangle className="mx-auto mb-2 h-8 w-8 text-destructive" strokeWidth={1.75} />
+            <h1 className="text-lg font-semibold text-foreground">Não foi possível abrir</h1>
             <p className="mt-1 text-sm text-muted-foreground">{errorMsg}</p>
             <p className="mt-4 text-xs text-muted-foreground">
               Entre em contato com o responsável que enviou o link.
@@ -192,21 +192,13 @@ function PublicSharePage() {
           </div>
         )}
 
-        {phase === "ok" && validated && (
-          <SharedContentView data={validated} token={token} />
-        )}
+        {phase === "ok" && validated && <SharedContentView data={validated} token={token} />}
       </main>
     </div>
   );
 }
 
-function SharedContentView({
-  data,
-  token,
-}: {
-  data: ValidateOtpResponse;
-  token: string;
-}) {
+function SharedContentView({ data, token }: { data: ValidateOtpResponse; token: string }) {
   const profName = data.professional?.name ?? "Profissional";
   const stamp = new Date().toLocaleString("pt-BR");
   const watermarkText = `${profName} · ${stamp}`;
@@ -222,10 +214,7 @@ function SharedContentView({
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             Conteúdo protegido por marca d'água. O link expira em{" "}
-            {data.shareExpiresAt
-              ? new Date(data.shareExpiresAt).toLocaleString("pt-BR")
-              : "—"}
-            .
+            {data.shareExpiresAt ? new Date(data.shareExpiresAt).toLocaleString("pt-BR") : "—"}.
           </p>
           <p className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
             <Info className="h-3 w-3 shrink-0" />
@@ -250,17 +239,11 @@ function SharedContentView({
                       {formatDateBR(r.record_date)}
                     </span>
                     {r.child_name && (
-                      <span className="text-xs font-medium text-foreground">
-                        · {r.child_name}
-                      </span>
+                      <span className="text-xs font-medium text-foreground">· {r.child_name}</span>
                     )}
                   </div>
-                  <p className="text-sm font-medium text-foreground">
-                    {r.professional_name}
-                  </p>
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-foreground/90">
-                    {r.content}
-                  </p>
+                  <p className="text-sm font-medium text-foreground">{r.professional_name}</p>
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-foreground/90">{r.content}</p>
                   {r.attachments.length > 0 && (
                     <ul className="mt-3 space-y-2 border-t border-border pt-3">
                       {r.attachments.map((d) => (
@@ -281,7 +264,11 @@ function SharedContentView({
             </h2>
             <ul className="space-y-2">
               {data.content!.documents.map((d) => (
-                <SharedDocItem key={`${d.source}-${d.id}`} doc={d} accessToken={data.accessToken!} />
+                <SharedDocItem
+                  key={`${d.source}-${d.id}`}
+                  doc={d}
+                  accessToken={data.accessToken!}
+                />
               ))}
             </ul>
           </section>
@@ -293,9 +280,7 @@ function SharedContentView({
           </p>
         </section>
 
-        <p className="pb-8 text-center text-[11px] text-muted-foreground">
-          Token: {token.slice(0, 6)}…{token.slice(-4)}
-        </p>
+        <div className="pb-8" />
       </div>
     </>
   );

@@ -1,13 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import {
-  ArrowLeft,
-  ChevronRight,
-  Fingerprint,
-  Loader2,
-  Lock,
-  Settings,
-  Shield,
-} from "lucide-react";
+import { ArrowLeft, ChevronRight, Loader2, Lock, Settings, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
@@ -108,11 +100,6 @@ function ConfiguracoesPage() {
   const [verifying, setVerifying] = useState(false);
   const [removing, setRemoving] = useState(false);
 
-  // ── Biometry (localStorage) ─────────────────────────────────────────────────
-  const [biometria, setBiometria] = useState(
-    () => localStorage.getItem("teamo_biometria") === "true",
-  );
-
   const verifiedTotp = factors.find((f) => f.factor_type === "totp" && f.status === "verified");
 
   const refreshFactors = async () => {
@@ -190,11 +177,6 @@ function ConfiguracoesPage() {
     setCode("");
   };
 
-  const handleBiometriaToggle = (on: boolean) => {
-    setBiometria(on);
-    localStorage.setItem("teamo_biometria", String(on));
-  };
-
   // ── Password subtitle ─────────────────────────────────────────────────────
   const lastSignIn = user?.last_sign_in_at;
   const passwordSubtitle = lastSignIn
@@ -248,18 +230,6 @@ function ConfiguracoesPage() {
                 onCheckedChange={handleMfaToggle}
                 disabled={mfaLoading || enrollLoading || removing}
                 aria-label="Ativar autenticação em 2 etapas"
-              />
-            }
-          />
-          <NavRow
-            icon={<Fingerprint className="h-4 w-4" strokeWidth={1.75} />}
-            label="Biometria pra abrir o app"
-            subtitle="Face ID ou digital"
-            right={
-              <Switch
-                checked={biometria}
-                onCheckedChange={handleBiometriaToggle}
-                aria-label="Ativar biometria"
               />
             }
           />
