@@ -80,8 +80,7 @@ function BuscaPage() {
 
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<SearchFiltersValue>(EMPTY_SEARCH_FILTERS);
-  const [openRecord, setOpenRecord] =
-    useState<AttendanceRecordWithRelations | null>(null);
+  const [openRecord, setOpenRecord] = useState<AttendanceRecordWithRelations | null>(null);
 
   const debouncedQuery = useDebounced(query, 200);
 
@@ -95,13 +94,7 @@ function BuscaPage() {
     filters.kind === "all" ? undefined : [filters.kind as SearchKind];
 
   const searchQuery = useQuery({
-    queryKey: [
-      "global-search",
-      filters.childId,
-      filters.kind,
-      filters.dateFrom,
-      filters.dateTo,
-    ],
+    queryKey: ["global-search", filters.childId, filters.kind, filters.dateFrom, filters.dateTo],
     queryFn: () =>
       searchAll("", {
         childId: filters.childId === "all" ? undefined : filters.childId,
@@ -115,10 +108,7 @@ function BuscaPage() {
   const childrenList = childrenQuery.data ?? [];
   const results = searchQuery.data;
 
-  const allHits = useMemo(
-    () => (results ? flattenAndSortByDate(results) : []),
-    [results],
-  );
+  const allHits = useMemo(() => (results ? flattenAndSortByDate(results) : []), [results]);
 
   const visibleHits = useMemo(() => {
     const q = normalizeForSearch(debouncedQuery.trim());
@@ -130,11 +120,14 @@ function BuscaPage() {
   }, [allHits, debouncedQuery]);
 
   // Counts per kind for filter pills
-  const counts = useMemo(() => ({
-    all: allHits.length,
-    record: allHits.filter((h) => h.kind === "record").length,
-    document: allHits.filter((h) => h.kind === "document").length,
-  }), [allHits]);
+  const counts = useMemo(
+    () => ({
+      all: allHits.length,
+      record: allHits.filter((h) => h.kind === "record").length,
+      document: allHits.filter((h) => h.kind === "document").length,
+    }),
+    [allHits],
+  );
 
   // Group visible hits by kind
   const grouped = useMemo(() => {
@@ -187,8 +180,7 @@ function BuscaPage() {
           Buscar no histórico
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Encontre registros, profissionais, documentos e compromissos. Use os
-          filtros pra refinar.
+          Encontre registros, profissionais, documentos e compromissos. Use os filtros pra refinar.
         </p>
       </header>
 
@@ -214,10 +206,7 @@ function BuscaPage() {
       ) : !hasAnyData ? (
         <EmptySearch state="no-data" />
       ) : visibleHits.length === 0 ? (
-        <EmptySearch
-          state="no-results"
-          query={debouncedQuery.trim() || undefined}
-        />
+        <EmptySearch state="no-results" query={debouncedQuery.trim() || undefined} />
       ) : (
         <>
           <p className="mb-4 text-xs text-muted-foreground">

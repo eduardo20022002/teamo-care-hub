@@ -73,18 +73,15 @@ function NavRow({
         <p className="text-sm font-medium text-foreground">{label}</p>
         {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
       </div>
-      {right ?? (isClickable ? <ChevronRight className="h-4 w-4 text-muted-foreground/60" strokeWidth={1.75} /> : null)}
+      {right ??
+        (isClickable ? (
+          <ChevronRight className="h-4 w-4 text-muted-foreground/60" strokeWidth={1.75} />
+        ) : null)}
     </Tag>
   );
 }
 
-function SectionCard({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-5">
       <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -112,13 +109,11 @@ function ConfiguracoesPage() {
   const [removing, setRemoving] = useState(false);
 
   // ── Biometry (localStorage) ─────────────────────────────────────────────────
-  const [biometria, setBiometria] = useState(() =>
-    localStorage.getItem("teamo_biometria") === "true",
+  const [biometria, setBiometria] = useState(
+    () => localStorage.getItem("teamo_biometria") === "true",
   );
 
-  const verifiedTotp = factors.find(
-    (f) => f.factor_type === "totp" && f.status === "verified",
-  );
+  const verifiedTotp = factors.find((f) => f.factor_type === "totp" && f.status === "verified");
 
   const refreshFactors = async () => {
     setMfaLoading(true);
@@ -242,7 +237,11 @@ function ConfiguracoesPage() {
           <NavRow
             icon={<Shield className="h-4 w-4" strokeWidth={1.75} />}
             label="Autenticação em 2 etapas"
-            subtitle={verifiedTotp ? `Ativa desde ${formatDateBR(verifiedTotp.created_at)}` : "Código por autenticador"}
+            subtitle={
+              verifiedTotp
+                ? `Ativa desde ${formatDateBR(verifiedTotp.created_at)}`
+                : "Código por autenticador"
+            }
             right={
               <Switch
                 checked={!!verifiedTotp}
@@ -336,10 +335,7 @@ function ConfiguracoesPage() {
             <Button variant="ghost" onClick={() => void handleCancelEnroll()} disabled={verifying}>
               Cancelar
             </Button>
-            <Button
-              onClick={() => void handleVerify()}
-              disabled={verifying || code.length !== 6}
-            >
+            <Button onClick={() => void handleVerify()} disabled={verifying || code.length !== 6}>
               {verifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirmar
             </Button>

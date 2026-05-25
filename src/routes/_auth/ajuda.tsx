@@ -85,9 +85,7 @@ function AjudaPage() {
         </Accordion>
 
         <div className="mt-8 rounded-2xl border border-border bg-muted/40 p-5 text-center">
-          <p className="text-sm text-muted-foreground">
-            Não encontrou o que procurava?
-          </p>
+          <p className="text-sm text-muted-foreground">Não encontrou o que procurava?</p>
           <a
             href="mailto:suporte@teamotech.online"
             className="mt-1 block text-sm font-semibold text-primary hover:underline"

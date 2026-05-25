@@ -12,10 +12,8 @@ import { PendingAttachmentsList } from "@/components/attachments/PendingAttachme
 import { cn } from "@/lib/utils";
 import type { Child } from "@/types/database";
 
-const BRAND_GRADIENT =
-  "linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)";
-const BRAND_SHADOW =
-  "0 8px 18px -8px rgba(79,70,229,0.45), 0 3px 8px -3px rgba(236,72,153,0.25)";
+const BRAND_GRADIENT = "linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)";
+const BRAND_SHADOW = "0 8px 18px -8px rgba(79,70,229,0.45), 0 3px 8px -3px rgba(236,72,153,0.25)";
 
 const CATEGORIES = [
   {
@@ -77,10 +75,7 @@ export function AddChildDocumentDialog({
 
   useEffect(() => {
     if (!open) return;
-    setChildId(
-      defaultChildId ??
-        (childrenList.length === 1 ? childrenList[0].id : ""),
-    );
+    setChildId(defaultChildId ?? (childrenList.length === 1 ? childrenList[0].id : ""));
     setFiles([]);
     setError(null);
   }, [open, defaultChildId, childrenList]);
@@ -97,10 +92,10 @@ export function AddChildDocumentDialog({
     if (e.dataTransfer.files.length > 0) addFiles(e.dataTransfer.files);
   };
 
-  const handleCategoryClick = (catId: string) => {
-    // Store category hint in file metadata (by naming the input)
-    // Category selection triggers file picker — category stored in state
-    void catId; // will be used when we have a category-aware upload
+  // Categorias hoje são apenas visuais — o backend não persiste categoria por
+  // anexo. Clicar abre o seletor de arquivo. (Futuro: armazenar em coluna
+  // child_attachments.category.)
+  const handleCategoryClick = () => {
     fileRef.current?.click();
   };
 
@@ -133,12 +128,9 @@ export function AddChildDocumentDialog({
         {/* Header */}
         <div className="flex items-start justify-between px-5 pb-4 pt-3">
           <div>
-            <h2 className="text-[17px] font-bold text-foreground">
-              Adicionar documento
-            </h2>
+            <h2 className="text-[17px] font-bold text-foreground">Adicionar documento</h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Selecione a categoria pra a gente organizar melhor — ou arraste o
-              arquivo direto.
+              Selecione a categoria pra a gente organizar melhor — ou arraste o arquivo direto.
             </p>
           </div>
           <button
@@ -156,9 +148,7 @@ export function AddChildDocumentDialog({
           {/* Criança selector (hidden when only one child) */}
           {childrenList.length > 1 && (
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-foreground">
-                Criança
-              </label>
+              <label className="text-sm font-semibold text-foreground">Criança</label>
               <Select value={childId} onValueChange={setChildId}>
                 <SelectTrigger className={selectTriggerCls()}>
                   <SelectValue placeholder="Selecione a criança" />
@@ -176,7 +166,10 @@ export function AddChildDocumentDialog({
 
           {/* Drop zone */}
           <div
-            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragging(true);
+            }}
             onDragLeave={() => setDragging(false)}
             onDrop={handleDrop}
             className={cn(
@@ -186,10 +179,7 @@ export function AddChildDocumentDialog({
                 : "border-primary/30 bg-primary/[0.03] hover:border-primary/50 hover:bg-primary/5",
             )}
           >
-            <Paperclip
-              className="mb-3 h-10 w-10 text-primary/40"
-              strokeWidth={1.5}
-            />
+            <Paperclip className="mb-3 h-10 w-10 text-primary/40" strokeWidth={1.5} />
             <p className="text-sm font-medium text-foreground">
               Arraste o arquivo ou toque para enviar
             </p>
@@ -226,7 +216,7 @@ export function AddChildDocumentDialog({
                 <button
                   key={cat.id}
                   type="button"
-                  onClick={() => handleCategoryClick(cat.id)}
+                  onClick={handleCategoryClick}
                   className={cn(
                     "flex items-center gap-2.5 rounded-xl border px-3.5 py-3 text-sm font-semibold transition-colors",
                     cat.bg,
@@ -242,9 +232,7 @@ export function AddChildDocumentDialog({
 
           <PendingAttachmentsList
             files={files}
-            onRemove={(idx) =>
-              setFiles((prev) => prev.filter((_, i) => i !== idx))
-            }
+            onRemove={(idx) => setFiles((prev) => prev.filter((_, i) => i !== idx))}
           />
 
           {error && <p className="text-sm text-destructive">{error}</p>}

@@ -42,6 +42,7 @@ import {
   getProfile,
   updateChildRelation,
   updateProfile,
+  type ProfilePatch,
 } from "@/services/profile.service";
 
 export const Route = createFileRoute("/_auth/perfil")({
@@ -79,9 +80,7 @@ function FieldRow({ icon, label, value, onEdit, emailVerified }: FieldRowProps) 
           >
             {hasValue ? value : "Adicionar"}
           </p>
-          {emailVerified && (
-            <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-          )}
+          {emailVerified && <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />}
         </div>
       </div>
       <button
@@ -129,8 +128,7 @@ function PerfilPage() {
 
   // ── Mutations ──────────────────────────────────────────────────────────────
   const updateMutation = useMutation({
-    mutationFn: (patch: { full_name?: string; phone?: string; birth_date?: string }) =>
-      updateProfile(user!.id, patch),
+    mutationFn: (patch: ProfilePatch) => updateProfile(user!.id, patch),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["profile"] });
       void qc.invalidateQueries({ queryKey: ["profile-shell"] });
@@ -152,8 +150,7 @@ function PerfilPage() {
   });
 
   const addChildMutation = useMutation({
-    mutationFn: (data: { name: string; birth_date: string }) =>
-      createChild(user!.id, data),
+    mutationFn: (data: { name: string; birth_date: string }) => createChild(user!.id, data),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["children-counts"] });
       void qc.invalidateQueries({ queryKey: ["children"] });
@@ -171,12 +168,18 @@ function PerfilPage() {
 
   const handleSave = () => {
     if (editField === "relation") {
-      if (!primaryChild) return;
+      if (!primaryChild) {
+        toast.error("Adicione uma criança primeiro para definir a relação.");
+        setEditField(null);
+        return;
+      }
       relationMutation.mutate({ childId: primaryChild.id, relation: editValue });
       return;
     }
     if (!editField) return;
-    updateMutation.mutate({ [editField]: editValue });
+    // birth_date vazio deve virar null para evitar erro de tipo no DB
+    const value: string | null = editField === "birth_date" && !editValue ? null : editValue;
+    updateMutation.mutate({ [editField]: value });
   };
 
   const isSaving = updateMutation.isPending || relationMutation.isPending;
@@ -184,10 +187,9 @@ function PerfilPage() {
 
   // ── Avatar ────────────────────────────────────────────────────────────────
   const initial = (profile?.full_name ?? user?.email ?? "U").charAt(0).toUpperCase();
-  const roleBadge =
-    primaryChild
-      ? `${primaryChild.relation ?? "Cuidador(a)"} do ${primaryChild.name}`
-      : null;
+  const roleBadge = primaryChild
+    ? `${primaryChild.relation ?? "Cuidador(a)"} do ${primaryChild.name}`
+    : null;
 
   if (isLoading) {
     return (
@@ -271,7 +273,9 @@ function PerfilPage() {
             label="E-mail"
             value={profile?.email ?? user?.email}
             emailVerified
-            onEdit={() => toast("O e-mail é gerenciado pela conta. Acesse Configurações para alterá-lo.")}
+            onEdit={() =>
+              toast("O e-mail é o seu identificador de login e não pode ser alterado por aqui.")
+            }
           />
           <FieldRow
             icon={<Phone className="h-4 w-4" strokeWidth={1.75} />}
@@ -283,16 +287,18 @@ function PerfilPage() {
             icon={<Heart className="h-4 w-4" strokeWidth={1.75} />}
             label="Relação com a criança"
             value={primaryChild?.relation}
-            onEdit={() => openEdit("relation", primaryChild?.relation)}
+            onEdit={() => {
+              if (!primaryChild) {
+                toast.error("Adicione uma criança primeiro para definir a relação.");
+                return;
+              }
+              openEdit("relation", primaryChild.relation);
+            }}
           />
           <FieldRow
             icon={<CalendarDays className="h-4 w-4" strokeWidth={1.75} />}
             label="Data de nascimento"
-            value={
-              profile?.birth_date
-                ? formatBirthDate(profile.birth_date)
-                : null
-            }
+            value={profile?.birth_date ? formatBirthDate(profile.birth_date) : null}
             onEdit={() => openEdit("birth_date", profile?.birth_date ?? "")}
           />
         </section>
@@ -344,7 +350,10 @@ function PerfilPage() {
                     </span>
                   </div>
                 </div>
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" strokeWidth={1.75} />
+                <ChevronRight
+                  className="h-4 w-4 shrink-0 text-muted-foreground/60"
+                  strokeWidth={1.75}
+                />
               </button>
             ))}
           </div>
@@ -422,9 +431,7 @@ function PerfilPage() {
                 id="edit-field"
                 value={editValue}
                 onChange={(e) => setEditValue(e.target.value)}
-                placeholder={
-                  editField === "phone" ? "(00) 00000-0000" : "Seu nome"
-                }
+                placeholder={editField === "phone" ? "(00) 00000-0000" : "Seu nome"}
                 autoFocus
               />
             </div>
@@ -434,7 +441,14 @@ function PerfilPage() {
             <Button variant="ghost" onClick={() => setEditField(null)} disabled={isSaving}>
               Cancelar
             </Button>
-            <Button onClick={handleSave} disabled={isSaving || !editValue.trim()}>
+            <Button
+              onClick={handleSave}
+              disabled={
+                isSaving ||
+                // Nome e relação: obrigatórios. Telefone e data: permite limpar.
+                ((editField === "full_name" || editField === "relation") && !editValue.trim())
+              }
+            >
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Salvar
             </Button>
@@ -458,8 +472,8 @@ function PerfilPage() {
           <DialogHeader>
             <DialogTitle className="text-destructive">Excluir conta</DialogTitle>
             <DialogDescription>
-              Esta ação é irreversível. Todos os seus dados serão permanentemente removidos.
-              Digite <strong>EXCLUIR</strong> para confirmar.
+              Esta ação é irreversível. Todos os seus dados serão permanentemente removidos. Digite{" "}
+              <strong>EXCLUIR</strong> para confirmar.
             </DialogDescription>
           </DialogHeader>
           <Input
@@ -476,7 +490,9 @@ function PerfilPage() {
               variant="destructive"
               disabled={deleteConfirm !== "EXCLUIR"}
               onClick={() => {
-                toast.error("Para excluir sua conta, entre em contato com suporte@teamotech.online");
+                toast.error(
+                  "Para excluir sua conta, entre em contato com suporte@teamotech.online",
+                );
                 setDeleteDialogOpen(false);
               }}
             >

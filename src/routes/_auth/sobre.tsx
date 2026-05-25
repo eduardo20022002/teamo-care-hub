@@ -46,38 +46,29 @@ function SobrePage() {
 
         {/* Description */}
         <div className="mb-5 rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <h2 className="mb-2 text-base font-semibold text-foreground">
-            O que é o TEAmo?
-          </h2>
+          <h2 className="mb-2 text-base font-semibold text-foreground">O que é o TEAmo?</h2>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            O TEAmo é um sistema de gestão de cuidados desenvolvido para famílias de
-            crianças com Transtorno do Espectro Autista (TEA). Centralizamos registros
-            clínicos, documentos, agenda terapêutica e a comunicação segura com
-            profissionais de saúde em um único aplicativo.
+            O TEAmo é um sistema de gestão de cuidados desenvolvido para famílias de crianças com
+            Transtorno do Espectro Autista (TEA). Centralizamos registros clínicos, documentos,
+            agenda terapêutica e a comunicação segura com profissionais de saúde em um único
+            aplicativo.
           </p>
         </div>
 
         {/* TCC credits */}
         <div className="mb-5 rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <h2 className="mb-3 text-base font-semibold text-foreground">
-            Projeto acadêmico
-          </h2>
+          <h2 className="mb-3 text-base font-semibold text-foreground">Projeto acadêmico</h2>
           <div className="space-y-2 text-sm text-muted-foreground">
             <p>
-              <span className="font-medium text-foreground">Instituição:</span>{" "}
-              Universidade Federal de Pernambuco (UFPE)
+              <span className="font-medium text-foreground">Instituição:</span> Universidade Federal
+              de Pernambuco (UFPE)
             </p>
             <p>
-              <span className="font-medium text-foreground">Curso:</span>{" "}
-              Sistemas de Informação
+              <span className="font-medium text-foreground">Tipo:</span> Trabalho de Conclusão de
+              Curso (TCC) — 2026
             </p>
             <p>
-              <span className="font-medium text-foreground">Tipo:</span>{" "}
-              Trabalho de Conclusão de Curso (TCC) — 2026
-            </p>
-            <p>
-              <span className="font-medium text-foreground">Desenvolvedor:</span>{" "}
-              Eduardo Meirelles
+              <span className="font-medium text-foreground">Desenvolvedor:</span> Eduardo Meirelles
             </p>
           </div>
         </div>

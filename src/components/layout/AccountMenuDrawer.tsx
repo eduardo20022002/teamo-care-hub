@@ -32,7 +32,7 @@ interface MenuRowProps {
   icon: React.ReactNode;
   iconBg: string;
   label: string;
-  subtitle: string;
+  subtitle?: string;
   onClick: () => void;
 }
 
@@ -50,7 +50,7 @@ function MenuRow({ icon, iconBg, label, subtitle, onClick }: MenuRowProps) {
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-foreground">{label}</p>
-        <p className="text-xs text-muted-foreground">{subtitle}</p>
+        {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
       </div>
       <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" strokeWidth={1.75} />
     </button>
@@ -65,12 +65,7 @@ function SectionLabel({ children }: { children: string }) {
   );
 }
 
-export function AccountMenuDrawer({
-  open,
-  onClose,
-  fullName,
-  email,
-}: AccountMenuDrawerProps) {
+export function AccountMenuDrawer({ open, onClose, fullName, email }: AccountMenuDrawerProps) {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -131,10 +126,7 @@ export function AccountMenuDrawer({
               </p>
               <div className="flex items-center gap-1">
                 <p className="truncate text-sm text-muted-foreground">{email}</p>
-                <CheckCircle2
-                  className="h-3.5 w-3.5 shrink-0 text-emerald-500"
-                  strokeWidth={2}
-                />
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" strokeWidth={2} />
               </div>
             </div>
           </div>
@@ -172,14 +164,12 @@ export function AccountMenuDrawer({
             icon={<HelpCircle className="h-5 w-5 text-accent" strokeWidth={1.75} />}
             iconBg="bg-accent/10"
             label="Ajuda e dúvidas frequentes"
-            subtitle=""
             onClick={() => go("/ajuda")}
           />
           <MenuRow
             icon={<Info className="h-5 w-5 text-accent" strokeWidth={1.75} />}
             iconBg="bg-accent/10"
             label="Sobre o TEAmo"
-            subtitle=""
             onClick={() => go("/sobre")}
           />
 
@@ -196,9 +186,7 @@ export function AccountMenuDrawer({
           </button>
 
           {/* Footer */}
-          <p className="mt-5 text-center text-xs text-muted-foreground">
-            TEAmo · versão 1.0.0
-          </p>
+          <p className="mt-5 text-center text-xs text-muted-foreground">TEAmo · versão 1.0.0</p>
         </DrawerContent>
       </DrawerPortal>
     </Drawer>

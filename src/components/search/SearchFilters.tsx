@@ -19,12 +19,7 @@ export const EMPTY_SEARCH_FILTERS: SearchFiltersValue = {
 };
 
 export function isSearchFiltersActive(v: SearchFiltersValue): boolean {
-  return (
-    v.childId !== "all" ||
-    v.kind !== "all" ||
-    v.dateFrom !== "" ||
-    v.dateTo !== ""
-  );
+  return v.childId !== "all" || v.kind !== "all" || v.dateFrom !== "" || v.dateTo !== "";
 }
 
 // Quick period presets
@@ -103,8 +98,7 @@ interface Props {
 }
 
 export function SearchFilters({ value, onChange, childrenList, counts }: Props) {
-  const update = (patch: Partial<SearchFiltersValue>) =>
-    onChange({ ...value, ...patch });
+  const update = (patch: Partial<SearchFiltersValue>) => onChange({ ...value, ...patch });
 
   const periodPreset = toPeriodPreset(value.dateFrom, value.dateTo);
 
@@ -139,9 +133,7 @@ export function SearchFilters({ value, onChange, childrenList, counts }: Props) 
               onClick={() => update({ kind: opt.id })}
             >
               {opt.label}
-              {opt.count != null && (
-                <Count n={opt.count} active={value.kind === opt.id} />
-              )}
+              {opt.count != null && <Count n={opt.count} active={value.kind === opt.id} />}
             </Pill>
           ))}
         </div>
@@ -154,11 +146,7 @@ export function SearchFilters({ value, onChange, childrenList, counts }: Props) 
         </p>
         <div className="flex flex-wrap gap-2">
           {PERIOD_OPTIONS.map((opt) => (
-            <Pill
-              key={opt.id}
-              active={periodPreset === opt.id}
-              onClick={() => setPeriod(opt.id)}
-            >
+            <Pill key={opt.id} active={periodPreset === opt.id} onClick={() => setPeriod(opt.id)}>
               {opt.label}
             </Pill>
           ))}
@@ -172,10 +160,7 @@ export function SearchFilters({ value, onChange, childrenList, counts }: Props) 
             Criança
           </p>
           <div className="flex flex-wrap gap-2">
-            <Pill
-              active={value.childId === "all"}
-              onClick={() => update({ childId: "all" })}
-            >
+            <Pill active={value.childId === "all"} onClick={() => update({ childId: "all" })}>
               Todas
             </Pill>
             {childrenList.map((c) => (
