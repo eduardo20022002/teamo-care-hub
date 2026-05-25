@@ -12,7 +12,7 @@ import {
   isSearchFiltersActive,
   type SearchFiltersValue,
 } from "@/components/search/SearchFilters";
-import { SearchResultsList } from "@/components/search/SearchResultsList";
+import { SearchResultItem } from "@/components/search/SearchResultItem";
 import { EmptySearch } from "@/components/search/EmptySearch";
 import { RecordDetailsDialog } from "@/components/attendance/RecordDetailsDialog";
 import { useAuth } from "@/hooks/useAuth";
@@ -43,6 +43,37 @@ function useDebounced<T>(value: T, delay = 200): T {
   return debounced;
 }
 
+// ─── Section header for grouped results ──────────────────────────────────────
+const GROUP_COLORS: Record<string, string> = {
+  record: "text-rose-500",
+  document: "text-indigo-500",
+  professional: "text-emerald-600",
+};
+
+const GROUP_ICONS: Record<string, string> = {
+  record: "📦",
+  document: "📁",
+  professional: "👤",
+};
+
+const GROUP_LABELS: Record<string, string> = {
+  record: "REGISTROS",
+  document: "DOCUMENTOS",
+  professional: "PROFISSIONAIS",
+};
+
+function GroupHeader({ kind, count }: { kind: string; count: number }) {
+  return (
+    <div
+      className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide ${GROUP_COLORS[kind] ?? "text-muted-foreground"}`}
+    >
+      <span>{GROUP_ICONS[kind] ?? "•"}</span>
+      {GROUP_LABELS[kind] ?? kind} · {count}
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 function BuscaPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -60,22 +91,14 @@ function BuscaPage() {
     enabled: !!user,
   });
 
-  // Resultados completos (sem termo) — recarregam quando filtros estruturais mudam.
-  // O termo de busca é aplicado em memória depois.
   const kinds: SearchKind[] | undefined =
     filters.kind === "all" ? undefined : [filters.kind as SearchKind];
-  // Categoria só vale quando os registros estão no escopo
-  const categoryForQuery =
-    filters.category !== "all" && (filters.kind === "all" || filters.kind === "record")
-      ? filters.category
-      : undefined;
 
   const searchQuery = useQuery({
     queryKey: [
       "global-search",
       filters.childId,
       filters.kind,
-      categoryForQuery ?? "all",
       filters.dateFrom,
       filters.dateTo,
     ],
@@ -85,7 +108,6 @@ function BuscaPage() {
         kinds,
         dateFrom: filters.dateFrom || undefined,
         dateTo: filters.dateTo || undefined,
-        category: categoryForQuery,
       }),
     enabled: !!user,
   });
@@ -102,12 +124,28 @@ function BuscaPage() {
     const q = normalizeForSearch(debouncedQuery.trim());
     if (!q) return allHits;
     return allHits.filter((h) => {
-      const haystack = normalizeForSearch(
-        `${h.title} ${h.subtitle ?? ""}`,
-      );
+      const haystack = normalizeForSearch(`${h.title} ${h.subtitle ?? ""}`);
       return haystack.includes(q);
     });
   }, [allHits, debouncedQuery]);
+
+  // Counts per kind for filter pills
+  const counts = useMemo(() => ({
+    all: allHits.length,
+    record: allHits.filter((h) => h.kind === "record").length,
+    document: allHits.filter((h) => h.kind === "document").length,
+  }), [allHits]);
+
+  // Group visible hits by kind
+  const grouped = useMemo(() => {
+    const map = new Map<string, SearchHit[]>();
+    for (const h of visibleHits) {
+      const arr = map.get(h.kind) ?? [];
+      arr.push(h);
+      map.set(h.kind, arr);
+    }
+    return map;
+  }, [visibleHits]);
 
   const handleSelect = async (hit: SearchHit) => {
     if (hit.payload.kind === "record") {
@@ -149,8 +187,8 @@ function BuscaPage() {
           Buscar no histórico
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Histórico completo em ordem cronológica. Use a busca e os filtros para
-          refinar.
+          Encontre registros, profissionais, documentos e compromissos. Use os
+          filtros pra refinar.
         </p>
       </header>
 
@@ -163,6 +201,7 @@ function BuscaPage() {
           value={filters}
           onChange={setFilters}
           childrenList={childrenList}
+          counts={counts}
         />
       </div>
 
@@ -181,14 +220,29 @@ function BuscaPage() {
         />
       ) : (
         <>
-          <p className="mb-3 text-xs text-muted-foreground">
+          <p className="mb-4 text-xs text-muted-foreground">
             {visibleHits.length}{" "}
-            {visibleHits.length === 1
-              ? "resultado encontrado"
-              : "resultados encontrados"}
-            {debouncedQuery.trim() ? ` para "${debouncedQuery.trim()}"` : ""}.
+            {visibleHits.length === 1 ? "resultado encontrado" : "resultados encontrados"}
+            {debouncedQuery.trim() ? ` para "${debouncedQuery.trim()}"` : ""}
+            {" · ordenados por relevância"}
           </p>
-          <SearchResultsList hits={visibleHits} onSelect={handleSelect} />
+
+          <div className="space-y-6">
+            {Array.from(grouped.entries()).map(([kind, hits]) => (
+              <div key={kind}>
+                <GroupHeader kind={kind} count={hits.length} />
+                <div className="mt-2 space-y-2">
+                  {hits.map((hit) => (
+                    <SearchResultItem
+                      key={`${hit.kind}-${hit.id}`}
+                      hit={hit}
+                      onClick={() => void handleSelect(hit)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </>
       )}
 

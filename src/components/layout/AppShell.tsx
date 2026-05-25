@@ -1,59 +1,37 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { Bell, LogOut, Menu, MessageSquare, Share2, ShieldCheck } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { Bell, Menu } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { NotificationsDrawer } from "@/components/agenda/NotificationsDrawer";
 import { FeedbackButton } from "@/components/feedback/FeedbackButton";
 import { useAgendaNotifications } from "@/hooks/useAgendaNotifications";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { signOut } from "@/services/auth.service";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { BrandLogo } from "./BrandLogo";
+import { AccountMenuDrawer } from "./AccountMenuDrawer";
 
 export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu?: boolean }) {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [loggingOut, setLoggingOut] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const notifications = useAgendaNotifications();
   const hasUnread = notifications.length > 0;
 
   const { data: profile } = useQuery({
-    queryKey: ["profile-admin", user?.id],
+    queryKey: ["profile-shell", user?.id],
     queryFn: async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("is_admin")
+        .select("full_name, is_admin")
         .eq("id", user!.id)
         .maybeSingle();
       return data;
     },
     enabled: !!user,
-    staleTime: 5 * 60 * 1000, // 5 min — is_admin não muda frequentemente
+    staleTime: 5 * 60 * 1000,
   });
-
-  const isAdmin = profile?.is_admin === true;
-
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    try {
-      await signOut("manual");
-      toast.success("Você saiu com segurança.");
-      navigate({ to: "/login" });
-    } finally {
-      setLoggingOut(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -76,55 +54,20 @@ export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu
                   />
                 )}
               </button>
-              <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="Menu">
-                  <Menu className="h-5 w-5" strokeWidth={1.75} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                {user?.email && (
-                  <>
-                    <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
-                      {user.email}
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                  </>
-                )}
-                <DropdownMenuItem asChild className="text-foreground">
-                  <Link to="/compartilhamentos">
-                    <Share2 className="mr-2 h-4 w-4" strokeWidth={1.75} />
-                    Compartilhamentos
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild className="text-foreground">
-                  <Link to="/seguranca">
-                    <ShieldCheck className="mr-2 h-4 w-4" strokeWidth={1.75} />
-                    Segurança
-                  </Link>
-                </DropdownMenuItem>
-                {isAdmin && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild className="text-foreground">
-                      <Link to="/feedbacks">
-                        <MessageSquare className="mr-2 h-4 w-4" strokeWidth={1.75} />
-                        Feedbacks
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  disabled={loggingOut}
-                  className="text-foreground"
-                >
-                  <LogOut className="mr-2 h-4 w-4" strokeWidth={1.75} />
-                  Sair
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Menu"
+                onClick={() => setMenuOpen(true)}
+              >
+                <Menu className="h-5 w-5" strokeWidth={1.75} />
+              </Button>
+              <AccountMenuDrawer
+                open={menuOpen}
+                onClose={() => setMenuOpen(false)}
+                fullName={profile?.full_name ?? null}
+                email={user?.email ?? null}
+              />
             </div>
           )}
         </div>

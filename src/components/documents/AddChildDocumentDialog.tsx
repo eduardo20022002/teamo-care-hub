@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Paperclip, X } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
@@ -8,14 +8,45 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AttachmentUploader } from "@/components/attachments/AttachmentUploader";
 import { PendingAttachmentsList } from "@/components/attachments/PendingAttachmentsList";
+import { cn } from "@/lib/utils";
 import type { Child } from "@/types/database";
 
 const BRAND_GRADIENT =
   "linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)";
 const BRAND_SHADOW =
   "0 8px 18px -8px rgba(79,70,229,0.45), 0 3px 8px -3px rgba(236,72,153,0.25)";
+
+const CATEGORIES = [
+  {
+    id: "laudo",
+    label: "Laudo",
+    emoji: "🗂",
+    color: "text-rose-500",
+    bg: "bg-rose-50 hover:bg-rose-100 border-rose-200",
+  },
+  {
+    id: "relatorio",
+    label: "Relatório",
+    emoji: "📄",
+    color: "text-blue-600",
+    bg: "bg-blue-50 hover:bg-blue-100 border-blue-200",
+  },
+  {
+    id: "prescricao",
+    label: "Prescrição",
+    emoji: "💊",
+    color: "text-rose-500",
+    bg: "bg-rose-50 hover:bg-rose-100 border-rose-200",
+  },
+  {
+    id: "escolar",
+    label: "Escolar",
+    emoji: "📚",
+    color: "text-emerald-600",
+    bg: "bg-emerald-50 hover:bg-emerald-100 border-emerald-200",
+  },
+] as const;
 
 function selectTriggerCls() {
   return "h-[44px] rounded-[11px] border-[1.5px] border-[#E5E7EB] bg-[#F6F7FB] text-sm focus:bg-[#FAFBFF] focus:border-[#4F46E5] focus:ring-[4px] focus:ring-[rgba(79,70,229,0.10)]";
@@ -41,6 +72,8 @@ export function AddChildDocumentDialog({
   const [childId, setChildId] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -51,6 +84,25 @@ export function AddChildDocumentDialog({
     setFiles([]);
     setError(null);
   }, [open, defaultChildId, childrenList]);
+
+  const addFiles = (newFiles: FileList | File[]) => {
+    const arr = Array.from(newFiles);
+    setFiles((prev) => [...prev, ...arr]);
+    setError(null);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    if (e.dataTransfer.files.length > 0) addFiles(e.dataTransfer.files);
+  };
+
+  const handleCategoryClick = (catId: string) => {
+    // Store category hint in file metadata (by naming the input)
+    // Category selection triggers file picker — category stored in state
+    void catId; // will be used when we have a category-aware upload
+    fileRef.current?.click();
+  };
 
   const handleConfirm = async () => {
     if (!childId) {
@@ -85,8 +137,8 @@ export function AddChildDocumentDialog({
               Adicionar documento
             </h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Anexe laudos, relatórios escolares, prescrições e outros documentos
-              avulsos.
+              Selecione a categoria pra a gente organizar melhor — ou arraste o
+              arquivo direto.
             </p>
           </div>
           <button
@@ -101,46 +153,91 @@ export function AddChildDocumentDialog({
         <div className="h-px bg-[#EEF0F4]" />
 
         <div className="space-y-5 px-5 py-5">
-          {/* Criança */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-foreground">
-              Criança
-            </label>
-            <Select value={childId} onValueChange={setChildId}>
-              <SelectTrigger className={selectTriggerCls()}>
-                <SelectValue placeholder="Selecione a criança" />
-              </SelectTrigger>
-              <SelectContent>
-                {childrenList.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Título (optional info) */}
-          <div className="rounded-[14px] border border-[#EEF0F4] bg-[#F6F7FB] px-4 py-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Paperclip className="h-4 w-4 shrink-0" style={{ color: "#7C3AED" }} strokeWidth={1.75} />
-              <span>PDF, JPG ou PNG · até 10 MB por arquivo</span>
+          {/* Criança selector (hidden when only one child) */}
+          {childrenList.length > 1 && (
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-foreground">
+                Criança
+              </label>
+              <Select value={childId} onValueChange={setChildId}>
+                <SelectTrigger className={selectTriggerCls()}>
+                  <SelectValue placeholder="Selecione a criança" />
+                </SelectTrigger>
+                <SelectContent>
+                  {childrenList.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+          )}
+
+          {/* Drop zone */}
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={handleDrop}
+            className={cn(
+              "flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition-colors",
+              dragging
+                ? "border-primary bg-primary/5"
+                : "border-primary/30 bg-primary/[0.03] hover:border-primary/50 hover:bg-primary/5",
+            )}
+          >
+            <Paperclip
+              className="mb-3 h-10 w-10 text-primary/40"
+              strokeWidth={1.5}
+            />
+            <p className="text-sm font-medium text-foreground">
+              Arraste o arquivo ou toque para enviar
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              PDF, JPG ou PNG · até 10 MB por arquivo
+            </p>
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="mt-3 rounded-lg border border-primary px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/5"
+            >
+              Selecionar do dispositivo
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files) addFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
           </div>
 
-          {/* Uploader */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-foreground">
-              Arquivo
-            </label>
-            <AttachmentUploader
-              onFiles={(newFiles) => {
-                setFiles((prev) => [...prev, ...newFiles]);
-                setError(null);
-              }}
-              uploading={false}
-              label="Selecionar arquivo"
-            />
+          {/* Category grid */}
+          <div>
+            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Ou escolha uma categoria
+            </p>
+            <div className="grid grid-cols-2 gap-2.5">
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => handleCategoryClick(cat.id)}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-xl border px-3.5 py-3 text-sm font-semibold transition-colors",
+                    cat.bg,
+                    cat.color,
+                  )}
+                >
+                  <span className="text-base">{cat.emoji}</span>
+                  {cat.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <PendingAttachmentsList
@@ -150,12 +247,10 @@ export function AddChildDocumentDialog({
             }
           />
 
-          {error && (
-            <p className="text-sm text-red-500">{error}</p>
-          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
-          {/* Botões */}
-          <div className="space-y-3 pb-6 pt-2">
+          {/* Buttons */}
+          {files.length > 0 && (
             <button
               type="button"
               onClick={handleConfirm}
@@ -169,14 +264,17 @@ export function AddChildDocumentDialog({
               {submitting ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
-                "Enviar"
+                `Enviar ${files.length > 1 ? `${files.length} arquivos` : "arquivo"}`
               )}
             </button>
+          )}
+
+          <div className="pb-4">
             <button
               type="button"
               onClick={() => onOpenChange(false)}
               disabled={submitting}
-              className="w-full py-2 text-sm text-muted-foreground"
+              className="w-full py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground"
             >
               Cancelar
             </button>

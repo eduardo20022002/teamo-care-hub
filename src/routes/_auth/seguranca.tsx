@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Loader2, ShieldCheck, ShieldAlert, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -33,6 +33,12 @@ export const Route = createFileRoute("/_auth/seguranca")({
 });
 
 function SecurityPage() {
+  const navigate = useNavigate();
+  // Redirect to unified settings page
+  useEffect(() => {
+    void navigate({ to: "/configuracoes", replace: true });
+  }, [navigate]);
+
   const [loading, setLoading] = useState(true);
   const [factors, setFactors] = useState<MfaFactor[]>([]);
   const [enrolling, setEnrolling] = useState<MfaEnrollResponse | null>(null);

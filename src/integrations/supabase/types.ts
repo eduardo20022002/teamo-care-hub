@@ -421,6 +421,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          relation: string | null
           user_id: string
         }
         Insert: {
@@ -428,6 +429,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          relation?: string | null
           user_id: string
         }
         Update: {
@@ -435,6 +437,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          relation?: string | null
           user_id?: string
         }
         Relationships: []
@@ -498,25 +501,31 @@ export type Database = {
       }
       profiles: {
         Row: {
+          birth_date: string | null
           created_at: string
           email: string
           full_name: string | null
           id: string
           is_admin: boolean
+          phone: string | null
         }
         Insert: {
+          birth_date?: string | null
           created_at?: string
           email: string
           full_name?: string | null
           id: string
           is_admin?: boolean
+          phone?: string | null
         }
         Update: {
+          birth_date?: string | null
           created_at?: string
           email?: string
           full_name?: string | null
           id?: string
           is_admin?: boolean
+          phone?: string | null
         }
         Relationships: []
       }

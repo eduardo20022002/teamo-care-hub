@@ -17,16 +17,20 @@ import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CompartilhamentoTokenRouteImport } from './routes/compartilhamento.$token'
+import { Route as AuthSobreRouteImport } from './routes/_auth/sobre'
 import { Route as AuthSegurancaRouteImport } from './routes/_auth/seguranca'
 import { Route as AuthRegistrosRouteImport } from './routes/_auth/registros'
-import { Route as AuthFeedbacksRouteImport } from './routes/_auth/feedbacks'
 import { Route as AuthProfissionaisRouteImport } from './routes/_auth/profissionais'
+import { Route as AuthPerfilRouteImport } from './routes/_auth/perfil'
 import { Route as AuthPainelRouteImport } from './routes/_auth/painel'
 import { Route as AuthOnboardingRouteImport } from './routes/_auth/onboarding'
+import { Route as AuthFeedbacksRouteImport } from './routes/_auth/feedbacks'
 import { Route as AuthDocumentosRouteImport } from './routes/_auth/documentos'
 import { Route as AuthDashboardRouteImport } from './routes/_auth/dashboard'
+import { Route as AuthConfiguracoesRouteImport } from './routes/_auth/configuracoes'
 import { Route as AuthCompartilhamentosRouteImport } from './routes/_auth/compartilhamentos'
 import { Route as AuthBuscaRouteImport } from './routes/_auth/busca'
+import { Route as AuthAjudaRouteImport } from './routes/_auth/ajuda'
 import { Route as AuthAgendaRouteImport } from './routes/_auth/agenda'
 import { Route as AuthProfissionaisProfessionalIdRouteImport } from './routes/_auth/profissionais_.$professionalId'
 import { Route as AuthAgendaOnboardingRouteImport } from './routes/_auth/agenda_.onboarding'
@@ -75,6 +79,11 @@ const CompartilhamentoTokenRoute = CompartilhamentoTokenRouteImport.update({
   path: '/compartilhamento/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthSobreRoute = AuthSobreRouteImport.update({
+  id: '/sobre',
+  path: '/sobre',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthSegurancaRoute = AuthSegurancaRouteImport.update({
   id: '/seguranca',
   path: '/seguranca',
@@ -85,14 +94,14 @@ const AuthRegistrosRoute = AuthRegistrosRouteImport.update({
   path: '/registros',
   getParentRoute: () => AuthRoute,
 } as any)
-const AuthFeedbacksRoute = AuthFeedbacksRouteImport.update({
-  id: '/feedbacks',
-  path: '/feedbacks',
-  getParentRoute: () => AuthRoute,
-} as any)
 const AuthProfissionaisRoute = AuthProfissionaisRouteImport.update({
   id: '/profissionais',
   path: '/profissionais',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthPerfilRoute = AuthPerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthPainelRoute = AuthPainelRouteImport.update({
@@ -105,6 +114,11 @@ const AuthOnboardingRoute = AuthOnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthFeedbacksRoute = AuthFeedbacksRouteImport.update({
+  id: '/feedbacks',
+  path: '/feedbacks',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthDocumentosRoute = AuthDocumentosRouteImport.update({
   id: '/documentos',
   path: '/documentos',
@@ -115,6 +129,11 @@ const AuthDashboardRoute = AuthDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthConfiguracoesRoute = AuthConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthCompartilhamentosRoute = AuthCompartilhamentosRouteImport.update({
   id: '/compartilhamentos',
   path: '/compartilhamentos',
@@ -123,6 +142,11 @@ const AuthCompartilhamentosRoute = AuthCompartilhamentosRouteImport.update({
 const AuthBuscaRoute = AuthBuscaRouteImport.update({
   id: '/busca',
   path: '/busca',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthAjudaRoute = AuthAjudaRouteImport.update({
+  id: '/ajuda',
+  path: '/ajuda',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthAgendaRoute = AuthAgendaRouteImport.update({
@@ -178,16 +202,20 @@ export interface FileRoutesByFullPath {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/verificar-conta': typeof VerificarContaRoute
   '/agenda': typeof AuthAgendaRoute
+  '/ajuda': typeof AuthAjudaRoute
   '/busca': typeof AuthBuscaRoute
   '/compartilhamentos': typeof AuthCompartilhamentosRoute
+  '/configuracoes': typeof AuthConfiguracoesRoute
   '/dashboard': typeof AuthDashboardRoute
   '/documentos': typeof AuthDocumentosRoute
   '/feedbacks': typeof AuthFeedbacksRoute
   '/onboarding': typeof AuthOnboardingRoute
   '/painel': typeof AuthPainelRoute
+  '/perfil': typeof AuthPerfilRoute
   '/profissionais': typeof AuthProfissionaisRoute
   '/registros': typeof AuthRegistrosRoute
   '/seguranca': typeof AuthSegurancaRoute
+  '/sobre': typeof AuthSobreRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
   '/agenda/$eventId': typeof AuthAgendaEventIdRoute
   '/agenda/busca': typeof AuthAgendaBuscaRoute
@@ -205,16 +233,20 @@ export interface FileRoutesByTo {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/verificar-conta': typeof VerificarContaRoute
   '/agenda': typeof AuthAgendaRoute
+  '/ajuda': typeof AuthAjudaRoute
   '/busca': typeof AuthBuscaRoute
   '/compartilhamentos': typeof AuthCompartilhamentosRoute
+  '/configuracoes': typeof AuthConfiguracoesRoute
   '/dashboard': typeof AuthDashboardRoute
   '/documentos': typeof AuthDocumentosRoute
   '/feedbacks': typeof AuthFeedbacksRoute
   '/onboarding': typeof AuthOnboardingRoute
   '/painel': typeof AuthPainelRoute
+  '/perfil': typeof AuthPerfilRoute
   '/profissionais': typeof AuthProfissionaisRoute
   '/registros': typeof AuthRegistrosRoute
   '/seguranca': typeof AuthSegurancaRoute
+  '/sobre': typeof AuthSobreRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
   '/agenda/$eventId': typeof AuthAgendaEventIdRoute
   '/agenda/busca': typeof AuthAgendaBuscaRoute
@@ -234,16 +266,20 @@ export interface FileRoutesById {
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/verificar-conta': typeof VerificarContaRoute
   '/_auth/agenda': typeof AuthAgendaRoute
+  '/_auth/ajuda': typeof AuthAjudaRoute
   '/_auth/busca': typeof AuthBuscaRoute
   '/_auth/compartilhamentos': typeof AuthCompartilhamentosRoute
+  '/_auth/configuracoes': typeof AuthConfiguracoesRoute
   '/_auth/dashboard': typeof AuthDashboardRoute
   '/_auth/documentos': typeof AuthDocumentosRoute
   '/_auth/feedbacks': typeof AuthFeedbacksRoute
   '/_auth/onboarding': typeof AuthOnboardingRoute
   '/_auth/painel': typeof AuthPainelRoute
+  '/_auth/perfil': typeof AuthPerfilRoute
   '/_auth/profissionais': typeof AuthProfissionaisRoute
   '/_auth/registros': typeof AuthRegistrosRoute
   '/_auth/seguranca': typeof AuthSegurancaRoute
+  '/_auth/sobre': typeof AuthSobreRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
   '/_auth/agenda_/$eventId': typeof AuthAgendaEventIdRoute
   '/_auth/agenda_/busca': typeof AuthAgendaBuscaRoute
@@ -263,16 +299,20 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/verificar-conta'
     | '/agenda'
+    | '/ajuda'
     | '/busca'
     | '/compartilhamentos'
+    | '/configuracoes'
     | '/dashboard'
     | '/documentos'
     | '/feedbacks'
     | '/onboarding'
     | '/painel'
+    | '/perfil'
     | '/profissionais'
     | '/registros'
     | '/seguranca'
+    | '/sobre'
     | '/compartilhamento/$token'
     | '/agenda/$eventId'
     | '/agenda/busca'
@@ -290,16 +330,20 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/verificar-conta'
     | '/agenda'
+    | '/ajuda'
     | '/busca'
     | '/compartilhamentos'
+    | '/configuracoes'
     | '/dashboard'
     | '/documentos'
     | '/feedbacks'
     | '/onboarding'
     | '/painel'
+    | '/perfil'
     | '/profissionais'
     | '/registros'
     | '/seguranca'
+    | '/sobre'
     | '/compartilhamento/$token'
     | '/agenda/$eventId'
     | '/agenda/busca'
@@ -318,16 +362,20 @@ export interface FileRouteTypes {
     | '/redefinir-senha'
     | '/verificar-conta'
     | '/_auth/agenda'
+    | '/_auth/ajuda'
     | '/_auth/busca'
     | '/_auth/compartilhamentos'
+    | '/_auth/configuracoes'
     | '/_auth/dashboard'
     | '/_auth/documentos'
     | '/_auth/feedbacks'
     | '/_auth/onboarding'
     | '/_auth/painel'
+    | '/_auth/perfil'
     | '/_auth/profissionais'
     | '/_auth/registros'
     | '/_auth/seguranca'
+    | '/_auth/sobre'
     | '/compartilhamento/$token'
     | '/_auth/agenda_/$eventId'
     | '/_auth/agenda_/busca'
@@ -410,6 +458,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompartilhamentoTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_auth/sobre': {
+      id: '/_auth/sobre'
+      path: '/sobre'
+      fullPath: '/sobre'
+      preLoaderRoute: typeof AuthSobreRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/seguranca': {
       id: '/_auth/seguranca'
       path: '/seguranca'
@@ -431,6 +486,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthProfissionaisRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/perfil': {
+      id: '/_auth/perfil'
+      path: '/perfil'
+      fullPath: '/perfil'
+      preLoaderRoute: typeof AuthPerfilRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/painel': {
       id: '/_auth/painel'
       path: '/painel'
@@ -445,13 +507,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthOnboardingRouteImport
       parentRoute: typeof AuthRoute
     }
-    '/_auth/documentos': {
-      id: '/_auth/documentos'
-      path: '/documentos'
-      fullPath: '/documentos'
-      preLoaderRoute: typeof AuthDocumentosRouteImport
-      parentRoute: typeof AuthRoute
-    }
     '/_auth/feedbacks': {
       id: '/_auth/feedbacks'
       path: '/feedbacks'
@@ -459,11 +514,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthFeedbacksRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/documentos': {
+      id: '/_auth/documentos'
+      path: '/documentos'
+      fullPath: '/documentos'
+      preLoaderRoute: typeof AuthDocumentosRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/dashboard': {
       id: '/_auth/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthDashboardRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/configuracoes': {
+      id: '/_auth/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AuthConfiguracoesRouteImport
       parentRoute: typeof AuthRoute
     }
     '/_auth/compartilhamentos': {
@@ -478,6 +547,13 @@ declare module '@tanstack/react-router' {
       path: '/busca'
       fullPath: '/busca'
       preLoaderRoute: typeof AuthBuscaRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/ajuda': {
+      id: '/_auth/ajuda'
+      path: '/ajuda'
+      fullPath: '/ajuda'
+      preLoaderRoute: typeof AuthAjudaRouteImport
       parentRoute: typeof AuthRoute
     }
     '/_auth/agenda': {
@@ -541,16 +617,20 @@ declare module '@tanstack/react-router' {
 
 interface AuthRouteChildren {
   AuthAgendaRoute: typeof AuthAgendaRoute
+  AuthAjudaRoute: typeof AuthAjudaRoute
   AuthBuscaRoute: typeof AuthBuscaRoute
   AuthCompartilhamentosRoute: typeof AuthCompartilhamentosRoute
+  AuthConfiguracoesRoute: typeof AuthConfiguracoesRoute
   AuthDashboardRoute: typeof AuthDashboardRoute
   AuthDocumentosRoute: typeof AuthDocumentosRoute
   AuthFeedbacksRoute: typeof AuthFeedbacksRoute
   AuthOnboardingRoute: typeof AuthOnboardingRoute
   AuthPainelRoute: typeof AuthPainelRoute
+  AuthPerfilRoute: typeof AuthPerfilRoute
   AuthProfissionaisRoute: typeof AuthProfissionaisRoute
   AuthRegistrosRoute: typeof AuthRegistrosRoute
   AuthSegurancaRoute: typeof AuthSegurancaRoute
+  AuthSobreRoute: typeof AuthSobreRoute
   AuthAgendaEventIdRoute: typeof AuthAgendaEventIdRoute
   AuthAgendaBuscaRoute: typeof AuthAgendaBuscaRoute
   AuthAgendaOnboardingRoute: typeof AuthAgendaOnboardingRoute
@@ -559,16 +639,20 @@ interface AuthRouteChildren {
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthAgendaRoute: AuthAgendaRoute,
+  AuthAjudaRoute: AuthAjudaRoute,
   AuthBuscaRoute: AuthBuscaRoute,
   AuthCompartilhamentosRoute: AuthCompartilhamentosRoute,
+  AuthConfiguracoesRoute: AuthConfiguracoesRoute,
   AuthDashboardRoute: AuthDashboardRoute,
   AuthDocumentosRoute: AuthDocumentosRoute,
   AuthFeedbacksRoute: AuthFeedbacksRoute,
   AuthOnboardingRoute: AuthOnboardingRoute,
   AuthPainelRoute: AuthPainelRoute,
+  AuthPerfilRoute: AuthPerfilRoute,
   AuthProfissionaisRoute: AuthProfissionaisRoute,
   AuthRegistrosRoute: AuthRegistrosRoute,
   AuthSegurancaRoute: AuthSegurancaRoute,
+  AuthSobreRoute: AuthSobreRoute,
   AuthAgendaEventIdRoute: AuthAgendaEventIdRoute,
   AuthAgendaBuscaRoute: AuthAgendaBuscaRoute,
   AuthAgendaOnboardingRoute: AuthAgendaOnboardingRoute,
@@ -593,12 +677,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
