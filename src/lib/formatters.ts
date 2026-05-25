@@ -46,6 +46,19 @@ export function getInitial(name: string): string {
   return name.trim().charAt(0).toUpperCase() || "?";
 }
 
+/** Formata ISO timestamp ou "YYYY-MM-DD" como "23 de maio de 2026". */
+export function formatDateLong(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString("pt-BR", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+}
+
 /** Formata "YYYY-MM-DD" como "12/03/2026". */
 export function formatDateBR(isoDate: string): string {
   const [y, m, d] = isoDate.split("-").map(Number);
@@ -65,15 +78,7 @@ export function formatDateRelative(isoDate: string, now: Date = new Date()): str
   return `${String(d).padStart(2, "0")} de ${MONTHS_PT[m - 1]} de ${y}`;
 }
 
-const WEEKDAYS_PT_SHORT = [
-  "Domingo",
-  "Segunda",
-  "Terça",
-  "Quarta",
-  "Quinta",
-  "Sexta",
-  "Sábado",
-];
+const WEEKDAYS_PT_SHORT = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
 /** Formata data como "Quinta · 15 de maio" (sem ano, dia da semana curto). */
 export function formatTodayHero(now: Date = new Date()): string {
@@ -87,4 +92,3 @@ export function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
-

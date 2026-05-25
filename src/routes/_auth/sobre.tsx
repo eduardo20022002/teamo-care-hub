@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, Heart, Info } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { BrandLogo } from "@/components/layout/BrandLogo";
@@ -16,13 +16,14 @@ function SobrePage() {
       <div className="mx-auto max-w-2xl">
         {/* Back */}
         <div className="mb-5">
-          <Link
-            to="/dashboard"
+          <button
+            type="button"
+            onClick={() => window.history.back()}
             className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" strokeWidth={1.75} />
-            Voltar ao início
-          </Link>
+            Voltar
+          </button>
         </div>
 
         <header className="mb-6">
@@ -48,10 +49,15 @@ function SobrePage() {
         <div className="mb-5 rounded-2xl border border-border bg-card p-5 shadow-sm">
           <h2 className="mb-2 text-base font-semibold text-foreground">O que é o TEAmo?</h2>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            O TEAmo é um sistema de gestão de cuidados desenvolvido para famílias de crianças com
-            Transtorno do Espectro Autista (TEA). Centralizamos registros clínicos, documentos,
-            agenda terapêutica e a comunicação segura com profissionais de saúde em um único
-            aplicativo.
+            O TEAmo nasceu dentro da Universidade Federal de Pernambuco (UFPE) com um propósito
+            muito humano: ajudar mamães, papais e cuidadores de crianças autistas a organizar o
+            cuidado dos seus filhos e filhas com mais leveza e eficiência.
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            Centralizamos registros clínicos, documentos, agenda terapêutica e a comunicação com
+            profissionais de saúde — tudo em um único lugar seguro. E seguimos com o mesmo objetivo:
+            prestar a melhor aplicação que permita às famílias TEA oferecer o melhor cuidado
+            possível.
           </p>
         </div>
 
@@ -80,10 +86,10 @@ function SobrePage() {
             Dúvidas, sugestões ou relatos de problemas:
           </p>
           <a
-            href="mailto:suporte@teamotech.online"
+            href="mailto:eduardo.meirelles@ufpe.br"
             className="mt-1 block text-sm font-semibold text-primary hover:underline"
           >
-            suporte@teamotech.online
+            eduardo.meirelles@ufpe.br
           </a>
         </div>
 

@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ChevronRight, Loader2, Lock, Settings, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -188,13 +188,14 @@ function ConfiguracoesPage() {
       <div className="mx-auto max-w-2xl">
         {/* Back */}
         <div className="mb-5">
-          <Link
-            to="/dashboard"
+          <button
+            type="button"
+            onClick={() => window.history.back()}
             className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" strokeWidth={1.75} />
-            Voltar ao início
-          </Link>
+            Voltar
+          </button>
         </div>
 
         {/* Title */}

@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -35,7 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
-import { formatAge, formatBirthDate, formatDateBR } from "@/lib/formatters";
+import { formatAge, formatBirthDate, formatDateLong } from "@/lib/formatters";
 import { createChild } from "@/services/children.service";
 import {
   getChildrenWithCounts,
@@ -206,13 +206,14 @@ function PerfilPage() {
       <div className="mx-auto max-w-2xl">
         {/* Back */}
         <div className="mb-5">
-          <Link
-            to="/dashboard"
+          <button
+            type="button"
+            onClick={() => window.history.back()}
             className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" strokeWidth={1.75} />
-            Voltar ao início
-          </Link>
+            Voltar
+          </button>
         </div>
 
         {/* Title */}
@@ -367,7 +368,7 @@ function PerfilPage() {
           <div className="border-b border-border px-4 py-3.5">
             <p className="text-xs text-muted-foreground">Membro desde</p>
             <p className="mt-0.5 text-sm font-medium text-foreground">
-              {profile?.created_at ? formatDateBR(profile.created_at) : "—"}
+              {profile?.created_at ? formatDateLong(profile.created_at) : "—"}
             </p>
           </div>
           <div className="px-4 py-3.5">

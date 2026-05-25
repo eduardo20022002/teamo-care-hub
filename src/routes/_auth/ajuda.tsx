@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, HelpCircle } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import {
@@ -38,7 +38,7 @@ const FAQS = [
   },
   {
     q: "Como excluir minha conta?",
-    a: "Acesse Meu perfil → Conta → Excluir minha conta. Por segurança, a exclusão requer confirmação e entra em contato com nossa equipe. Se preferir, envie um e-mail para suporte@teamotech.online.",
+    a: "Acesse Meu perfil → Conta → Excluir minha conta. Por segurança, a exclusão requer confirmação e entra em contato com nossa equipe. Se preferir, envie um e-mail para eduardo.meirelles@ufpe.br.",
   },
 ];
 
@@ -48,13 +48,14 @@ function AjudaPage() {
       <div className="mx-auto max-w-2xl">
         {/* Back */}
         <div className="mb-5">
-          <Link
-            to="/dashboard"
+          <button
+            type="button"
+            onClick={() => window.history.back()}
             className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" strokeWidth={1.75} />
-            Voltar ao início
-          </Link>
+            Voltar
+          </button>
         </div>
 
         <header className="mb-6">
