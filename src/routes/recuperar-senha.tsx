@@ -72,6 +72,7 @@ function RecoverPasswordPage() {
             </p>
             <Link
               to="/login"
+              rel="noreferrer"
               className="mt-2 inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -82,6 +83,7 @@ function RecoverPasswordPage() {
           <>
             <Link
               to="/login"
+              rel="noreferrer"
               className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
             >
               <ArrowLeft className="h-3.5 w-3.5" />

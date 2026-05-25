@@ -8,9 +8,6 @@ import { signIn } from "@/services/auth.service";
 import { signInSchema } from "@/lib/validation";
 import { useAuth } from "@/hooks/useAuth";
 
-const BRAND_GRADIENT =
-  "linear-gradient(140deg, #4F46E5 0%, #6D3FE0 45%, #C13A8C 85%, #EC4899 100%)";
-
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
@@ -71,14 +68,11 @@ function LoginPage() {
     <AuthShell>
       <div>
         {/* Desktop: título caloroso / Mobile: título direto */}
-        <h1
-          className="text-[28px] font-extrabold leading-tight tracking-tight"
-          style={{ color: "#0F172A" }}
-        >
+        <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-foreground">
           <span className="hidden lg:inline">Que bom ter você de volta 👋</span>
           <span className="lg:hidden">Entrar</span>
         </h1>
-        <p className="mt-2 text-sm leading-relaxed" style={{ color: "#6B7280" }}>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
           <span className="hidden lg:inline">Entre para continuar acompanhando o cuidado da sua família.</span>
           <span className="lg:hidden">Acesse sua conta para acompanhar o cuidado da sua família.</span>
         </p>
@@ -86,7 +80,7 @@ function LoginPage() {
         <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-4" noValidate>
           {/* E-mail */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium" style={{ color: "#1F2937" }}>
+            <label className="text-sm font-medium text-foreground">
               E-mail
             </label>
             <AuthInput
@@ -106,7 +100,7 @@ function LoginPage() {
 
           {/* Senha */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium" style={{ color: "#1F2937" }}>
+            <label className="text-sm font-medium text-foreground">
               Senha
             </label>
             <AuthInput
@@ -122,7 +116,7 @@ function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -141,16 +135,16 @@ function LoginPage() {
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded accent-[#4F46E5]"
+                className="w-4 h-4 rounded accent-primary"
               />
-              <span className="text-sm" style={{ color: "#6B7280" }}>
+              <span className="text-sm text-muted-foreground">
                 Lembrar de mim
               </span>
             </label>
             <Link
               to="/recuperar-senha"
-              className="text-sm font-medium hover:underline"
-              style={{ color: "#4F46E5" }}
+              rel="noreferrer"
+              className="text-sm font-medium text-primary hover:underline"
             >
               Esqueci minha senha
             </Link>
@@ -160,13 +154,7 @@ function LoginPage() {
           <button
             type="submit"
             disabled={submitting || cooldown > 0}
-            className="flex items-center justify-center gap-2 w-full text-white font-semibold text-sm transition-all duration-200 hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-            style={{
-              height: 52,
-              borderRadius: 12,
-              background: "linear-gradient(135deg, #4F46E5 0%, #6D3FE0 45%, #C13A8C 85%, #EC4899 100%)",
-              boxShadow: "0 10px 24px -8px rgba(79,70,229,0.5), 0 4px 12px -4px rgba(236,72,153,0.3)",
-            }}
+            className="btn-brand"
           >
             {submitting ? (
               <>
@@ -183,24 +171,18 @@ function LoginPage() {
 
         {/* Divisor social */}
         <div className="relative flex items-center gap-3 my-6">
-          <div className="flex-1 h-px bg-[#E5E7EB]" />
-          <span className="text-xs" style={{ color: "#9CA3AF" }}>
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs text-muted-foreground">
             ou continue com
           </span>
-          <div className="flex-1 h-px bg-[#E5E7EB]" />
+          <div className="flex-1 h-px bg-border" />
         </div>
 
         {/* Botão Google */}
         <button
           type="button"
           disabled
-          className="flex items-center justify-center gap-3 w-full bg-white border text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:bg-[#F9FAFB]"
-          style={{
-            height: 48,
-            borderRadius: 12,
-            border: "1.5px solid #E5E7EB",
-            color: "#1F2937",
-          }}
+          className="flex items-center justify-center gap-3 w-full h-12 rounded-xl border-[1.5px] border-border bg-white text-sm font-medium text-foreground transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:bg-gray-50"
         >
           {/* Google SVG logo */}
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -213,12 +195,12 @@ function LoginPage() {
         </button>
 
         {/* Footer */}
-        <p className="mt-8 text-center text-sm" style={{ color: "#6B7280" }}>
+        <p className="mt-8 text-center text-sm text-muted-foreground">
           Ainda não tem conta?{" "}
           <Link
             to="/cadastro"
-            className="font-semibold hover:underline"
-            style={{ color: "#4F46E5" }}
+            rel="noreferrer"
+            className="font-semibold text-primary hover:underline"
           >
             Cadastre-se
           </Link>

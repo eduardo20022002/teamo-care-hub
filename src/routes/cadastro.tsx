@@ -9,9 +9,6 @@ import { signUp } from "@/services/auth.service";
 import { signUpSchema } from "@/lib/validation";
 import { useAuth } from "@/hooks/useAuth";
 
-const BRAND_GRADIENT =
-  "linear-gradient(140deg, #4F46E5 0%, #6D3FE0 45%, #C13A8C 85%, #EC4899 100%)";
-
 export const Route = createFileRoute("/cadastro")({
   head: () => ({
     meta: [
@@ -98,20 +95,17 @@ function SignupPage() {
   return (
     <AuthShell>
       <div>
-        <h1
-          className="text-[28px] font-extrabold leading-tight tracking-tight"
-          style={{ color: "#0F172A" }}
-        >
+        <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-foreground">
           Crie sua conta gratuita
         </h1>
-        <p className="mt-2 text-sm leading-relaxed" style={{ color: "#6B7280" }}>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
           Comece a organizar o cuidado de quem você ama em poucos minutos.
         </p>
 
         <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-4" noValidate>
           {/* Nome */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium" style={{ color: "#1F2937" }}>
+            <label className="text-sm font-medium text-foreground">
               Como prefere ser chamado(a)?
             </label>
             <AuthInput
@@ -131,7 +125,7 @@ function SignupPage() {
 
           {/* E-mail */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium" style={{ color: "#1F2937" }}>
+            <label className="text-sm font-medium text-foreground">
               E-mail
             </label>
             <AuthInput
@@ -151,7 +145,7 @@ function SignupPage() {
 
           {/* Senha */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium" style={{ color: "#1F2937" }}>
+            <label className="text-sm font-medium text-foreground">
               Senha
             </label>
             <AuthInput
@@ -167,7 +161,7 @@ function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -183,7 +177,7 @@ function SignupPage() {
 
           {/* Confirmar senha */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium" style={{ color: "#1F2937" }}>
+            <label className="text-sm font-medium text-foreground">
               Confirmar senha
             </label>
             <AuthInput
@@ -199,7 +193,7 @@ function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setShowConfirm((v) => !v)}
-                  className="text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                   tabIndex={-1}
                 >
                   {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -215,11 +209,9 @@ function SignupPage() {
           <div className="flex flex-col gap-1">
             <label className="flex items-start gap-2.5 cursor-pointer select-none">
               <span
-                className="mt-0.5 flex-shrink-0 flex items-center justify-center w-[18px] h-[18px] rounded-[5px] border transition-colors"
-                style={{
-                  borderColor: agreedToTerms ? "#4F46E5" : "#D1D5DB",
-                  background: agreedToTerms ? "#4F46E5" : "white",
-                }}
+                className={`mt-0.5 flex-shrink-0 flex items-center justify-center w-[18px] h-[18px] rounded-[5px] border transition-colors ${
+                  agreedToTerms ? "border-primary bg-primary" : "border-border bg-white"
+                }`}
               >
                 {agreedToTerms && (
                   <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
@@ -233,12 +225,11 @@ function SignupPage() {
                   onChange={(e) => setAgreedToTerms(e.target.checked)}
                 />
               </span>
-              <span className="text-sm leading-snug" style={{ color: "#6B7280" }}>
+              <span className="text-sm leading-snug text-muted-foreground">
                 Concordo com os{" "}
                 <a
                   href="#"
-                  className="font-semibold hover:underline"
-                  style={{ color: "#4F46E5" }}
+                  className="font-semibold text-primary hover:underline"
                   onClick={(e) => e.preventDefault()}
                 >
                   Termos de Uso
@@ -246,8 +237,7 @@ function SignupPage() {
                 e a{" "}
                 <a
                   href="#"
-                  className="font-semibold hover:underline"
-                  style={{ color: "#4F46E5" }}
+                  className="font-semibold text-primary hover:underline"
                   onClick={(e) => e.preventDefault()}
                 >
                   Política de Privacidade
@@ -264,13 +254,7 @@ function SignupPage() {
           <button
             type="submit"
             disabled={submitting || cooldown > 0}
-            className="flex items-center justify-center gap-2 w-full text-white font-semibold text-sm transition-all duration-200 hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-            style={{
-              height: 52,
-              borderRadius: 12,
-              background: "linear-gradient(135deg, #4F46E5 0%, #6D3FE0 45%, #C13A8C 85%, #EC4899 100%)",
-              boxShadow: "0 10px 24px -8px rgba(79,70,229,0.5), 0 4px 12px -4px rgba(236,72,153,0.3)",
-            }}
+            className="btn-brand"
           >
             {submitting ? (
               <>
@@ -286,12 +270,12 @@ function SignupPage() {
         </form>
 
         {/* Footer */}
-        <p className="mt-8 text-center text-sm" style={{ color: "#6B7280" }}>
+        <p className="mt-8 text-center text-sm text-muted-foreground">
           Já tem conta?{" "}
           <Link
             to="/login"
-            className="font-semibold hover:underline"
-            style={{ color: "#4F46E5" }}
+            rel="noreferrer"
+            className="font-semibold text-primary hover:underline"
           >
             Entrar
           </Link>

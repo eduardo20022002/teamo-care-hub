@@ -210,6 +210,8 @@ export async function sendOtpEmail(params: {
   </body>
 </html>`;
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15_000);
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -223,13 +225,20 @@ export async function sendOtpEmail(params: {
         subject,
         html,
       }),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
     if (!res.ok) {
+      if (res.status === 401) return { ok: false, error: "RESEND_API_KEY inválida ou expirada" };
+      if (res.status === 429) return { ok: false, error: "Limite de envios atingido. Tente em instantes." };
       const text = await res.text().catch(() => "");
       return { ok: false, error: `Resend ${res.status}: ${text.slice(0, 200)}` };
     }
     return { ok: true };
   } catch (e) {
+    clearTimeout(timeoutId);
+    if ((e as Error).name === "AbortError")
+      return { ok: false, error: "Timeout ao enviar e-mail. Tente novamente." };
     return { ok: false, error: (e as Error).message };
   }
 }

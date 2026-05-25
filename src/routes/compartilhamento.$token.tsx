@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Loader2, ShieldCheck, AlertTriangle, FileText, Image as ImageIcon } from "lucide-react";
+import { Loader2, ShieldCheck, AlertTriangle, FileText, Image as ImageIcon, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { BrandLogo } from "@/components/layout/BrandLogo";
@@ -226,6 +226,10 @@ function SharedContentView({
               ? new Date(data.shareExpiresAt).toLocaleString("pt-BR")
               : "—"}
             .
+          </p>
+          <p className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
+            <Info className="h-3 w-3 shrink-0" />
+            Esta sessão é válida apenas nesta guia. Recarregar pedirá um novo código.
           </p>
         </header>
 

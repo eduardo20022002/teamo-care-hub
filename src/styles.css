@@ -57,7 +57,7 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.21 0.018 264);
 
-  --primary: oklch(0.51 0.21 268); /* #3B5BDB azul TEAmo */
+  --primary: oklch(0.499 0.226 277); /* #4F46E5 indigo da marca */
   --primary-foreground: oklch(0.99 0.005 247);
   --primary-soft: oklch(0.96 0.03 268);
 
@@ -67,7 +67,7 @@
   --muted: oklch(0.96 0.005 247);
   --muted-foreground: oklch(0.55 0.02 257); /* #6C757D */
 
-  --accent: oklch(0.66 0.22 0); /* #E64980 coral TEAmo */
+  --accent: oklch(0.656 0.23 351); /* #EC4899 rosa da marca */
   --accent-foreground: oklch(0.99 0.005 247);
 
   --destructive: oklch(0.6 0.22 27);
@@ -78,16 +78,73 @@
 
   --border: oklch(0.91 0.005 257); /* #DEE2E6 */
   --input: oklch(0.91 0.005 257);
-  --ring: oklch(0.51 0.21 268);
+  --ring: oklch(0.499 0.226 277); /* igual ao primary */
 
   --sidebar: oklch(0.99 0.005 247);
   --sidebar-foreground: oklch(0.21 0.018 264);
-  --sidebar-primary: oklch(0.51 0.21 268);
+  --sidebar-primary: oklch(0.499 0.226 277);
   --sidebar-primary-foreground: oklch(0.99 0.005 247);
   --sidebar-accent: oklch(0.96 0.005 247);
   --sidebar-accent-foreground: oklch(0.21 0.018 264);
   --sidebar-border: oklch(0.91 0.005 257);
-  --sidebar-ring: oklch(0.51 0.21 268);
+  --sidebar-ring: oklch(0.499 0.226 277);
+
+  /* ── Gradientes e sombras de marca ──────────────────────────────── */
+  --brand-gradient:     linear-gradient(140deg, #4F46E5 0%, #6D3FE0 45%, #C13A8C 85%, #EC4899 100%);
+  --brand-gradient-btn: linear-gradient(135deg, #4F46E5 0%, #6D3FE0 45%, #C13A8C 85%, #EC4899 100%);
+  --brand-shadow-btn:   0 10px 24px -8px rgba(79,70,229,0.5), 0 4px 12px -4px rgba(236,72,153,0.3);
+}
+
+@layer components {
+  /* ── Auth Input ───────────────────────────────────────────────────
+     Substitui o <style> dinâmico injetado em cada instância de AuthInput.
+     Centraliza aqui para evitar duplicação no DOM.
+  ──────────────────────────────────────────────────────────────── */
+  .auth-input {
+    width: 100%;
+    height: 52px;
+    border-radius: 12px;
+    border: 1.5px solid var(--color-border);
+    padding-left: 1rem;
+    padding-right: 1rem;
+    font-size: 15px;
+    color: var(--color-foreground);
+    background: white;
+    transition: border-color 150ms, box-shadow 150ms;
+  }
+  .auth-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--color-primary) 12%, transparent);
+  }
+  .auth-input::placeholder { color: var(--color-muted-foreground); }
+  .auth-input.error { border-color: var(--color-destructive); }
+  .auth-input.with-leading  { padding-left: 44px; }
+  .auth-input.with-trailing { padding-right: 44px; }
+
+  /* ── Botão de marca (gradiente roxo → rosa) ───────────────────── */
+  .btn-brand {
+    height: 52px;
+    border-radius: 12px;
+    background: var(--brand-gradient-btn);
+    box-shadow: var(--brand-shadow-btn);
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 600;
+    width: 100%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: transform 200ms, opacity 200ms;
+    border: none;
+  }
+  .btn-brand:hover:not(:disabled) { transform: translateY(-1px); }
+  .btn-brand:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* ── Fundo com gradiente de marca ─────────────────────────────── */
+  .bg-brand-gradient { background: var(--brand-gradient); }
 }
 
 @layer base {

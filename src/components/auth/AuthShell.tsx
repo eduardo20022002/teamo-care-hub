@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
 
-const BRAND_GRADIENT = "linear-gradient(140deg, #4F46E5 0%, #6D3FE0 45%, #C13A8C 85%, #EC4899 100%)";
-
 const BULLETS = [
   "Histórico completo do seu filho sempre com você",
   "Profissionais e registros em um só lugar",
@@ -11,11 +9,9 @@ const BULLETS = [
 function BrandPanel() {
   return (
     <div
-      className="relative overflow-hidden flex flex-col shrink-0
+      className="bg-brand-gradient relative overflow-hidden flex flex-col shrink-0
         lg:w-1/2 lg:min-h-screen
-        /* mobile: topo fixo, cantos arredondados embaixo */
         rounded-b-[28px] lg:rounded-none"
-      style={{ background: BRAND_GRADIENT }}
     >
       {/* Blob superior direito — radial gradient branco suave */}
       <svg
@@ -35,14 +31,14 @@ function BrandPanel() {
       {/* Blob inferior esquerdo — radial gradient rosa suave */}
       <svg
         viewBox="0 0 500 500"
-        className="pointer-events-none absolute"
+        className="pointer-events-none absolute text-accent"
         style={{ bottom: "-20%", left: "-15%", width: "70%", opacity: 0.12 }}
         aria-hidden="true"
       >
         <defs>
           <radialGradient id="blob2" cx="50%" cy="50%">
-            <stop offset="0%" stopColor="#FFB8E0" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="#FFB8E0" stopOpacity="0" />
+            <stop offset="0%" stopColor="currentColor" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
           </radialGradient>
         </defs>
         <circle cx="250" cy="250" r="240" fill="url(#blob2)" />
@@ -52,8 +48,8 @@ function BrandPanel() {
       <div className="relative z-10 px-6 pt-5 lg:px-14 lg:pt-10">
         <div className="inline-flex items-center bg-white rounded-2xl px-5 py-2.5 shadow-sm">
           <span className="text-xl font-extrabold tracking-tight leading-none">
-            <span style={{ color: "#4F46E5" }}>TEA</span>
-            <span style={{ color: "#EC4899" }}>mo</span>
+            <span className="text-primary">TEA</span>
+            <span className="text-accent">mo</span>
           </span>
         </div>
       </div>
@@ -63,19 +59,20 @@ function BrandPanel() {
         <h1 className="text-xl lg:text-4xl font-extrabold text-white leading-tight tracking-tight">
           Cuidar é complexo.<br />
           O{" "}
-          <span style={{ position: "relative", display: "inline-block", fontWeight: 900, letterSpacing: "-0.025em" }}>
-            <span style={{ color: "#FFFFFF" }}>TEA</span>
-            <span style={{ color: "#FF8FC4" }}>mo</span>
+          <span className="relative inline-block font-black tracking-tight">
+            <span className="text-white">TEA</span>
+            <span className="text-accent">mo</span>
             <svg
               viewBox="0 0 200 14"
               preserveAspectRatio="none"
               aria-hidden="true"
+              className="text-accent"
               style={{ position: "absolute", left: 0, right: 0, bottom: -6, width: "100%", height: 9 }}
             >
               <path
                 d="M2 8 Q 25 1, 50 7 T 100 7 T 150 7 T 198 7"
                 fill="none"
-                stroke="#FF8FC4"
+                stroke="currentColor"
                 strokeWidth="2.8"
                 strokeLinecap="round"
                 opacity="0.95"

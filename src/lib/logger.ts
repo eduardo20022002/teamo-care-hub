@@ -28,7 +28,10 @@ const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 const PHONE_REGEX = /\b(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{4,5}[\s.-]?\d{4}\b/g;
 const CPF_REGEX = /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g;
 const SSN_REGEX = /\b\d{3}-\d{2}-\d{4}\b/g;
-const TOKEN_REGEX = /\b[A-Za-z0-9_-]{32,}\b/g; // long random strings (tokens, JWTs)
+// UUID padrão 8-4-4-4-12: preservado nos logs para correlação de eventos
+const UUID_REGEX = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
+// Tokens longos em base64url/hex (sem hífen para não capturar UUIDs)
+const TOKEN_REGEX = /\b[A-Za-z0-9_]{32,}\b/g;
 
 function sanitize(value: unknown): unknown {
   if (typeof value === "string") {
@@ -37,6 +40,7 @@ function sanitize(value: unknown): unknown {
       .replace(PHONE_REGEX, "[PHONE_REDACTED]")
       .replace(CPF_REGEX, "[CPF_REDACTED]")
       .replace(SSN_REGEX, "[SSN_REDACTED]")
+      .replace(UUID_REGEX, "[UUID]")          // UUIDs preservados como [UUID], não como TOKEN
       .replace(TOKEN_REGEX, "[TOKEN_REDACTED]");
   }
   if (value && typeof value === "object" && !Array.isArray(value)) {

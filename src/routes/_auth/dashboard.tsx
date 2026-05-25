@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { ChildFormSheet } from "@/components/children/ChildFormSheet";
 import { ChildDocumentsDialog } from "@/components/attachments/ChildDocumentsDialog";
-import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AttendanceFormDialog } from "@/components/attendance/AttendanceFormDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { createChild, listChildren } from "@/services/children.service";
@@ -40,6 +40,37 @@ export const Route = createFileRoute("/_auth/dashboard")({
   }),
   component: DashboardPage,
 });
+
+function DashboardSkeleton() {
+  return (
+    <div className="mx-auto max-w-2xl flex flex-col gap-5 p-4">
+      {/* Hero card — simula saudação + avatar de filho */}
+      <div className="rounded-[22px] p-5 flex items-center gap-4 bg-muted/40">
+        <Skeleton className="h-14 w-14 rounded-full shrink-0" />
+        <div className="flex flex-col gap-2 flex-1">
+          <Skeleton className="h-4 w-36" />
+          <Skeleton className="h-3 w-24" />
+        </div>
+      </div>
+      {/* Grid de ações rápidas (4 tiles) */}
+      <div className="grid grid-cols-2 gap-3">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="rounded-2xl border border-border p-4 flex flex-col gap-2">
+            <Skeleton className="h-9 w-9 rounded-xl" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-3 w-28" />
+          </div>
+        ))}
+      </div>
+      {/* Seção de profissionais */}
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-4 w-36" />
+        <Skeleton className="h-14 w-full rounded-xl" />
+        <Skeleton className="h-14 w-full rounded-xl" />
+      </div>
+    </div>
+  );
+}
 
 const PASTEL_GRADIENT =
   "linear-gradient(140deg, #E5E9FF 0%, #ECE5FE 45%, #FDE8F3 100%)";
@@ -301,7 +332,7 @@ function DashboardPage() {
   if (isLoading) {
     return (
       <AppShell>
-        <LoadingSpinner />
+        <DashboardSkeleton />
       </AppShell>
     );
   }
