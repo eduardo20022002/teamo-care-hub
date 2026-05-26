@@ -235,6 +235,115 @@ export const diaryRecordSchema = z.object({
 
 export type DiaryRecordInput = z.infer<typeof diaryRecordSchema>;
 
+// ─── TypeData interfaces por tipo de registro ─────────────────────────────────
+
+/** Dados estruturados de um registro de Comportamento */
+export interface TypeDataComportamento {
+  intensity?: 1 | 2 | 3 | 4 | 5;
+  duration?: "menos5" | "5a15" | "15a30" | "mais30";
+  triggers?: string[];
+  helped?: string;
+  mention?: {
+    enabled: boolean;
+    professional_id?: string;
+    professional_name?: string;
+    note?: string;
+  };
+}
+
+/** Dados estruturados de um registro de Conquista */
+export interface TypeDataConquista {
+  area?: string;
+  location?: string;
+  mention?: {
+    enabled: boolean;
+    professional_id?: string;
+    professional_name?: string;
+    note?: string;
+  };
+}
+
+/** Dados estruturados de um registro de Sono */
+export interface TypeDataSono {
+  date_start?: string;
+  sleep_time?: string;
+  wake_time?: string;
+  quality?: 1 | 2 | 3 | 4 | 5;
+  woke_up?: boolean;
+  wake_count?: number;
+  wake_content?: string;
+  mention?: {
+    enabled: boolean;
+    professional_id?: string;
+    professional_name?: string;
+    note?: string;
+  };
+}
+
+/** Dados estruturados de um registro de Saúde */
+export interface TypeDataSaude {
+  symptoms?: string[];
+  intensity?: 1 | 2 | 3 | 4 | 5;
+  gave_meds?: boolean;
+  meds_description?: string;
+  observations?: string;
+  mention?: {
+    enabled: boolean;
+    professional_id?: string;
+    professional_name?: string;
+    note?: string;
+  };
+}
+
+/** Dados estruturados de um registro de Alimentação */
+export interface TypeDataAlimentacao {
+  meal?: "cafe" | "almoco" | "lanche" | "jantar" | "madrugada";
+  refused?: boolean;
+  refused_what?: string;
+  refused_reason?: string;
+  restrictions?: string[];
+  observations?: string;
+  mention?: {
+    enabled: boolean;
+    professional_id?: string;
+    professional_name?: string;
+    note?: string;
+  };
+}
+
+/** Dados estruturados de um registro Sensorial */
+export interface TypeDataSensorial {
+  triggers?: string[];
+  reaction?: string;
+  strategy?: string;
+  mention?: {
+    enabled: boolean;
+    professional_id?: string;
+    professional_name?: string;
+    note?: string;
+  };
+}
+
+/** Dados estruturados de uma Anotação livre */
+export interface TypeDataLivre {
+  mention?: {
+    enabled: boolean;
+    professional_id?: string;
+    professional_name?: string;
+    note?: string;
+  };
+}
+
+/** Union de todos os TypeData por tipo de registro */
+export type RecordTypeData =
+  | TypeDataComportamento
+  | TypeDataConquista
+  | TypeDataSono
+  | TypeDataSaude
+  | TypeDataAlimentacao
+  | TypeDataSensorial
+  | TypeDataLivre;
+
 // ===== Anexos (RF-03) =====
 export const ALLOWED_ATTACHMENT_MIME = [
   "application/pdf",

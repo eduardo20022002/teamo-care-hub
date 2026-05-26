@@ -218,9 +218,6 @@ function RegistrosPage() {
             <h1 className="text-[19px] font-bold text-foreground leading-tight">
               Registros
             </h1>
-            <p className="text-xs text-muted-foreground">
-              Histórico diário — comportamentos, conquistas e muito mais.
-            </p>
           </div>
         </div>
 

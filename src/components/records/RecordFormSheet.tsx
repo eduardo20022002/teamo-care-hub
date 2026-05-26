@@ -1,5 +1,20 @@
-import { useEffect, useState, useCallback } from "react";
-import { Bell, ChevronDown, ChevronUp, Loader2, X } from "lucide-react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import {
+  Bell,
+  Camera,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  Loader2,
+  Mic,
+  Moon,
+  Sun,
+  Sunrise,
+  Sunset,
+  Video,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
   Select,
@@ -30,7 +45,11 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 // ─── Shared primitive components ─────────────────────────────────────────────
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <p className="mb-1.5 text-sm font-semibold text-foreground">{children}</p>;
+  return (
+    <p className="mb-1.5 text-[12.5px] font-semibold text-foreground">
+      {children}
+    </p>
+  );
 }
 
 function StyledTextarea({
@@ -77,7 +96,8 @@ function StyledInput({
   );
 }
 
-// Chip single-select
+// ─── ChipGroup with disk checkmark for multi-select ──────────────────────────
+
 function ChipGroup({
   options,
   value,
@@ -112,14 +132,36 @@ function ChipGroup({
             key={key}
             type="button"
             onClick={() => toggle(key)}
-            className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[12px] font-medium transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-[9px] border-[1.5px] px-3 py-1.5 text-[12px] font-medium transition-colors"
             style={
               active
-                ? { background: color, borderColor: color, color: "#fff" }
+                ? { background: `${color}14`, borderColor: color, color }
                 : { background: "#fff", borderColor: "#E5E7EB", color: "#374151" }
             }
           >
-            {active && multi && <span className="text-[10px]">✓</span>}
+            {active && multi && (
+              <span
+                className="flex shrink-0 items-center justify-center rounded-full"
+                style={{ width: 14, height: 14, background: color }}
+              >
+                {/* checkmark SVG */}
+                <svg
+                  width="8"
+                  height="8"
+                  viewBox="0 0 8 8"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M1.5 4L3 5.5L6.5 2"
+                    stroke="white"
+                    strokeWidth="1.25"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+            )}
             {label}
           </button>
         );
@@ -128,76 +170,174 @@ function ChipGroup({
   );
 }
 
-// Wave/moon intensity scale (1–5)
-function IntensityScale({
+// ─── IntensityWaves — 5 wave-SVG boxes of growing size ───────────────────────
+
+function IntensityWaves({
   value,
   onChange,
   color,
   leftLabel = "Leve",
   rightLabel = "Intenso",
-  icon = "~",
 }: {
   value: number;
   onChange: (v: number) => void;
   color: string;
   leftLabel?: string;
   rightLabel?: string;
-  icon?: string;
 }) {
   return (
     <div>
-      <div className="flex items-center gap-2">
-        <span className="text-[11px] text-muted-foreground">{leftLabel}</span>
-        <div className="flex flex-1 items-center justify-center gap-1">
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => onChange(n)}
-              className="flex h-9 w-9 items-center justify-center rounded-[10px] border-[1.5px] text-base font-bold transition-colors"
-              style={
-                n <= value
-                  ? { background: color, borderColor: color, color: "#fff" }
-                  : { background: "#F6F7FB", borderColor: "#E5E7EB", color: "#9CA3AF" }
-              }
-            >
-              {icon}
-            </button>
-          ))}
+      <div className="flex items-end gap-1.5">
+        <span className="mb-1.5 text-[11px] font-semibold text-[#9CA3AF]">
+          {leftLabel}
+        </span>
+        <div className="flex flex-1 items-end justify-center gap-1.5">
+          {[1, 2, 3, 4, 5].map((n) => {
+            const active = n <= value;
+            const size = 18 + n; // 19, 20, 21, 22, 23 px
+            return (
+              <button
+                key={n}
+                type="button"
+                onClick={() => onChange(n)}
+                className="flex items-center justify-center rounded-[9px] border-[1.5px] transition-colors"
+                style={{
+                  width: 40,
+                  height: 38,
+                  background: active ? `${color}14` : "#F6F7FB",
+                  borderColor: active ? color : "#E5E7EB",
+                }}
+              >
+                <svg
+                  width={size}
+                  height={size}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke={active ? color : "#D1D5DB"}
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                >
+                  <path d="M3 12c1.5-2 3-2 4.5 0S10.5 14 12 12s3-2 4.5 0S19.5 14 21 12" />
+                </svg>
+              </button>
+            );
+          })}
         </div>
-        <span className="text-[11px] text-muted-foreground">{rightLabel}</span>
+        <span className="mb-1.5 text-[11px] font-semibold text-[#9CA3AF]">
+          {rightLabel}
+        </span>
       </div>
     </div>
   );
 }
 
-// Toggle Não / Sim
-function YesNoToggle({
+// ─── MoonScale — 5 moon-SVG boxes with growing fill opacity ──────────────────
+
+function MoonScale({
   value,
   onChange,
   color,
 }: {
-  value: boolean;
-  onChange: (v: boolean) => void;
+  value: number;
+  onChange: (v: number) => void;
   color: string;
 }) {
   return (
-    <div className="grid grid-cols-2 rounded-[11px] border border-[#E5E7EB] overflow-hidden">
-      {(["Não", "Sim"] as const).map((label) => {
-        const active = (label === "Sim") === value;
+    <div>
+      <div className="flex items-end gap-1.5">
+        <span className="mb-1.5 text-[11px] font-semibold text-[#9CA3AF]">
+          Ruim
+        </span>
+        <div className="flex flex-1 items-end justify-center gap-1.5">
+          {[1, 2, 3, 4, 5].map((n) => {
+            const active = n <= value;
+            const size = 16 + n * 2; // 18, 20, 22, 24, 26 px
+            const fillOpacity = active ? n * 0.18 : 0;
+            return (
+              <button
+                key={n}
+                type="button"
+                onClick={() => onChange(n)}
+                className="flex items-center justify-center rounded-[9px] border-[1.5px] transition-colors"
+                style={{
+                  width: 40,
+                  height: 44,
+                  background: active ? `${color}14` : "#F6F7FB",
+                  borderColor: active ? color : "#E5E7EB",
+                }}
+              >
+                <svg
+                  width={size}
+                  height={size}
+                  viewBox="0 0 24 24"
+                  fill={color}
+                  fillOpacity={fillOpacity}
+                  stroke={active ? color : "#D1D5DB"}
+                  strokeWidth={1.5}
+                >
+                  <path d="M20 14a8 8 0 11-10-10 6 6 0 0010 10z" />
+                </svg>
+              </button>
+            );
+          })}
+        </div>
+        <span className="mb-1.5 text-[11px] font-semibold text-[#9CA3AF]">
+          Ótimo
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ─── TurnPicker — 4-column grid shift selector ───────────────────────────────
+
+const SHIFT_ORDER = ["madrugada", "manha", "tarde", "noite"] as const;
+
+const SHIFT_ICONS: Record<string, LucideIcon> = {
+  madrugada: Moon,
+  manha: Sunrise,
+  tarde: Sun,
+  noite: Sunset,
+};
+
+function TurnPicker({
+  value,
+  onChange,
+  color,
+}: {
+  value: string;
+  onChange: (v: RecordShift) => void;
+  color: string;
+}) {
+  return (
+    <div className="grid grid-cols-4 gap-2">
+      {SHIFT_ORDER.map((s) => {
+        const active = value === s;
+        const Icon = SHIFT_ICONS[s];
         return (
           <button
-            key={label}
+            key={s}
             type="button"
-            onClick={() => onChange(label === "Sim")}
-            className="py-2.5 text-sm font-semibold transition-colors"
-            style={
-              active
-                ? { background: color, color: "#fff" }
-                : { background: "#F6F7FB", color: "#6B7280" }
-            }
+            onClick={() => onChange(s as RecordShift)}
+            className="flex flex-col items-center justify-center gap-1 rounded-[11px] border-[1.5px] transition-all"
+            style={{
+              height: 56,
+              background: active ? `${color}14` : "#F6F7FB",
+              borderColor: active ? color : "#E5E7EB",
+              boxShadow: active ? `0 0 0 3px ${color}1A` : "none",
+            }}
           >
-            {label}
+            <Icon
+              className="h-4 w-4"
+              strokeWidth={active ? 2 : 1.75}
+              style={{ color: active ? color : "#9CA3AF" }}
+            />
+            <span
+              className="text-[11px] font-bold"
+              style={{ color: active ? color : "#6B7280" }}
+            >
+              {SHIFT_LABELS[s as RecordShift]}
+            </span>
           </button>
         );
       })}
@@ -205,7 +345,8 @@ function YesNoToggle({
   );
 }
 
-// Date+Shift row
+// ─── DateShiftRow — date + TurnPicker ────────────────────────────────────────
+
 function DateShiftRow({
   date,
   shift,
@@ -230,30 +371,125 @@ function DateShiftRow({
     );
   }
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="space-y-3">
       <div>
         <FieldLabel>Data</FieldLabel>
         <StyledInput type="date" value={date} onChange={onDate} />
       </div>
       <div>
         <FieldLabel>Turno</FieldLabel>
-        <div className="flex flex-col gap-1">
-          {RECORD_SHIFTS.map((s) => (
+        <TurnPicker value={shift} onChange={onShift} color={color} />
+      </div>
+    </div>
+  );
+}
+
+// ─── YesNoBlock — separate flex buttons + optional sub-block ─────────────────
+
+function YesNoBlock({
+  value,
+  onChange,
+  color,
+  children,
+}: {
+  value: boolean;
+  onChange: (v: boolean) => void;
+  color: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        {(["Não", "Sim"] as const).map((label) => {
+          const active = (label === "Sim") === value;
+          return (
             <button
-              key={s}
+              key={label}
               type="button"
-              onClick={() => onShift(s)}
-              className="rounded-[10px] border px-3 py-2 text-xs font-semibold transition-colors text-left"
-              style={
-                shift === s
-                  ? { background: color, borderColor: color, color: "#fff" }
-                  : { background: "#F6F7FB", borderColor: "#E5E7EB", color: "#6B7280" }
-              }
+              onClick={() => onChange(label === "Sim")}
+              className="flex flex-1 items-center justify-center rounded-[11px] border-[1.5px] text-sm font-semibold transition-colors"
+              style={{
+                height: 40,
+                background: active ? color : "#F6F7FB",
+                borderColor: active ? color : "#E5E7EB",
+                color: active ? "#fff" : "#6B7280",
+              }}
             >
-              {SHIFT_LABELS[s]}
+              {label}
             </button>
-          ))}
+          );
+        })}
+      </div>
+      {value && children && (
+        <div
+          className="rounded-[11px] border space-y-3 p-3"
+          style={{ background: "#FAFBFD", borderColor: "#EEF0F4" }}
+        >
+          {children}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ─── AttachmentRow — configurable file-type buttons ──────────────────────────
+
+type AttachBtn = "Foto" | "Vídeo" | "Áudio" | "Arquivo";
+
+const ATTACH_ICONS: Record<AttachBtn, LucideIcon> = {
+  Foto: Camera,
+  Vídeo: Video,
+  Áudio: Mic,
+  Arquivo: FileText,
+};
+
+function AttachmentRow({
+  buttons,
+  color,
+  onSelect,
+}: {
+  buttons: AttachBtn[];
+  color: string;
+  onSelect?: (type: AttachBtn, files: File[]) => void;
+}) {
+  const refs = useRef<Record<string, HTMLInputElement | null>>({});
+  const acceptMap: Record<AttachBtn, string> = {
+    Foto: "image/*",
+    Vídeo: "video/*",
+    Áudio: "audio/*",
+    Arquivo: ".pdf,.doc,.docx,.xls,.xlsx,.txt,image/*",
+  };
+  return (
+    <div>
+      <FieldLabel>Anexo (opcional)</FieldLabel>
+      <div className="flex gap-2">
+        {buttons.map((btn) => {
+          const Icon = ATTACH_ICONS[btn];
+          return (
+            <button
+              key={btn}
+              type="button"
+              onClick={() => refs.current[btn]?.click()}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-[11px] border-[1.5px] border-[#E5E7EB] bg-white text-xs font-semibold text-[#374151] transition-colors hover:bg-[#F6F7FB]"
+              style={{ height: 44 }}
+            >
+              <Icon className="h-3.5 w-3.5" style={{ color }} strokeWidth={2} />
+              {btn}
+              <input
+                ref={(el) => { refs.current[btn] = el; }}
+                type="file"
+                accept={acceptMap[btn]}
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? []);
+                  if (files.length && onSelect) onSelect(btn, files);
+                  e.target.value = "";
+                }}
+              />
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -267,12 +503,14 @@ function ComportamentoFields({
   content,
   setContent,
   color,
+  onAttach,
 }: {
   td: Record<string, unknown>;
   update: (p: Record<string, unknown>) => void;
   content: string;
   setContent: (v: string) => void;
   color: string;
+  onAttach?: (type: AttachBtn, files: File[]) => void;
 }) {
   const DURACAO = [
     { key: "menos5", label: "menos de 5 min" },
@@ -303,11 +541,10 @@ function ComportamentoFields({
       </div>
       <div>
         <FieldLabel>Intensidade</FieldLabel>
-        <IntensityScale
+        <IntensityWaves
           value={(td.intensity as number) ?? 0}
           onChange={(v) => update({ intensity: v })}
           color={color}
-          icon="∿"
         />
       </div>
       <div>
@@ -321,7 +558,9 @@ function ComportamentoFields({
       </div>
       <div>
         <FieldLabel>O que veio antes (gatilhos)</FieldLabel>
-        <p className="mb-2 text-[11px] text-muted-foreground">Selecione todos que se aplicam.</p>
+        <p className="mb-2 text-[11px] text-muted-foreground">
+          Selecione todos que se aplicam.
+        </p>
         <ChipGroup
           options={GATILHOS}
           value={(td.triggers as string[]) ?? []}
@@ -339,6 +578,11 @@ function ComportamentoFields({
           rows={2}
         />
       </div>
+      <AttachmentRow
+        buttons={["Foto", "Vídeo", "Áudio"]}
+        color={color}
+        onSelect={onAttach}
+      />
     </div>
   );
 }
@@ -349,12 +593,14 @@ function ConquistaFields({
   content,
   setContent,
   color,
+  onAttach,
 }: {
   td: Record<string, unknown>;
   update: (p: Record<string, unknown>) => void;
   content: string;
   setContent: (v: string) => void;
   color: string;
+  onAttach?: (type: AttachBtn, files: File[]) => void;
 }) {
   const AREAS = [
     { key: "comunicacao", label: "Comunicação" },
@@ -401,9 +647,16 @@ function ConquistaFields({
           color={color}
         />
       </div>
-      <p className="text-[11px] text-muted-foreground italic">
-        Registre o momento — você vai querer voltar aqui.
-      </p>
+      <div>
+        <AttachmentRow
+          buttons={["Foto", "Vídeo"]}
+          color={color}
+          onSelect={onAttach}
+        />
+        <p className="mt-1.5 text-[11px] text-muted-foreground italic">
+          Registre o momento — você vai querer voltar aqui.
+        </p>
+      </div>
     </div>
   );
 }
@@ -414,12 +667,14 @@ function SonoFields({
   content,
   setContent,
   color,
+  onAttach,
 }: {
   td: Record<string, unknown>;
   update: (p: Record<string, unknown>) => void;
   content: string;
   setContent: (v: string) => void;
   color: string;
+  onAttach?: (type: AttachBtn, files: File[]) => void;
 }) {
   const woke = (td.woke_up as boolean) ?? false;
   return (
@@ -452,25 +707,19 @@ function SonoFields({
       </div>
       <div>
         <FieldLabel>Qualidade do sono</FieldLabel>
-        <IntensityScale
+        <MoonScale
           value={(td.quality as number) ?? 0}
           onChange={(v) => update({ quality: v })}
           color={color}
-          leftLabel="Ruim"
-          rightLabel="Ótimo"
-          icon="☽"
         />
       </div>
       <div>
         <FieldLabel>Acordou durante a noite?</FieldLabel>
-        <YesNoToggle
+        <YesNoBlock
           value={woke}
           onChange={(v) => update({ woke_up: v })}
           color={color}
-        />
-      </div>
-      {woke && (
-        <div className="rounded-[14px] bg-[#F6F7FB] p-4 space-y-3">
+        >
           <div>
             <FieldLabel>Quantas vezes</FieldLabel>
             <StyledInput
@@ -489,8 +738,8 @@ function SonoFields({
               rows={2}
             />
           </div>
-        </div>
-      )}
+        </YesNoBlock>
+      </div>
       <div>
         <FieldLabel>Observações (opcional)</FieldLabel>
         <StyledTextarea
@@ -500,6 +749,11 @@ function SonoFields({
           rows={2}
         />
       </div>
+      <AttachmentRow
+        buttons={["Foto", "Vídeo", "Áudio"]}
+        color={color}
+        onSelect={onAttach}
+      />
     </div>
   );
 }
@@ -510,12 +764,14 @@ function SaudeFields({
   content,
   setContent,
   color,
+  onAttach,
 }: {
   td: Record<string, unknown>;
   update: (p: Record<string, unknown>) => void;
   content: string;
   setContent: (v: string) => void;
   color: string;
+  onAttach?: (type: AttachBtn, files: File[]) => void;
 }) {
   const SINTOMAS = [
     { key: "febre", label: "Febre" },
@@ -540,7 +796,9 @@ function SaudeFields({
       </div>
       <div>
         <FieldLabel>Tipo de sintoma</FieldLabel>
-        <p className="mb-2 text-[11px] text-muted-foreground">Permite múltipla seleção.</p>
+        <p className="mb-2 text-[11px] text-muted-foreground">
+          Permite múltipla seleção.
+        </p>
         <ChipGroup
           options={SINTOMAS}
           value={(td.symptoms as string[]) ?? []}
@@ -551,32 +809,43 @@ function SaudeFields({
       </div>
       <div>
         <FieldLabel>Intensidade</FieldLabel>
-        <IntensityScale
+        <IntensityWaves
           value={(td.intensity as number) ?? 0}
           onChange={(v) => update({ intensity: v })}
           color={color}
-          icon="∿"
         />
       </div>
       <div>
         <FieldLabel>Deu alguma medicação como resposta?</FieldLabel>
-        <YesNoToggle
+        <YesNoBlock
           value={gaveMeds}
           onChange={(v) => update({ gave_meds: v })}
           color={color}
+        >
+          <div>
+            <FieldLabel>Qual medicamento e qual dose</FieldLabel>
+            <StyledInput
+              value={(td.meds_description as string) ?? ""}
+              onChange={(v) => update({ meds_description: v })}
+              placeholder="Ex: Dipirona infantil · 7ml"
+            />
+          </div>
+        </YesNoBlock>
+      </div>
+      <div>
+        <FieldLabel>Observações (opcional)</FieldLabel>
+        <StyledTextarea
+          value={(td.observations as string) ?? ""}
+          onChange={(v) => update({ observations: v })}
+          placeholder="Outras informações relevantes..."
+          rows={2}
         />
       </div>
-      {gaveMeds && (
-        <div className="rounded-[14px] bg-[#F6F7FB] p-4">
-          <FieldLabel>Qual medicamento e qual dose</FieldLabel>
-          <StyledTextarea
-            value={(td.meds_description as string) ?? ""}
-            onChange={(v) => update({ meds_description: v })}
-            placeholder="Ex: Dipirona infantil · 7ml"
-            rows={2}
-          />
-        </div>
-      )}
+      <AttachmentRow
+        buttons={["Foto", "Vídeo", "Áudio"]}
+        color={color}
+        onSelect={onAttach}
+      />
     </div>
   );
 }
@@ -612,6 +881,9 @@ function AlimentacaoFields({
     <div className="space-y-4">
       <div>
         <FieldLabel>Refeição</FieldLabel>
+        <p className="mb-2 text-[11px] text-muted-foreground">
+          O turno aqui indica qual refeição.
+        </p>
         <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
           {REFEICOES.map(({ key, label }) => {
             const active = td.meal === key;
@@ -620,12 +892,13 @@ function AlimentacaoFields({
                 key={key}
                 type="button"
                 onClick={() => update({ meal: key })}
-                className="shrink-0 rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors"
-                style={
-                  active
-                    ? { background: color, borderColor: color, color: "#fff" }
-                    : { background: "#F6F7FB", borderColor: "#E5E7EB", color: "#6B7280" }
-                }
+                className="shrink-0 rounded-[9px] border-[1.5px] px-4 text-xs font-semibold transition-colors"
+                style={{
+                  height: 34,
+                  background: active ? `${color}14` : "#F6F7FB",
+                  borderColor: active ? color : "#E5E7EB",
+                  color: active ? color : "#6B7280",
+                }}
               >
                 {label}
               </button>
@@ -644,14 +917,11 @@ function AlimentacaoFields({
       </div>
       <div>
         <FieldLabel>Recusou algum alimento?</FieldLabel>
-        <YesNoToggle
+        <YesNoBlock
           value={refused}
           onChange={(v) => update({ refused: v })}
           color={color}
-        />
-      </div>
-      {refused && (
-        <div className="rounded-[14px] bg-[#F6F7FB] p-4 space-y-3">
+        >
           <div>
             <FieldLabel>O que recusou</FieldLabel>
             <StyledInput
@@ -668,8 +938,8 @@ function AlimentacaoFields({
               placeholder="Ex: Textura"
             />
           </div>
-        </div>
-      )}
+        </YesNoBlock>
+      </div>
       <div>
         <FieldLabel>Restrições ativas nessa refeição (opcional)</FieldLabel>
         <ChipGroup
@@ -678,6 +948,15 @@ function AlimentacaoFields({
           onChange={(v) => update({ restrictions: v })}
           color={color}
           multi
+        />
+      </div>
+      <div>
+        <FieldLabel>Observações (opcional)</FieldLabel>
+        <StyledTextarea
+          value={(td.observations as string) ?? ""}
+          onChange={(v) => update({ observations: v })}
+          placeholder="Outras observações sobre a refeição..."
+          rows={2}
         />
       </div>
     </div>
@@ -690,12 +969,14 @@ function SensorialFields({
   content,
   setContent,
   color,
+  onAttach,
 }: {
   td: Record<string, unknown>;
   update: (p: Record<string, unknown>) => void;
   content: string;
   setContent: (v: string) => void;
   color: string;
+  onAttach?: (type: AttachBtn, files: File[]) => void;
 }) {
   const GATILHOS = [
     { key: "barulho", label: "Barulho" },
@@ -719,7 +1000,9 @@ function SensorialFields({
       </div>
       <div>
         <FieldLabel>Gatilho sensorial</FieldLabel>
-        <p className="mb-2 text-[11px] text-muted-foreground">Permite múltipla seleção.</p>
+        <p className="mb-2 text-[11px] text-muted-foreground">
+          Permite múltipla seleção.
+        </p>
         <ChipGroup
           options={GATILHOS}
           value={(td.triggers as string[]) ?? []}
@@ -746,6 +1029,11 @@ function SensorialFields({
           rows={2}
         />
       </div>
+      <AttachmentRow
+        buttons={["Foto", "Vídeo", "Áudio"]}
+        color={color}
+        onSelect={onAttach}
+      />
     </div>
   );
 }
@@ -753,18 +1041,29 @@ function SensorialFields({
 function LivreFields({
   content,
   setContent,
+  color,
+  onAttach,
 }: {
   content: string;
   setContent: (v: string) => void;
+  color: string;
+  onAttach?: (type: AttachBtn, files: File[]) => void;
 }) {
   return (
-    <div>
-      <FieldLabel>Anotação</FieldLabel>
-      <StyledTextarea
-        value={content}
-        onChange={setContent}
-        placeholder="Anote qualquer observação, detalhe ou ideia que queira lembrar..."
-        rows={8}
+    <div className="space-y-4">
+      <div>
+        <FieldLabel>Anotação</FieldLabel>
+        <StyledTextarea
+          value={content}
+          onChange={setContent}
+          placeholder="Anote qualquer observação, detalhe ou ideia que queira lembrar..."
+          rows={8}
+        />
+      </div>
+      <AttachmentRow
+        buttons={["Foto", "Vídeo", "Áudio", "Arquivo"]}
+        color={color}
+        onSelect={onAttach}
       />
     </div>
   );
@@ -804,7 +1103,7 @@ function MentionSection({
             Quero mencionar isso com alguém
           </p>
           <p className="text-[11px] text-amber-700">
-            Te avisamos na data certa.
+            {open ? "Vincule a um profissional." : "Te avisamos na data certa."}
           </p>
         </div>
         {open ? (
@@ -882,11 +1181,20 @@ export function RecordFormSheet({
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionProfId, setMentionProfId] = useState("");
   const [mentionNote, setMentionNote] = useState("");
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const updateTD = useCallback((patch: Record<string, unknown>) => {
     setTypeData((prev) => ({ ...prev, ...patch }));
   }, []);
+
+  const handleAttach = useCallback((_type: AttachBtn, files: File[]) => {
+    setAttachedFiles((prev) => [...prev, ...files]);
+  }, []);
+
+  // Types that default to mention open on new records
+  const defaultMentionOpen =
+    recordType === "comportamento" || recordType === "saude";
 
   useEffect(() => {
     if (!open) return;
@@ -896,7 +1204,9 @@ export function RecordFormSheet({
       setShift((initial.shift as RecordShift) ?? "");
       setContent(initial.content ?? "");
       const td = { ...(initial.type_data ?? {}) };
-      const mention = td.mention as { enabled?: boolean; professional_id?: string; note?: string } | undefined;
+      const mention = td.mention as
+        | { enabled?: boolean; professional_id?: string; note?: string }
+        | undefined;
       if (mention?.enabled) {
         setMentionOpen(true);
         setMentionProfId(mention.professional_id ?? "");
@@ -914,16 +1224,24 @@ export function RecordFormSheet({
       setShift("tarde");
       setContent("");
       setTypeData({});
-      setMentionOpen(false);
+      setMentionOpen(defaultMentionOpen);
       setMentionProfId("");
       setMentionNote("");
     }
+    setAttachedFiles([]);
     setError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initial, childrenList]);
 
   const handleSave = async () => {
-    if (!childId) { setError("Selecione uma criança."); return; }
-    if (!recordDate) { setError("Informe a data."); return; }
+    if (!childId) {
+      setError("Selecione uma criança.");
+      return;
+    }
+    if (!recordDate) {
+      setError("Informe a data.");
+      return;
+    }
 
     const finalTypeData: Record<string, unknown> = { ...typeData };
     if (mentionOpen && mentionProfId) {
@@ -944,13 +1262,17 @@ export function RecordFormSheet({
       const st = typeData.sleep_time as string;
       const wt = typeData.wake_time as string;
       autoTitle = st && wt ? `${st} → ${wt}` : "Registro de sono";
-    }
-    else if (recordType === "saude") autoTitle = content.slice(0, 80);
+    } else if (recordType === "saude") autoTitle = content.slice(0, 80);
     else if (recordType === "alimentacao") {
-      const meals: Record<string, string> = { cafe: "Café da manhã", almoco: "Almoço", lanche: "Lanche", jantar: "Jantar", madrugada: "Madrugada" };
+      const meals: Record<string, string> = {
+        cafe: "Café da manhã",
+        almoco: "Almoço",
+        lanche: "Lanche",
+        jantar: "Jantar",
+        madrugada: "Madrugada",
+      };
       autoTitle = meals[typeData.meal as string] ?? "Alimentação";
-    }
-    else if (recordType === "sensorial") autoTitle = content.slice(0, 80);
+    } else if (recordType === "sensorial") autoTitle = content.slice(0, 80);
     else if (recordType === "livre") autoTitle = content.slice(0, 80);
 
     const input: DiaryRecordInput = {
@@ -964,15 +1286,13 @@ export function RecordFormSheet({
     };
 
     setError(null);
-    await onSave(input, []);
+    await onSave(input, attachedFiles);
   };
 
-  const showShift = recordType !== "alimentacao";
+  const showShift = recordType !== "alimentacao" && recordType !== "sono";
 
   const typeTitle =
-    recordType === "livre"
-      ? "Nova anotação"
-      : `Novo · ${cfg.label}`;
+    recordType === "livre" ? "Nova anotação" : `Novo · ${cfg.label}`;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -1032,15 +1352,25 @@ export function RecordFormSheet({
             </div>
           )}
 
-          {/* Date + Shift (except Sono which has its own date fields) */}
-          {recordType !== "sono" && (
+          {/* Date + Shift (except Sono which has its own date fields, and Alimentação which has MealPicker) */}
+          {showShift && (
             <DateShiftRow
               date={recordDate}
               shift={shift}
               onDate={setRecordDate}
               onShift={(s) => setShift(s)}
               color={cfg.color}
-              showShift={showShift}
+              showShift
+            />
+          )}
+          {!showShift && recordType !== "sono" && (
+            <DateShiftRow
+              date={recordDate}
+              shift={shift}
+              onDate={setRecordDate}
+              onShift={(s) => setShift(s)}
+              color={cfg.color}
+              showShift={false}
             />
           )}
 
@@ -1052,6 +1382,7 @@ export function RecordFormSheet({
               content={content}
               setContent={setContent}
               color={cfg.color}
+              onAttach={handleAttach}
             />
           )}
           {recordType === "conquista" && (
@@ -1061,6 +1392,7 @@ export function RecordFormSheet({
               content={content}
               setContent={setContent}
               color={cfg.color}
+              onAttach={handleAttach}
             />
           )}
           {recordType === "sono" && (
@@ -1070,6 +1402,7 @@ export function RecordFormSheet({
               content={content}
               setContent={setContent}
               color={cfg.color}
+              onAttach={handleAttach}
             />
           )}
           {recordType === "saude" && (
@@ -1079,6 +1412,7 @@ export function RecordFormSheet({
               content={content}
               setContent={setContent}
               color={cfg.color}
+              onAttach={handleAttach}
             />
           )}
           {recordType === "alimentacao" && (
@@ -1097,10 +1431,16 @@ export function RecordFormSheet({
               content={content}
               setContent={setContent}
               color={cfg.color}
+              onAttach={handleAttach}
             />
           )}
           {recordType === "livre" && (
-            <LivreFields content={content} setContent={setContent} />
+            <LivreFields
+              content={content}
+              setContent={setContent}
+              color={cfg.color}
+              onAttach={handleAttach}
+            />
           )}
 
           {/* Mention section */}
@@ -1126,7 +1466,10 @@ export function RecordFormSheet({
             onClick={handleSave}
             disabled={submitting}
             className="flex h-[50px] w-full items-center justify-center rounded-[12px] text-sm font-semibold text-white disabled:opacity-45"
-            style={{ background: BRAND_GRADIENT, boxShadow: submitting ? "none" : BRAND_SHADOW }}
+            style={{
+              background: BRAND_GRADIENT,
+              boxShadow: submitting ? "none" : BRAND_SHADOW,
+            }}
           >
             {submitting ? (
               <Loader2 className="h-5 w-5 animate-spin" />

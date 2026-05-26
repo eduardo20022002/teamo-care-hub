@@ -36,8 +36,8 @@ export function RecordFilterPills({ value, onChange, counts }: Props) {
                   }
                 : {
                     background: "#fff",
-                    borderColor: "#E5E7EB",
-                    color: "#6B7280",
+                    borderColor: color ? `${color}50` : "#E5E7EB",
+                    color: color ?? "#6B7280",
                   }
             }
           >

@@ -35,19 +35,66 @@ function WaveDisplay({ value, color }: { value: number; color: string }) {
   return (
     <div className="flex items-center gap-1.5">
       <div className="flex gap-1">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <span
-            key={n}
-            className="flex h-6 w-6 items-center justify-center rounded-[6px] text-xs font-bold"
-            style={
-              n <= value
-                ? { background: color, color: "#fff" }
-                : { background: "#F3F4F8", color: "#C9CDD6" }
-            }
-          >
-            ∿
-          </span>
-        ))}
+        {[1, 2, 3, 4, 5].map((n) => {
+          const active = n <= value;
+          return (
+            <span
+              key={n}
+              className="flex h-6 w-6 items-center justify-center rounded-[6px] border-[1.5px]"
+              style={{
+                background: active ? `${color}14` : "#F3F4F8",
+                borderColor: active ? color : "#E5E7EB",
+              }}
+            >
+              <svg
+                width={13}
+                height={13}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke={active ? color : "#C9CDD6"}
+                strokeWidth={2}
+                strokeLinecap="round"
+              >
+                <path d="M3 12c1.5-2 3-2 4.5 0S10.5 14 12 12s3-2 4.5 0S19.5 14 21 12" />
+              </svg>
+            </span>
+          );
+        })}
+      </div>
+      <span className="text-xs text-muted-foreground">{value} / 5</span>
+    </div>
+  );
+}
+
+function MoonDisplay({ value, color }: { value: number; color: string }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="flex gap-1">
+        {[1, 2, 3, 4, 5].map((n) => {
+          const active = n <= value;
+          return (
+            <span
+              key={n}
+              className="flex h-6 w-6 items-center justify-center rounded-[6px] border-[1.5px]"
+              style={{
+                background: active ? `${color}14` : "#F3F4F8",
+                borderColor: active ? color : "#E5E7EB",
+              }}
+            >
+              <svg
+                width={13}
+                height={13}
+                viewBox="0 0 24 24"
+                fill={color}
+                fillOpacity={active ? n * 0.18 : 0}
+                stroke={active ? color : "#C9CDD6"}
+                strokeWidth={1.5}
+              >
+                <path d="M20 14a8 8 0 11-10-10 6 6 0 0010 10z" />
+              </svg>
+            </span>
+          );
+        })}
       </div>
       <span className="text-xs text-muted-foreground">{value} / 5</span>
     </div>
@@ -104,7 +151,7 @@ function renderTypeFields(record: DiaryRecordWithRelations) {
 
   if (type === "sono") {
     if (td.sleep_time && td.wake_time) rows.push({ label: "Horários", value: `${td.sleep_time} → ${td.wake_time}` });
-    if (td.quality) rows.push({ label: "Qualidade", value: <WaveDisplay value={td.quality as number} color={color} /> });
+    if (td.quality) rows.push({ label: "Qualidade", value: <MoonDisplay value={td.quality as number} color={color} /> });
     if (td.woke_up) {
       rows.push({ label: "Despertares", value: `${td.wake_count ?? "?"} vez(es)` });
       if (td.wake_content) rows.push({ label: "O que aconteceu", value: <p className="whitespace-pre-wrap">{td.wake_content as string}</p> });

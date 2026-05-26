@@ -68,6 +68,7 @@ export function AddChildDocumentDialog({
   submitting,
 }: Props) {
   const [childId, setChildId] = useState("");
+  const [title, setTitle] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -76,6 +77,7 @@ export function AddChildDocumentDialog({
   useEffect(() => {
     if (!open) return;
     setChildId(defaultChildId ?? (childrenList.length === 1 ? childrenList[0].id : ""));
+    setTitle("");
     setFiles([]);
     setError(null);
   }, [open, defaultChildId, childrenList]);
@@ -164,7 +166,27 @@ export function AddChildDocumentDialog({
             </div>
           )}
 
-          {/* Drop zone */}
+          {/* Título (opcional) */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <label className="text-[12.5px] font-semibold text-foreground">Título</label>
+              <span className="rounded-full bg-[#F4F5FA] px-2 py-0.5 text-[10px] font-medium text-[#6B7280]">
+                opcional
+              </span>
+            </div>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Ex.: Laudo neurológico — abril/2026"
+              className="h-[44px] w-full rounded-[11px] border-[1.5px] border-[#E5E7EB] bg-[#F6F7FB] px-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-[#4F46E5] focus:bg-[#FAFBFF] focus:outline-none focus:ring-4 focus:ring-[rgba(79,70,229,0.10)]"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Damos um nome automático se você deixar em branco.
+            </p>
+          </div>
+
+          {/* Drop zone — redesenhado */}
           <div
             onDragOver={(e) => {
               e.preventDefault();
@@ -173,15 +195,33 @@ export function AddChildDocumentDialog({
             onDragLeave={() => setDragging(false)}
             onDrop={handleDrop}
             className={cn(
-              "flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition-colors",
+              "flex flex-col items-center justify-center rounded-[12px] border-[1.5px] border-dashed px-5 py-7 text-center transition-colors",
               dragging
-                ? "border-primary bg-primary/5"
-                : "border-primary/30 bg-primary/[0.03] hover:border-primary/50 hover:bg-primary/5",
+                ? "border-[#7C3AED] bg-[#F3F4FF]"
+                : "border-[#C7D2FE] hover:border-[#7C3AED] hover:bg-[#F3F4FF]",
             )}
+            style={{
+              background: dragging
+                ? "#F3F4FF"
+                : "linear-gradient(180deg, #FAFBFF 0%, #F3F4FF 100%)",
+            }}
           >
-            <Paperclip className="mb-3 h-10 w-10 text-primary/40" strokeWidth={1.5} />
-            <p className="text-sm font-medium text-foreground">
-              Arraste o arquivo ou toque para enviar
+            {/* Icon box */}
+            <div
+              className="mb-3 flex h-11 w-11 items-center justify-center rounded-[12px] bg-white"
+              style={{ boxShadow: "0 1px 4px rgba(79,70,229,0.10), 0 0 0 1px #EEF0F4" }}
+            >
+              <Paperclip className="h-5 w-5" style={{ color: "#7C3AED" }} strokeWidth={1.75} />
+            </div>
+            <p className="text-sm font-semibold text-foreground">
+              Arraste o arquivo ou{" "}
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="text-[#4F46E5] underline-offset-2 hover:underline"
+              >
+                selecione
+              </button>
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               PDF, JPG ou PNG · até 10 MB por arquivo
@@ -189,9 +229,9 @@ export function AddChildDocumentDialog({
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className="mt-3 rounded-lg border border-primary px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/5"
+              className="mt-3 rounded-[9px] border border-[#E5E7EB] bg-white px-4 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F6F7FB]"
             >
-              Selecionar do dispositivo
+              Selecionar arquivo
             </button>
             <input
               ref={fileRef}
