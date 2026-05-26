@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link, useNavigate, useLocation } from "@tanstack/react-router";
+import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ClipboardList, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
@@ -59,6 +59,11 @@ function formatDateHeader(isoDate: string): string {
 function RegistrosPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const openNew = searchParams.get("new") === "1";
+  const defaultChildId = searchParams.get("childId") ?? undefined;
 
   // UI state
   const [typePickerOpen, setTypePickerOpen] = useState(false);
@@ -69,6 +74,16 @@ function RegistrosPage() {
   const [deletingRecord, setDeletingRecord] = useState<DiaryRecordWithRelations | null>(null);
   const [shareRecord, setShareRecord] = useState<DiaryRecordWithRelations | null>(null);
   const [typeFilter, setTypeFilter] = useState<"all" | RecordType>("all");
+
+  // Auto-open type picker when coming from dashboard "Registrar"
+  useEffect(() => {
+    if (openNew) {
+      setTypePickerOpen(true);
+      // Clean the search params so back/refresh doesn't re-open
+      void navigate({ to: "/registros", replace: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Queries
   const childrenQuery = useQuery({ queryKey: ["children"], queryFn: listChildren, enabled: !!user });
@@ -332,6 +347,7 @@ function RegistrosPage() {
           childrenList={childrenList}
           professionals={professionals}
           initial={editingRecord}
+          defaultChildId={editingRecord ? undefined : defaultChildId}
           onSave={handleSave}
           submitting={createMutation.isPending || updateMutation.isPending}
         />

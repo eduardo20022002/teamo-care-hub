@@ -1155,6 +1155,7 @@ interface Props {
   childrenList: Child[];
   professionals: Professional[];
   initial?: DiaryRecordWithRelations | null;
+  defaultChildId?: string;
   onSave: (input: DiaryRecordInput, files: File[]) => Promise<void>;
   submitting: boolean;
 }
@@ -1166,6 +1167,7 @@ export function RecordFormSheet({
   childrenList,
   professionals,
   initial,
+  defaultChildId,
   onSave,
   submitting,
 }: Props) {
@@ -1219,7 +1221,7 @@ export function RecordFormSheet({
       }
       setTypeData(td);
     } else {
-      setChildId(childrenList.length === 1 ? childrenList[0].id : "");
+      setChildId(defaultChildId ?? (childrenList.length === 1 ? childrenList[0].id : ""));
       setRecordDate(todayISO());
       setShift("tarde");
       setContent("");

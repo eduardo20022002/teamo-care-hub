@@ -339,8 +339,7 @@ function DashboardPage() {
 
   const displayName = getDisplayName(user);
   const handleQuickRegister = (child: Child) => {
-    setQuickChildId(child.id);
-    setAttendanceOpen(true);
+    void navigate({ to: "/registros" as const, href: `/registros?new=1&childId=${child.id}` });
   };
 
   return (
