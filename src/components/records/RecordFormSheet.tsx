@@ -1203,7 +1203,7 @@ export function RecordFormSheet({
       setRecordDate(initial.record_date);
       setShift((initial.shift as RecordShift) ?? "");
       setContent(initial.content ?? "");
-      const td = { ...(initial.type_data ?? {}) };
+      const td = { ...((initial.type_data ?? {}) as Record<string, unknown>) };
       const mention = td.mention as
         | { enabled?: boolean; professional_id?: string; note?: string }
         | undefined;

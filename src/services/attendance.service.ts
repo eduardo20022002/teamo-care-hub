@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import type {
   AttendanceRecord,
   AttendanceRecordInsert,
@@ -22,7 +23,7 @@ export interface DiaryRecordWithRelations extends AttendanceRecordWithRelations 
   record_type: RecordType | null;
   shift: RecordShift | null;
   title: string | null;
-  type_data: Record<string, unknown>;
+  type_data: Json;
 }
 
 const SELECT_WITH_RELATIONS =

@@ -127,7 +127,7 @@ function ChipDisplay({
 }
 
 function renderTypeFields(record: DiaryRecordWithRelations) {
-  const td = record.type_data ?? {};
+  const td = (record.type_data ?? {}) as Record<string, unknown>;
   const cfg = RECORD_TYPE_CONFIG[record.record_type as RecordType];
   const { color, tint } = cfg;
 
@@ -202,7 +202,7 @@ export function RecordDetailSheet({
   if (!record) return null;
 
   const cfg = RECORD_TYPE_CONFIG[record.record_type as RecordType];
-  const mention = record.type_data?.mention as
+  const mention = (record.type_data as Record<string, unknown> | null)?.mention as
     | { enabled?: boolean; professional_name?: string; note?: string }
     | undefined;
   const hasMention = mention?.enabled === true;

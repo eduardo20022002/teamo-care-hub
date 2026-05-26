@@ -18,7 +18,7 @@ export function RecordCard({ record, onClick }: Props) {
     queryFn: () => countRecordAttachments(record.id),
   });
 
-  const mention = record.type_data?.mention as
+  const mention = (record.type_data as Record<string, unknown> | null)?.mention as
     | { enabled?: boolean; professional_name?: string }
     | undefined;
   const hasMention = mention?.enabled === true;

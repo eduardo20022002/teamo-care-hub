@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       agenda_events: {
@@ -20,6 +45,7 @@ export type Database = {
           created_at: string
           end_at: string | null
           id: string
+          linked_event_id: string | null
           locale: string | null
           professional_id: string | null
           professional_name_raw: string | null
@@ -29,6 +55,7 @@ export type Database = {
           status: string
           title: string
           type: string
+          type_data: Json
           updated_at: string
           user_id: string
         }
@@ -37,6 +64,7 @@ export type Database = {
           created_at?: string
           end_at?: string | null
           id?: string
+          linked_event_id?: string | null
           locale?: string | null
           professional_id?: string | null
           professional_name_raw?: string | null
@@ -46,6 +74,7 @@ export type Database = {
           status?: string
           title: string
           type: string
+          type_data?: Json
           updated_at?: string
           user_id: string
         }
@@ -54,6 +83,7 @@ export type Database = {
           created_at?: string
           end_at?: string | null
           id?: string
+          linked_event_id?: string | null
           locale?: string | null
           professional_id?: string | null
           professional_name_raw?: string | null
@@ -63,6 +93,7 @@ export type Database = {
           status?: string
           title?: string
           type?: string
+          type_data?: Json
           updated_at?: string
           user_id?: string
         }
@@ -72,6 +103,13 @@ export type Database = {
             columns: ["child_id"]
             isOneToOne: false
             referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_events_linked_event_id_fkey"
+            columns: ["linked_event_id"]
+            isOneToOne: false
+            referencedRelation: "agenda_events"
             referencedColumns: ["id"]
           },
           {
@@ -297,7 +335,7 @@ export type Database = {
           record_type: string | null
           shift: string | null
           title: string | null
-          type_data: Record<string, unknown>
+          type_data: Json
           updated_at: string
           user_id: string
         }
@@ -313,7 +351,7 @@ export type Database = {
           record_type?: string | null
           shift?: string | null
           title?: string | null
-          type_data?: Record<string, unknown>
+          type_data?: Json
           updated_at?: string
           user_id: string
         }
@@ -329,7 +367,7 @@ export type Database = {
           record_type?: string | null
           shift?: string | null
           title?: string | null
-          type_data?: Record<string, unknown>
+          type_data?: Json
           updated_at?: string
           user_id?: string
         }
@@ -598,7 +636,15 @@ export type Database = {
           share_id?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "share_items_share_id_fkey"
+            columns: ["share_id"]
+            isOneToOne: false
+            referencedRelation: "shares"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       shares: {
         Row: {
@@ -607,6 +653,7 @@ export type Database = {
           expires_at: string
           id: string
           last_renewed_at: string | null
+          link_token: string | null
           otp_attempts: number
           otp_expires_at: string | null
           otp_hash: string | null
@@ -623,6 +670,7 @@ export type Database = {
           expires_at: string
           id?: string
           last_renewed_at?: string | null
+          link_token?: string | null
           otp_attempts?: number
           otp_expires_at?: string | null
           otp_hash?: string | null
@@ -639,6 +687,7 @@ export type Database = {
           expires_at?: string
           id?: string
           last_renewed_at?: string | null
+          link_token?: string | null
           otp_attempts?: number
           otp_expires_at?: string | null
           otp_hash?: string | null
@@ -785,6 +834,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
