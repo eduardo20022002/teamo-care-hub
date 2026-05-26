@@ -169,6 +169,7 @@ export async function sendOtpEmail(params: {
   parentName: string;
   expiresInMinutes: number;
   shareExpiresAt: string;
+  shareUrl: string;
 }): Promise<{ ok: boolean; error?: string }> {
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
   if (!RESEND_API_KEY) return { ok: false, error: "RESEND_API_KEY not configured" };
@@ -193,6 +194,15 @@ export async function sendOtpEmail(params: {
             ${escapeHtml(params.otp)}
           </div>
         </div>
+        <div style="text-align:center;margin:20px 0 16px;">
+          <a href="${escapeHtml(params.shareUrl)}"
+             style="display:inline-block;background:#4F46E5;color:#ffffff;font-size:14px;font-weight:600;padding:12px 28px;border-radius:8px;text-decoration:none;">
+            Acessar conteúdo compartilhado
+          </a>
+        </div>
+        <p style="margin:0 0 12px;font-size:12px;color:#6C757D;word-break:break-all;">
+          Ou copie o link: <a href="${escapeHtml(params.shareUrl)}" style="color:#4F46E5;">${escapeHtml(params.shareUrl)}</a>
+        </p>
         <p style="margin:0 0 8px;font-size:13px;color:#6C757D;">
           • Código válido por <strong>${params.expiresInMinutes} minutos</strong>.
         </p>

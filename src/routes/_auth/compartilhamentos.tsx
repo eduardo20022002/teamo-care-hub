@@ -122,7 +122,7 @@ function ShareCard({
 }: {
   share: ShareSummary;
   status: keyof typeof STATUS_CONFIG;
-  onCopy: () => void;
+  onCopy: (() => void) | undefined;
   onRenew: () => void;
   onRevoke: () => void;
   revoking: boolean;
@@ -180,7 +180,8 @@ function ShareCard({
             <button
               type="button"
               onClick={onCopy}
-              className="flex-1 rounded-[10px] border border-[#EEF0F4] bg-[#F6F7FB] py-2 text-xs font-semibold text-foreground transition-colors hover:bg-[#EEF1FF] hover:text-[#4F46E5]"
+              disabled={!onCopy}
+              className="flex-1 rounded-[10px] border border-[#EEF0F4] bg-[#F6F7FB] py-2 text-xs font-semibold text-foreground transition-colors hover:bg-[#EEF1FF] hover:text-[#4F46E5] disabled:cursor-not-allowed disabled:opacity-40"
             >
               Copiar link
             </button>
@@ -427,10 +428,14 @@ function SharesPage() {
                       key={s.id}
                       share={s}
                       status={status}
-                      onCopy={() => {
-                        navigator.clipboard.writeText(buildPublicShareUrl(s.token));
-                        toast.success("Link copiado.");
-                      }}
+                      onCopy={
+                        s.link_token
+                          ? () => {
+                              navigator.clipboard.writeText(buildPublicShareUrl(s.link_token!));
+                              toast.success("Link copiado.");
+                            }
+                          : undefined
+                      }
                       onRenew={() => setRenewTarget(s)}
                       onRevoke={() => revoke.mutate(s.id)}
                       revoking={revoke.isPending}

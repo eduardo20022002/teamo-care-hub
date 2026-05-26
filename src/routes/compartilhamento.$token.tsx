@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Loader2,
@@ -31,11 +31,11 @@ export const Route = createFileRoute("/compartilhamento/$token")({
   component: PublicSharePage,
 });
 
-type Phase = "loading" | "otp" | "ok" | "error";
+type Phase = "idle" | "loading" | "otp" | "ok" | "error";
 
 function PublicSharePage() {
   const { token } = Route.useParams();
-  const [phase, setPhase] = useState<Phase>("loading");
+  const [phase, setPhase] = useState<Phase>("idle");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [emailMasked, setEmailMasked] = useState<string>("");
   const [ttl, setTtl] = useState<number>(10);
@@ -44,24 +44,18 @@ function PublicSharePage() {
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
   const [validated, setValidated] = useState<ValidateOtpResponse | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const res = await requestShareOtp(token);
-      if (cancelled) return;
-      if (res.ok) {
-        setEmailMasked(res.professionalEmailMasked ?? "");
-        setTtl(res.ttlMinutes ?? 10);
-        setPhase("otp");
-      } else {
-        setPhase("error");
-        setErrorMsg(translateError(res.error, res.detail));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [token]);
+  const handleRequestCode = async () => {
+    setPhase("loading");
+    const res = await requestShareOtp(token);
+    if (res.ok) {
+      setEmailMasked(res.professionalEmailMasked ?? "");
+      setTtl(res.ttlMinutes ?? 10);
+      setPhase("otp");
+    } else {
+      setPhase("error");
+      setErrorMsg(translateError(res.error, res.detail));
+    }
+  };
 
   const handleSubmit = async () => {
     if (otp.length !== 6) return;
@@ -120,6 +114,22 @@ function PublicSharePage() {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-6">
+        {phase === "idle" && (
+          <div className="mx-auto max-w-md rounded-2xl border border-border bg-card p-6 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+              <ShieldCheck className="h-7 w-7 text-primary" strokeWidth={1.75} />
+            </div>
+            <h1 className="text-lg font-semibold text-foreground">Conteúdo protegido</h1>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              Para acessar, enviaremos um código de verificação para o e-mail cadastrado neste
+              compartilhamento.
+            </p>
+            <Button className="mt-5 w-full" onClick={handleRequestCode}>
+              Receber código por e-mail
+            </Button>
+          </div>
+        )}
+
         {phase === "loading" && (
           <div className="flex justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
