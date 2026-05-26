@@ -202,13 +202,13 @@ function PublicSharePage() {
           </div>
         )}
 
-        {phase === "ok" && validated && <SharedContentView data={validated} token={token} />}
+        {phase === "ok" && validated && <SharedContentView data={validated} />}
       </main>
     </div>
   );
 }
 
-function SharedContentView({ data, token }: { data: ValidateOtpResponse; token: string }) {
+function SharedContentView({ data }: { data: ValidateOtpResponse }) {
   const profName = data.professional?.name ?? "Profissional";
   const stamp = new Date().toLocaleString("pt-BR");
   const watermarkText = `${profName} · ${stamp}`;
@@ -368,6 +368,12 @@ function translateError(code?: string, detail?: string): string {
       return "Muitas tentativas. Este link foi bloqueado por segurança.";
     case "email_failed":
       return detail ?? "Não foi possível enviar o código agora. Tente reenviar.";
+    case "cooldown":
+      return detail
+        ? `Aguarde alguns instantes antes de solicitar um novo código. (${detail})`
+        : "Aguarde antes de solicitar um novo código.";
+    case "too_many_requests":
+      return "Muitas tentativas seguidas. Aguarde alguns minutos e tente novamente.";
     default:
       return detail ?? "Não foi possível concluir. Tente novamente.";
   }
