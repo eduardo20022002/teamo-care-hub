@@ -79,14 +79,13 @@ export const createShare = createServerFn({ method: "POST" })
     const now = new Date();
     const expiresAt = new Date(now.getTime() + data.expiresInHours * 60 * 60 * 1000);
 
-    // Store SHA-256(token) for secure lookup; also store raw token for re-display in UI.
-    // OTP is still required to access content, so storing link_token is safe.
+    // Store SHA-256(token) — raw token is returned to the caller and never persisted.
+    // Hash-only design: even with full DB access, an attacker cannot reconstruct valid URLs.
     const { data: shareRow, error: insErr } = await (supabaseAdmin.from(SHARING_TABLES.shares) as any)
       .insert({
         user_id: userId,
         professional_id: data.professionalId,
         token: tokenHash,
-        link_token: rawToken,
         expires_at: expiresAt.toISOString(),
       })
       .select("id, expires_at, created_at")
@@ -214,7 +213,6 @@ export const renewShare = createServerFn({ method: "POST" })
 
 export interface ShareSummary {
   id: string;
-  link_token: string | null;
   professional_id: string;
   professional_name: string;
   professional_specialty: string;
@@ -234,7 +232,7 @@ export const listShares = createServerFn({ method: "POST" })
     const { userId, supabase } = context as any;
     const { data: shares } = await (supabase.from(SHARING_TABLES.shares) as any)
       .select(
-        "id, link_token, professional_id, expires_at, revoked_at, consumed_at, created_at, renewals_count, last_renewed_at",
+        "id, professional_id, expires_at, revoked_at, consumed_at, created_at, renewals_count, last_renewed_at",
       )
       .order("created_at", { ascending: false });
 
@@ -261,7 +259,6 @@ export const listShares = createServerFn({ method: "POST" })
       const p = profMap.get(s.professional_id);
       return {
         id: s.id,
-        link_token: s.link_token ?? null,
         professional_id: s.professional_id,
         professional_name: p?.name ?? "Profissional",
         professional_specialty: p?.specialty ?? "",

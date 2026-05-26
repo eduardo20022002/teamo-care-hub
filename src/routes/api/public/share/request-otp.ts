@@ -119,14 +119,6 @@ export const Route = createFileRoute("/api/public/share/request-otp")({
         }
 
         const parentName = await fetchParentName(share.user_id);
-        const origin =
-          request.headers.get("origin") ??
-          (request.headers.get("x-forwarded-host")
-            ? `https://${request.headers.get("x-forwarded-host")}`
-            : null) ??
-          "https://teamotech.online";
-        const shareUrl = `${origin}/compartilhamento/${parsed.data.token}`;
-
         const send = await sendOtpEmail({
           to: prof.email,
           otp,
@@ -134,7 +126,6 @@ export const Route = createFileRoute("/api/public/share/request-otp")({
           parentName,
           expiresInMinutes: OTP_TTL_MINUTES,
           shareExpiresAt: share.expires_at,
-          shareUrl,
         });
 
         await logShareEvent(share.user_id, "share.otp_requested", {

@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  buildPublicShareUrl,
   deriveShareStatus,
   useListShares,
   useRevokeShare,
@@ -115,14 +114,12 @@ function StatusBadge({ status }: { status: keyof typeof STATUS_CONFIG }) {
 function ShareCard({
   share,
   status,
-  onCopy,
   onRenew,
   onRevoke,
   revoking,
 }: {
   share: ShareSummary;
   status: keyof typeof STATUS_CONFIG;
-  onCopy: (() => void) | undefined;
   onRenew: () => void;
   onRevoke: () => void;
   revoking: boolean;
@@ -177,14 +174,12 @@ function ShareCard({
         {/* Actions */}
         {status === "active" && (
           <div className="mt-3 flex gap-2 border-t border-[#EEF0F4] pt-3">
-            <button
-              type="button"
-              onClick={onCopy}
-              disabled={!onCopy}
-              className="flex-1 rounded-[10px] border border-[#EEF0F4] bg-[#F6F7FB] py-2 text-xs font-semibold text-foreground transition-colors hover:bg-[#EEF1FF] hover:text-[#4F46E5] disabled:cursor-not-allowed disabled:opacity-40"
+            <span
+              title="Por segurança, o link é exibido apenas no momento da criação. Renove para gerar um novo."
+              className="flex-1 rounded-[10px] border border-[#EEF0F4] bg-[#F6F7FB] py-2 text-center text-xs font-semibold text-muted-foreground/50 cursor-default select-none"
             >
-              Copiar link
-            </button>
+              Link (criação)
+            </span>
             <button
               type="button"
               onClick={onRenew}
@@ -428,14 +423,6 @@ function SharesPage() {
                       key={s.id}
                       share={s}
                       status={status}
-                      onCopy={
-                        s.link_token
-                          ? () => {
-                              navigator.clipboard.writeText(buildPublicShareUrl(s.link_token!));
-                              toast.success("Link copiado.");
-                            }
-                          : undefined
-                      }
                       onRenew={() => setRenewTarget(s)}
                       onRevoke={() => revoke.mutate(s.id)}
                       revoking={revoke.isPending}
