@@ -4,7 +4,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { logger } from "@/lib/logger";
 import { rateLimit, getClientIp } from "@/server/rate-limit";
 import {
-  fetchShareByToken,
+  fetchShareByLinkToken,
   fetchProfessional,
   fetchParentName,
   generateOtp,
@@ -53,7 +53,7 @@ export const Route = createFileRoute("/api/public/share/request-otp")({
           return Response.json({ error: "invalid_body" }, { status: 400 });
         }
 
-        const share = await fetchShareByToken(parsed.data.token);
+        const share = await fetchShareByLinkToken(parsed.data.token);
         if (!share) {
           return Response.json({ error: "not_found" }, { status: 404 });
         }

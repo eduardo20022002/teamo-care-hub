@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
-  fetchShareByToken,
+  fetchShareByLinkToken,
   fetchShareItems,
   fetchProfessional,
   hashOtp,
@@ -48,7 +48,7 @@ export const Route = createFileRoute("/api/public/share/validate-otp")({
           return Response.json({ error: "invalid_body" }, { status: 400 });
         }
 
-        const share = await fetchShareByToken(parsed.data.token);
+        const share = await fetchShareByLinkToken(parsed.data.token);
         if (!share) return Response.json({ error: "not_found" }, { status: 404 });
 
         const status = deriveStatus(share);

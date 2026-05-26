@@ -9,6 +9,7 @@ export interface ShareRow {
   user_id: string;
   professional_id: string;
   token: string;
+  link_token: string | null;
   otp_hash: string | null;
   otp_expires_at: string | null;
   otp_attempts: number;
@@ -283,6 +284,20 @@ export async function fetchShareByToken(rawToken: string): Promise<ShareRow | nu
   const { data } = await (supabaseAdmin.from(TABLES.shares) as any)
     .select("*")
     .eq("token", tokenHash)
+    .maybeSingle();
+  return (data as ShareRow | null) ?? null;
+}
+
+/**
+ * Look up a share by link_token (the URL-safe token stored in the link_token column).
+ * For shares created after the link_token column was added, link_token = rawToken (the
+ * original secret). For older shares backfilled with gen_random_uuid(), link_token is a UUID.
+ * Either way, the public share URL carries this value and we query directly — no hashing.
+ */
+export async function fetchShareByLinkToken(linkToken: string): Promise<ShareRow | null> {
+  const { data } = await (supabaseAdmin.from(TABLES.shares) as any)
+    .select("*")
+    .eq("link_token", linkToken)
     .maybeSingle();
   return (data as ShareRow | null) ?? null;
 }
