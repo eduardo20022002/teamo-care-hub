@@ -1,13 +1,10 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { FolderOpen } from "lucide-react";
+import { FolderOpen, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -81,29 +78,88 @@ export function ChildDocumentsDialog({ open, onOpenChange, child }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FolderOpen className="h-5 w-5 text-primary" strokeWidth={1.75} />
-            Documentos {child ? `de ${child.name}` : ""}
-          </DialogTitle>
-          <DialogDescription>
-            Laudos, relatórios escolares, prescrições e outros documentos da
-            criança.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent
+        className="p-0 overflow-hidden"
+        style={{
+          borderRadius: 20,
+          maxWidth: 480,
+          maxHeight: "88vh",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "16px 20px",
+            borderBottom: "1px solid #F1F2F6",
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 999,
+                background: "#EEF1FF",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <FolderOpen size={18} strokeWidth={1.75} color="#4F46E5" />
+            </div>
+            <span style={{ fontSize: 17, fontWeight: 700, color: "#0F172A", letterSpacing: "-0.01em" }}>
+              Documentos{child ? ` de ${child.name}` : ""}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 999,
+              background: "#F4F5FA",
+              border: "none",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+            aria-label="Fechar"
+          >
+            <X size={16} strokeWidth={2} color="#6B7280" />
+          </button>
+        </div>
 
-        <div className="space-y-4">
+        {/* Body */}
+        <div
+          style={{
+            padding: "16px 20px",
+            overflowY: "auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: 16,
+          }}
+        >
           <AttachmentUploader
             onFiles={async (files) => {
               await uploadMutation.mutateAsync(files);
             }}
             uploading={uploadMutation.isPending}
-            label="Adicionar documento"
           />
 
           {isLoading ? (
-            <p className="text-xs text-muted-foreground">Carregando...</p>
+            <p style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center" }}>
+              Carregando...
+            </p>
           ) : list.length === 0 ? (
             <EmptyAttachments />
           ) : (
