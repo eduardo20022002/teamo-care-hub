@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/useAuth";
 import {
+  buildPublicShareUrl,
   deriveShareStatus,
   useListShares,
   useRevokeShare,
@@ -26,6 +27,13 @@ import {
 } from "@/services/sharing.service";
 import { ShareDialog } from "@/components/sharing/ShareDialog";
 import { RenewShareDialog } from "@/components/sharing/RenewShareDialog";
+import { ShareConfirmationStep } from "@/components/sharing/ShareConfirmationStep";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { ExpiryHours } from "@/components/sharing/ShareExpiryStep";
 
 const BRAND_GRADIENT = "linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)";
@@ -114,12 +122,14 @@ function StatusBadge({ status }: { status: keyof typeof STATUS_CONFIG }) {
 function ShareCard({
   share,
   status,
+  onCopy,
   onRenew,
   onRevoke,
   revoking,
 }: {
   share: ShareSummary;
   status: keyof typeof STATUS_CONFIG;
+  onCopy: (() => void) | undefined;
   onRenew: () => void;
   onRevoke: () => void;
   revoking: boolean;
@@ -174,12 +184,15 @@ function ShareCard({
         {/* Actions */}
         {status === "active" && (
           <div className="mt-3 flex gap-2 border-t border-[#EEF0F4] pt-3">
-            <span
-              title="Por segurança, o link é exibido apenas no momento da criação. Renove para gerar um novo."
-              className="flex-1 rounded-[10px] border border-[#EEF0F4] bg-[#F6F7FB] py-2 text-center text-xs font-semibold text-muted-foreground/50 cursor-default select-none"
+            <button
+              type="button"
+              onClick={onCopy}
+              disabled={!onCopy}
+              title={onCopy ? "Copiar link de acesso" : "Link disponível apenas para compartilhamentos criados recentemente"}
+              className="flex-1 rounded-[10px] border border-[#EEF0F4] bg-[#F6F7FB] py-2 text-xs font-semibold text-foreground transition-colors hover:bg-[#EEF1FF] hover:text-[#4F46E5] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Link (criação)
-            </span>
+              Copiar link
+            </button>
             <button
               type="button"
               onClick={onRenew}
@@ -305,6 +318,11 @@ function SharesPage() {
   const { prefillEventId } = Route.useSearch();
   const [shareOpen, setShareOpen] = useState(false);
   const [renewTarget, setRenewTarget] = useState<ShareSummary | null>(null);
+  const [copyLinkTarget, setCopyLinkTarget] = useState<{
+    url: string;
+    professionalName: string;
+    expiresAt: string;
+  } | null>(null);
 
   useEffect(() => {
     if (prefillEventId) {
@@ -331,12 +349,20 @@ function SharesPage() {
   const renew = useMutation({
     mutationFn: (input: { shareId: string; expiresInHours: ExpiryHours }) =>
       renewFn({ data: input }),
-    onSuccess: () => {
-      toast.success(
-        "Compartilhamento renovado. O profissional precisará validar um novo código no próximo acesso.",
-      );
-      setRenewTarget(null);
+    onSuccess: (data, variables) => {
       qc.invalidateQueries({ queryKey: ["shares"] });
+      const target = renewTarget;
+      setRenewTarget(null);
+      if (target?.link_token) {
+        setCopyLinkTarget({
+          url: buildPublicShareUrl(target.link_token),
+          professionalName: target.professional_name,
+          expiresAt: (data as any).expiresAt ?? "",
+        });
+      } else {
+        toast.success("Compartilhamento renovado.");
+      }
+      void variables; // suppress unused warning
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -423,6 +449,14 @@ function SharesPage() {
                       key={s.id}
                       share={s}
                       status={status}
+                      onCopy={
+                        s.link_token
+                          ? () => {
+                              navigator.clipboard.writeText(buildPublicShareUrl(s.link_token!));
+                              toast.success("Link copiado.");
+                            }
+                          : undefined
+                      }
                       onRenew={() => setRenewTarget(s)}
                       onRevoke={() => revoke.mutate(s.id)}
                       revoking={revoke.isPending}
@@ -445,6 +479,27 @@ function SharesPage() {
           renewTarget && renew.mutate({ shareId: renewTarget.id, expiresInHours: hours })
         }
       />
+
+      {/* Dialog de cópia de link após renovação */}
+      <Dialog open={!!copyLinkTarget} onOpenChange={(o) => !o && setCopyLinkTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4 text-primary" strokeWidth={1.75} />
+              Compartilhamento renovado
+            </DialogTitle>
+          </DialogHeader>
+          {copyLinkTarget && (
+            <ShareConfirmationStep
+              url={copyLinkTarget.url}
+              professionalName={copyLinkTarget.professionalName}
+              expiresAt={copyLinkTarget.expiresAt}
+              onClose={() => setCopyLinkTarget(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
       <span className="hidden">{String(!!navigate)}</span>
     </AppShell>
   );
