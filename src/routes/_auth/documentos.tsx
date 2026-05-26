@@ -79,8 +79,8 @@ function DocumentosPage() {
   });
 
   const addMutation = useMutation({
-    mutationFn: (vars: { childId: string; files: File[] }) =>
-      addChildDocuments(user!.id, vars.childId, vars.files),
+    mutationFn: (vars: { childId: string; files: File[]; title?: string }) =>
+      addChildDocuments(user!.id, vars.childId, vars.files, vars.title),
     onSuccess: ({ success, failed }) => {
       if (success > 0) {
         toast.success(
@@ -236,8 +236,8 @@ function DocumentosPage() {
         open={addOpen}
         onOpenChange={setAddOpen}
         childrenList={childrenList}
-        onConfirm={async (childId, files) => {
-          await addMutation.mutateAsync({ childId, files });
+        onConfirm={async (childId, files, title) => {
+          await addMutation.mutateAsync({ childId, files, title });
         }}
         submitting={addMutation.isPending}
       />

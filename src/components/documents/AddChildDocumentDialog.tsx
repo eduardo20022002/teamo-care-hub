@@ -55,7 +55,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   childrenList: Child[];
   defaultChildId?: string;
-  onConfirm: (childId: string, files: File[]) => Promise<void>;
+  onConfirm: (childId: string, files: File[], title?: string) => Promise<void>;
   submitting?: boolean;
 }
 
@@ -111,7 +111,7 @@ export function AddChildDocumentDialog({
       return;
     }
     setError(null);
-    await onConfirm(childId, files);
+    await onConfirm(childId, files, title || undefined);
   };
 
   return (

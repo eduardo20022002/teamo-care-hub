@@ -110,12 +110,13 @@ export async function addChildDocuments(
   userId: string,
   childId: string,
   files: File[],
+  title?: string,
 ): Promise<{ success: number; failed: { name: string; error: string }[] }> {
   let success = 0;
   const failed: { name: string; error: string }[] = [];
   for (const file of files) {
     try {
-      await uploadChildAttachment(userId, childId, file);
+      await uploadChildAttachment(userId, childId, file, title);
       success++;
     } catch (e) {
       failed.push({ name: file.name, error: (e as Error).message });

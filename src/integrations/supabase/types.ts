@@ -383,6 +383,7 @@ export type Database = {
           mime_type: string
           size_bytes: number
           storage_path: string
+          title: string | null
           user_id: string
         }
         Insert: {
@@ -393,6 +394,7 @@ export type Database = {
           mime_type: string
           size_bytes: number
           storage_path: string
+          title?: string | null
           user_id: string
         }
         Update: {
@@ -403,6 +405,7 @@ export type Database = {
           mime_type?: string
           size_bytes?: number
           storage_path?: string
+          title?: string | null
           user_id?: string
         }
         Relationships: [
