@@ -32,6 +32,8 @@ import {
 } from "@/services/professionals.service";
 import type { ProfessionalInput } from "@/lib/validation";
 import type { Professional } from "@/types/database";
+import { useEffect } from "react";
+import { track } from "@/lib/analytics.client";
 
 export const Route = createFileRoute("/_auth/profissionais")({
   head: () => ({
@@ -44,6 +46,10 @@ function ProfessionalsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
+
+  useEffect(() => {
+    track("module.open", { module: "profissionais", route: "/profissionais" });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [editing, setEditing] = useState<Professional | null>(null);
   const [deleting, setDeleting] = useState<Professional | null>(null);
   const [search, setSearch] = useState("");
@@ -58,6 +64,7 @@ function ProfessionalsPage() {
   const createMutation = useMutation({
     mutationFn: (input: ProfessionalInput) => createProfessional(user!.id, input),
     onSuccess: () => {
+      track("professional.invite", { module: "profissionais" });
       toast.success("Profissional cadastrado com sucesso.");
       qc.invalidateQueries({ queryKey: ["professionals"] });
       setFormOpen(false);

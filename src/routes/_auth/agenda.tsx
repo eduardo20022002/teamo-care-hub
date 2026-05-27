@@ -30,6 +30,7 @@ import {
 } from "@/lib/agenda/tokens";
 import type { AgendaEventInput } from "@/lib/agenda/validation";
 import type { AgendaEventWithRelations } from "@/types/agenda";
+import { track } from "@/lib/analytics.client";
 
 export const Route = createFileRoute("/_auth/agenda")({
   head: () => ({
@@ -71,6 +72,10 @@ function AgendaPage() {
   const qc = useQueryClient();
   const [view, setView] = useState<ViewMode>("hoje");
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  useEffect(() => {
+    track("module.open", { module: "agenda", route: "/agenda" });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const eventsQuery = useQuery({
     queryKey: ["agenda-events"],
@@ -131,7 +136,11 @@ function AgendaPage() {
   const createMutation = useMutation({
     mutationFn: (input: AgendaEventInput) =>
       createAgendaEvent(user!.id, input),
-    onSuccess: () => {
+    onSuccess: (_data, input) => {
+      track("event.create", {
+        module: "agenda",
+        properties: { event_type: input.type },
+      });
       toast.success("Compromisso cadastrado.");
       qc.invalidateQueries({ queryKey: ["agenda-events"] });
       setSheetOpen(false);

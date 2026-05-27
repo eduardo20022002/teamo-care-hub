@@ -4,7 +4,9 @@ import {
   ChevronRight,
   HelpCircle,
   Info,
+  LayoutDashboard,
   LogOut,
+  MessageSquare,
   Pencil,
   Settings,
   User,
@@ -26,6 +28,7 @@ interface AccountMenuDrawerProps {
   onClose: () => void;
   fullName: string | null;
   email: string | null;
+  isAdmin?: boolean;
 }
 
 interface MenuRowProps {
@@ -65,7 +68,7 @@ function SectionLabel({ children }: { children: string }) {
   );
 }
 
-export function AccountMenuDrawer({ open, onClose, fullName, email }: AccountMenuDrawerProps) {
+export function AccountMenuDrawer({ open, onClose, fullName, email, isAdmin }: AccountMenuDrawerProps) {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -157,6 +160,27 @@ export function AccountMenuDrawer({ open, onClose, fullName, email }: AccountMen
             subtitle="Notificações, aparência, segurança"
             onClick={() => go("/configuracoes")}
           />
+
+          {/* ADMINISTRAÇÃO section — visível apenas para admins */}
+          {isAdmin && (
+            <>
+              <SectionLabel>Administração</SectionLabel>
+              <MenuRow
+                icon={<LayoutDashboard className="h-5 w-5 text-[#4F46E5]" strokeWidth={1.75} />}
+                iconBg="bg-[#EEF1FF]"
+                label="Painel"
+                subtitle="Métricas e observabilidade"
+                onClick={() => go("/painel")}
+              />
+              <MenuRow
+                icon={<MessageSquare className="h-5 w-5 text-[#4F46E5]" strokeWidth={1.75} />}
+                iconBg="bg-[#EEF1FF]"
+                label="Feedbacks"
+                subtitle="Avaliações dos usuários"
+                onClick={() => go("/feedbacks")}
+              />
+            </>
+          )}
 
           {/* SUPORTE section */}
           <SectionLabel>Suporte</SectionLabel>

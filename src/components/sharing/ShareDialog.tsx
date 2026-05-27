@@ -13,6 +13,7 @@ import { ShareContentStep } from "./ShareContentStep";
 import { ShareProfessionalStep } from "./ShareProfessionalStep";
 import { ShareExpiryStep, type ExpiryHours } from "./ShareExpiryStep";
 import { ShareConfirmationStep } from "./ShareConfirmationStep";
+import { track } from "@/lib/analytics.client";
 import { listAttendanceRecords } from "@/services/attendance.service";
 import { listAllDocuments, type UnifiedDocument } from "@/services/documents.service";
 import { listProfessionals, createProfessional } from "@/services/professionals.service";
@@ -138,6 +139,7 @@ export function ShareDialog({
       return res;
     },
     onSuccess: (res) => {
+      track("share.create", { module: "compartilhamento" });
       qc.invalidateQueries({ queryKey: ["shares"] });
       const prof = profsQuery.data?.find((p) => p.id === professionalId);
       setResult({

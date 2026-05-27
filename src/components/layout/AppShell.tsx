@@ -10,12 +10,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { BrandLogo } from "./BrandLogo";
 import { AccountMenuDrawer } from "./AccountMenuDrawer";
+import { initWebVitals } from "@/lib/analytics.client";
 
 export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu?: boolean }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+
+  // Inicializa coleta de Web Vitals uma vez por sessão (idempotente)
+  if (typeof window !== "undefined") initWebVitals();
   const notifications = useAgendaNotifications();
   const hasUnread = notifications.length > 0;
 
@@ -67,6 +71,7 @@ export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu
                 onClose={() => setMenuOpen(false)}
                 fullName={profile?.full_name ?? null}
                 email={user?.email ?? null}
+                isAdmin={profile?.is_admin ?? false}
               />
             </div>
           )}

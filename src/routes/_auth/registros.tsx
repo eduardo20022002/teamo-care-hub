@@ -25,6 +25,7 @@ import { RecordDetailSheet } from "@/components/records/RecordDetailSheet";
 import { DeleteAttendanceDialog } from "@/components/attendance/DeleteAttendanceDialog";
 import { ShareDialog } from "@/components/sharing/ShareDialog";
 import { countRecordAttachments } from "@/services/attachments.service";
+import { track } from "@/lib/analytics.client";
 
 const BRAND_GRADIENT =
   "linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)";
@@ -75,6 +76,11 @@ function RegistrosPage() {
   const [shareRecord, setShareRecord] = useState<DiaryRecordWithRelations | null>(null);
   const [typeFilter, setTypeFilter] = useState<"all" | RecordType>("all");
 
+  // Analytics: módulo aberto
+  useEffect(() => {
+    track("module.open", { module: "registros", route: "/registros" });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-open type picker when coming from dashboard "Registrar"
   useEffect(() => {
     if (openNew) {
@@ -106,7 +112,11 @@ function RegistrosPage() {
       }
       return record;
     },
-    onSuccess: () => {
+    onSuccess: (_record, vars) => {
+      track("record.create", {
+        module: "registros",
+        properties: { record_type: vars.input.record_type },
+      });
       toast.success("Registro criado.");
       qc.invalidateQueries({ queryKey: ["diary-records"] });
       qc.invalidateQueries({ queryKey: ["attendance"] });

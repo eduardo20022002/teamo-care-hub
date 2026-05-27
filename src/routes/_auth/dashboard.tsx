@@ -33,6 +33,7 @@ import {
 } from "@/lib/formatters";
 import type { ChildInput, AttendanceRecordInput } from "@/lib/validation";
 import type { Child } from "@/types/database";
+import { track } from "@/lib/analytics.client";
 
 export const Route = createFileRoute("/_auth/dashboard")({
   head: () => ({
@@ -275,6 +276,11 @@ function DashboardPage() {
     queryFn: listProfessionals,
     enabled: !!user,
   });
+
+  // Analytics: início de sessão (uma vez por montagem do dashboard)
+  useEffect(() => {
+    track("session.start", { route: "/dashboard" });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isLoading && children && children.length === 0) {

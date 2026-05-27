@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, FolderOpen, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -29,6 +29,7 @@ import { DocumentCard } from "@/components/documents/DocumentCard";
 import { AddChildDocumentDialog } from "@/components/documents/AddChildDocumentDialog";
 import { EmptyDocuments } from "@/components/documents/EmptyDocuments";
 import { DeleteAttachmentDialog } from "@/components/attachments/DeleteAttachmentDialog";
+import { track } from "@/lib/analytics.client";
 
 export const Route = createFileRoute("/_auth/documentos")({
   head: () => ({
@@ -57,6 +58,10 @@ function DocumentosPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
 
+  useEffect(() => {
+    track("module.open", { module: "documentos", route: "/documentos" });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [childFilter, setChildFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
@@ -83,6 +88,10 @@ function DocumentosPage() {
       addChildDocuments(user!.id, vars.childId, vars.files, vars.title),
     onSuccess: ({ success, failed }) => {
       if (success > 0) {
+        track("document.upload", {
+          module: "documentos",
+          properties: { count: success },
+        });
         toast.success(
           success === 1
             ? "Documento enviado."

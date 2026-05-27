@@ -1,8 +1,648 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import {
+  Activity,
+  AlertTriangle,
+  BarChart2,
+  CheckCircle2,
+  Clock,
+  FileText,
+  Layers,
+  Link2,
+  RefreshCcw,
+  Share2,
+  TrendingUp,
+  Users,
+  WifiOff,
+} from "lucide-react";
+import { AppShell } from "@/components/layout/AppShell";
+import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  getBusinessHealthServer,
+  getUserBehaviorServer,
+  getTechnicalHealthServer,
+} from "@/lib/analytics.functions";
+import { supabase as supabaseClient } from "@/integrations/supabase/client";
+import type {
+  BusinessHealthData,
+  UserBehaviorData,
+  TechnicalHealthData,
+} from "@/server/analytics.server";
 
 export const Route = createFileRoute("/_auth/painel")({
-  beforeLoad: () => {
-    throw redirect({ to: "/registros", replace: true });
-  },
-  component: () => null,
+  head: () => ({ meta: [{ title: "Painel Admin — TEAmo" }] }),
+  component: PainelPage,
 });
+
+// ─── Helpers de UI ────────────────────────────────────────────────────────────
+
+function SectionHeader({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle: string }) {
+  return (
+    <div className="mb-4 flex items-center gap-3">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-[#EEF1FF]">
+        {icon}
+      </div>
+      <div>
+        <h2 className="text-base font-bold text-[#0F172A]">{title}</h2>
+        <p className="text-xs text-[#6B7280]">{subtitle}</p>
+      </div>
+    </div>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  sub,
+  accent = "#4F46E5",
+  tint = "#EEF1FF",
+  icon,
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  accent?: string;
+  tint?: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <div
+      className="rounded-2xl border bg-white p-4"
+      style={{ borderColor: "#EEF0F4", boxShadow: "0 1px 2px rgba(15,23,42,0.03)" }}
+    >
+      <div className="mb-2 flex items-center gap-2">
+        {icon && (
+          <div
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+            style={{ background: tint }}
+          >
+            <span style={{ color: accent }}>{icon}</span>
+          </div>
+        )}
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
+          {label}
+        </span>
+      </div>
+      <p className="text-2xl font-bold text-[#0F172A]">{value}</p>
+      {sub && <p className="mt-0.5 text-xs text-[#6B7280]">{sub}</p>}
+    </div>
+  );
+}
+
+function GrowthChip({ current, prev }: { current: number; prev: number }) {
+  if (prev === 0) return <span className="text-xs text-[#9CA3AF]">—</span>;
+  const pct = Math.round(((current - prev) / prev) * 100);
+  const up = pct >= 0;
+  return (
+    <span
+      className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold"
+      style={{
+        background: up ? "#DCFCE7" : "#FFE4E6",
+        color: up ? "#15803D" : "#E11D48",
+      }}
+    >
+      {up ? "↑" : "↓"} {Math.abs(pct)}%
+    </span>
+  );
+}
+
+function FunnelBar({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-[#4B5563]">{label}</span>
+        <span className="font-semibold text-[#0F172A]">
+          {value} <span className="font-normal text-[#9CA3AF]">({pct}%)</span>
+        </span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-[#F1F2F6]">
+        <div
+          className="h-2 rounded-full transition-all"
+          style={{ width: `${pct}%`, background: color }}
+        />
+      </div>
+    </div>
+  );
+}
+
+const MODULE_LABELS: Record<string, string> = {
+  registros: "Registros",
+  documentos: "Documentos",
+  agenda: "Agenda",
+  profissionais: "Profissionais",
+  compartilhamento: "Compartilhamento",
+};
+const MODULE_COLORS: Record<string, string> = {
+  registros: "#D97706",
+  documentos: "#4F46E5",
+  agenda: "#EC4899",
+  profissionais: "#16A34A",
+  compartilhamento: "#7C3AED",
+};
+
+// ─── Seção 1: Saúde Técnica ───────────────────────────────────────────────────
+
+function TechnicalHealthSection({ data }: { data: TechnicalHealthData }) {
+  const statusColors = {
+    operational: { bg: "#DCFCE7", text: "#15803D", dot: "#16A34A", label: "Operacional" },
+    degraded: { bg: "#FEF3C7", text: "#92400E", dot: "#D97706", label: "Degradado" },
+    unknown: { bg: "#F4F5FA", text: "#6B7280", dot: "#9CA3AF", label: "Desconhecido" },
+  };
+  const sColor = statusColors[data.supabaseStatus];
+
+  return (
+    <section className="mb-10">
+      <SectionHeader
+        icon={<Activity className="h-5 w-5 text-[#4F46E5]" strokeWidth={1.75} />}
+        title="Saúde Técnica"
+        subtitle="Erros, Web Vitals e disponibilidade — últimos 7 dias"
+      />
+
+      {/* Status Supabase */}
+      <div
+        className="mb-4 flex items-center gap-3 rounded-2xl border p-4"
+        style={{ background: sColor.bg, borderColor: sColor.dot + "33" }}
+      >
+        <span
+          className="h-3 w-3 shrink-0 rounded-full"
+          style={{ background: sColor.dot, boxShadow: `0 0 0 3px ${sColor.dot}33` }}
+        />
+        <div>
+          <p className="text-sm font-semibold" style={{ color: sColor.text }}>
+            Supabase — {sColor.label}
+          </p>
+          <p className="text-xs" style={{ color: sColor.text + "CC" }}>
+            status.supabase.com verificado agora
+          </p>
+        </div>
+      </div>
+
+      {/* Web Vitals */}
+      {data.webVitals.length > 0 && (
+        <div className="mb-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#9CA3AF]">
+            Web Vitals — p75
+          </p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {data.webVitals.map((v) => {
+              const thresholds: Record<string, [number, number]> = {
+                LCP: [2500, 4000],
+                INP: [200, 500],
+                CLS: [0.1, 0.25],
+              };
+              const [good, poor] = thresholds[v.metric] ?? [0, 0];
+              const color =
+                v.p75 <= good ? "#16A34A" : v.p75 <= poor ? "#D97706" : "#E11D48";
+              return (
+                <div
+                  key={`${v.route}-${v.metric}`}
+                  className="rounded-xl border bg-white p-3"
+                  style={{ borderColor: "#EEF0F4" }}
+                >
+                  <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color }}>
+                    {v.metric}
+                  </p>
+                  <p className="text-lg font-bold text-[#0F172A]">
+                    {v.p75}
+                    <span className="ml-0.5 text-xs font-normal text-[#9CA3AF]">{v.unit}</span>
+                  </p>
+                  <p className="mt-0.5 truncate text-[10px] text-[#9CA3AF]">{v.route}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Erros JS */}
+      {data.jsErrors.length > 0 ? (
+        <div className="mb-4 rounded-2xl border bg-white" style={{ borderColor: "#EEF0F4" }}>
+          <div className="border-b px-4 py-3" style={{ borderColor: "#EEF0F4" }}>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#9CA3AF]">
+              Erros JavaScript — por rota
+            </p>
+          </div>
+          {data.jsErrors.map((e, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-3 border-b px-4 py-3 last:border-0"
+              style={{ borderColor: "#F1F2F6" }}
+            >
+              <AlertTriangle className="h-4 w-4 shrink-0 text-[#E11D48]" strokeWidth={1.75} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-medium text-[#0F172A]">{e.route ?? "(sem rota)"}</p>
+                <p className="truncate text-[11px] text-[#6B7280]">{e.message ?? "—"}</p>
+              </div>
+              <span className="shrink-0 rounded-full bg-[#FFE4E6] px-2 py-0.5 text-xs font-semibold text-[#E11D48]">
+                {e.count}×
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 rounded-2xl border bg-[#DCFCE7] p-4" style={{ borderColor: "#BBF7D0" }}>
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-[#16A34A]" strokeWidth={1.75} />
+          <p className="text-sm font-medium text-[#15803D]">Nenhum erro JS nos últimos 7 dias.</p>
+        </div>
+      )}
+
+      {/* Taxa de erro por tipo */}
+      {data.errorRate.length > 0 && (
+        <div className="mt-4 rounded-2xl border bg-white" style={{ borderColor: "#EEF0F4" }}>
+          <div className="border-b px-4 py-3" style={{ borderColor: "#EEF0F4" }}>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#9CA3AF]">
+              Tipos de erro — 7d vs 24h
+            </p>
+          </div>
+          {data.errorRate.map((e, i) => (
+            <div
+              key={i}
+              className="flex items-center justify-between border-b px-4 py-3 last:border-0"
+              style={{ borderColor: "#F1F2F6" }}
+            >
+              <span className="text-xs font-medium text-[#4B5563]">{e.event_type}</span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-[#9CA3AF]">7d: <strong className="text-[#0F172A]">{e.count}</strong></span>
+                <span className="text-xs text-[#9CA3AF]">24h: <strong className="text-[#E11D48]">{e.last24h}</strong></span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ─── Seção 2: Comportamento dos Usuários ────────────────────────────────────
+
+function UserBehaviorSection({ data }: { data: UserBehaviorData }) {
+  const maxModule = Math.max(...data.moduleAdoption.map((m) => m.opens), 1);
+
+  return (
+    <section className="mb-10">
+      <SectionHeader
+        icon={<BarChart2 className="h-5 w-5 text-[#4F46E5]" strokeWidth={1.75} />}
+        title="Comportamento dos Usuários"
+        subtitle="Adoção de módulos e funis — últimos 30 dias"
+      />
+
+      {/* Adoção por módulo */}
+      <div className="mb-4 rounded-2xl border bg-white" style={{ borderColor: "#EEF0F4" }}>
+        <div className="border-b px-4 py-3" style={{ borderColor: "#EEF0F4" }}>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#9CA3AF]">
+            Adoção por módulo
+          </p>
+        </div>
+        <div className="space-y-4 px-4 py-4">
+          {data.moduleAdoption.map((m) => (
+            <div key={m.module}>
+              <div className="mb-1 flex items-center justify-between">
+                <span
+                  className="text-xs font-semibold"
+                  style={{ color: MODULE_COLORS[m.module] ?? "#4F46E5" }}
+                >
+                  {MODULE_LABELS[m.module] ?? m.module}
+                </span>
+                <span className="text-[11px] text-[#9CA3AF]">
+                  {m.opens} aberturas · {m.actions} ações
+                </span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-[#F1F2F6]">
+                <div
+                  className="h-2 rounded-full"
+                  style={{
+                    width: `${Math.round((m.opens / maxModule) * 100)}%`,
+                    background: MODULE_COLORS[m.module] ?? "#4F46E5",
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Funil de compartilhamento OTP */}
+      <div className="mb-4 rounded-2xl border bg-white" style={{ borderColor: "#EEF0F4" }}>
+        <div className="border-b px-4 py-3" style={{ borderColor: "#EEF0F4" }}>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#9CA3AF]">
+            Funil de compartilhamento OTP
+          </p>
+        </div>
+        <div className="space-y-3 px-4 py-4">
+          <FunnelBar label="Links criados" value={data.otpFunnel.created} total={data.otpFunnel.created} color="#7C3AED" />
+          <FunnelBar label="OTP solicitado" value={data.otpFunnel.otpRequested} total={data.otpFunnel.created} color="#4F46E5" />
+          <FunnelBar label="OTP validado (acesso concluído)" value={data.otpFunnel.otpSucceeded} total={data.otpFunnel.created} color="#16A34A" />
+          <FunnelBar label="Expirados sem acesso" value={data.otpFunnel.expiredUnused} total={data.otpFunnel.created} color="#E11D48" />
+        </div>
+      </div>
+
+      {/* Top eventos */}
+      {data.topEvents.length > 0 && (
+        <div className="rounded-2xl border bg-white" style={{ borderColor: "#EEF0F4" }}>
+          <div className="border-b px-4 py-3" style={{ borderColor: "#EEF0F4" }}>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#9CA3AF]">
+              Eventos mais frequentes
+            </p>
+          </div>
+          {data.topEvents.slice(0, 8).map((e, i) => (
+            <div
+              key={i}
+              className="flex items-center justify-between border-b px-4 py-2.5 last:border-0"
+              style={{ borderColor: "#F1F2F6" }}
+            >
+              <span className="text-xs font-medium text-[#4B5563]">{e.event_type}</span>
+              <span className="text-xs font-semibold text-[#0F172A]">{e.count}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ─── Seção 3: Saúde do Negócio ──────────────────────────────────────────────
+
+function BusinessHealthSection({ data }: { data: BusinessHealthData }) {
+  const stickiness =
+    data.activity.mau > 0
+      ? Math.round((data.activity.dau / data.activity.mau) * 100)
+      : 0;
+
+  return (
+    <section className="mb-10">
+      <SectionHeader
+        icon={<TrendingUp className="h-5 w-5 text-[#4F46E5]" strokeWidth={1.75} />}
+        title="Saúde do Negócio"
+        subtitle="Crescimento, atividade e volume acumulado"
+      />
+
+      {/* Totais */}
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
+        Totais acumulados
+      </p>
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <MetricCard
+          label="Cuidadores"
+          value={data.totals.caregivers}
+          icon={<Users className="h-4 w-4" strokeWidth={1.75} />}
+          accent="#4F46E5"
+          tint="#EEF1FF"
+        />
+        <MetricCard
+          label="Profissionais"
+          value={data.totals.professionals}
+          icon={<Users className="h-4 w-4" strokeWidth={1.75} />}
+          accent="#16A34A"
+          tint="#DCFCE7"
+        />
+        <MetricCard
+          label="Crianças"
+          value={data.totals.children}
+          icon={<Users className="h-4 w-4" strokeWidth={1.75} />}
+          accent="#EC4899"
+          tint="#FDF2F8"
+        />
+        <MetricCard
+          label="Vínculos ativos"
+          value={data.links.childrenWithProfessional}
+          icon={<Link2 className="h-4 w-4" strokeWidth={1.75} />}
+          accent="#7C3AED"
+          tint="#F3E8FF"
+        />
+      </div>
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <MetricCard
+          label="Registros"
+          value={data.totals.records}
+          icon={<FileText className="h-4 w-4" strokeWidth={1.75} />}
+          accent="#D97706"
+          tint="#FEF3C7"
+        />
+        <MetricCard
+          label="Documentos"
+          value={data.totals.documents}
+          icon={<Layers className="h-4 w-4" strokeWidth={1.75} />}
+          accent="#4F46E5"
+          tint="#EEF1FF"
+        />
+        <MetricCard
+          label="Eventos agenda"
+          value={data.totals.events}
+          icon={<Clock className="h-4 w-4" strokeWidth={1.75} />}
+          accent="#EC4899"
+          tint="#FDF2F8"
+        />
+        <MetricCard
+          label="Links OTP"
+          value={data.totals.shares}
+          icon={<Share2 className="h-4 w-4" strokeWidth={1.75} />}
+          accent="#7C3AED"
+          tint="#F3E8FF"
+        />
+      </div>
+
+      {/* DAU / WAU / MAU */}
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
+        Usuários ativos
+      </p>
+      <div className="mb-4 grid grid-cols-3 gap-3">
+        <MetricCard label="DAU" value={data.activity.dau} sub="Últimas 24h" />
+        <MetricCard label="WAU" value={data.activity.wau} sub="Últimos 7 dias" />
+        <MetricCard label="MAU" value={data.activity.mau} sub="Últimos 30 dias" />
+      </div>
+      <div
+        className="mb-4 flex items-center justify-between rounded-2xl border bg-white p-4"
+        style={{ borderColor: "#EEF0F4" }}
+      >
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#9CA3AF]">Stickiness (DAU/MAU)</p>
+          <p className="mt-1 text-2xl font-bold text-[#0F172A]">{stickiness}%</p>
+        </div>
+        <div
+          className="flex h-14 w-14 items-center justify-center rounded-full text-base font-bold"
+          style={{
+            background: stickiness >= 20 ? "#DCFCE7" : stickiness >= 10 ? "#FEF3C7" : "#FFE4E6",
+            color: stickiness >= 20 ? "#15803D" : stickiness >= 10 ? "#92400E" : "#E11D48",
+          }}
+        >
+          {stickiness}%
+        </div>
+      </div>
+
+      {/* Crescimento */}
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
+        Crescimento de cuidadores
+      </p>
+      <div className="mb-4 grid grid-cols-2 gap-3">
+        <div className="rounded-2xl border bg-white p-4" style={{ borderColor: "#EEF0F4" }}>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9CA3AF]">Esta semana</p>
+          <div className="mt-1 flex items-end gap-2">
+            <p className="text-2xl font-bold text-[#0F172A]">{data.growth.caregiversThisWeek}</p>
+            <GrowthChip current={data.growth.caregiversThisWeek} prev={data.growth.caregiversLastWeek} />
+          </div>
+          <p className="mt-0.5 text-xs text-[#9CA3AF]">vs. semana anterior: {data.growth.caregiversLastWeek}</p>
+        </div>
+        <div className="rounded-2xl border bg-white p-4" style={{ borderColor: "#EEF0F4" }}>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9CA3AF]">Este mês</p>
+          <div className="mt-1 flex items-end gap-2">
+            <p className="text-2xl font-bold text-[#0F172A]">{data.growth.caregiversThisMonth}</p>
+            <GrowthChip current={data.growth.caregiversThisMonth} prev={data.growth.caregiversLastMonth} />
+          </div>
+          <p className="mt-0.5 text-xs text-[#9CA3AF]">vs. mês anterior: {data.growth.caregiversLastMonth}</p>
+        </div>
+      </div>
+
+      {/* Churn */}
+      <div
+        className="flex items-center gap-3 rounded-2xl border p-4"
+        style={{
+          borderColor: data.churn.inactiveOver30d > 0 ? "#FECDD3" : "#EEF0F4",
+          background: data.churn.inactiveOver30d > 0 ? "#FFF1F2" : "#F8FAFF",
+        }}
+      >
+        {data.churn.inactiveOver30d > 0 ? (
+          <WifiOff className="h-5 w-5 shrink-0 text-[#E11D48]" strokeWidth={1.75} />
+        ) : (
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-[#16A34A]" strokeWidth={1.75} />
+        )}
+        <div>
+          <p className="text-sm font-semibold text-[#0F172A]">
+            {data.churn.inactiveOver30d} {data.churn.inactiveOver30d === 1 ? "usuário inativo" : "usuários inativos"} há +30 dias
+          </p>
+          <p className="text-xs text-[#6B7280]">Sem nenhuma sessão nos últimos 30 dias</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Página principal ─────────────────────────────────────────────────────────
+
+function PainelPage() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Verificação de admin: busca is_admin do perfil
+  const { data: profile, isLoading: profileLoading } = useQuery({
+    queryKey: ["painel-profile", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user!.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Guard: redirect se não for admin
+  useEffect(() => {
+    if (!profileLoading && profile !== undefined && !profile?.is_admin) {
+      void navigate({ to: "/dashboard", replace: true });
+    }
+  }, [profile, profileLoading, navigate]);
+
+  // Dados das 3 seções — staleTime alto: métricas não precisam de refresh a cada segundo
+  // Helper: obtém cabeçalhos de auth para ServerFns
+  const getAuthHeaders = async () => {
+    const { data } = await supabaseClient.auth.getSession();
+    const token = data.session?.access_token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  const { data: businessData, isLoading: bizLoading, refetch: refetchBiz } = useQuery({
+    queryKey: ["admin-business-health"],
+    queryFn: async () => {
+      const headers = await getAuthHeaders();
+      return getBusinessHealthServer({ headers } as any);
+    },
+    enabled: !!profile?.is_admin,
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const { data: behaviorData, isLoading: behaviorLoading, refetch: refetchBehavior } = useQuery({
+    queryKey: ["admin-user-behavior"],
+    queryFn: async () => {
+      const headers = await getAuthHeaders();
+      return getUserBehaviorServer({ headers } as any);
+    },
+    enabled: !!profile?.is_admin,
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const { data: techData, isLoading: techLoading, refetch: refetchTech } = useQuery({
+    queryKey: ["admin-technical-health"],
+    queryFn: async () => {
+      const headers = await getAuthHeaders();
+      return getTechnicalHealthServer({ headers } as any);
+    },
+    enabled: !!profile?.is_admin,
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const isLoading = profileLoading || bizLoading || behaviorLoading || techLoading;
+
+  const handleRefresh = () => {
+    void refetchBiz();
+    void refetchBehavior();
+    void refetchTech();
+  };
+
+  if (profileLoading) {
+    return (
+      <AppShell>
+        <div className="flex justify-center py-24">
+          <LoadingSpinner />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (!profile?.is_admin) {
+    return null; // redirect em andamento
+  }
+
+  return (
+    <AppShell>
+      {/* Header */}
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-[#0F172A]">Painel</h1>
+          <p className="mt-0.5 text-sm text-[#6B7280]">
+            Observabilidade · visível apenas para administradores
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={isLoading}
+          className="flex items-center gap-1.5 rounded-[10px] border border-[#E5E7EB] bg-white px-3 py-2 text-sm font-medium text-[#374151] hover:bg-[#F9FAFB] disabled:opacity-50"
+        >
+          <RefreshCcw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} strokeWidth={1.75} />
+          Atualizar
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <LoadingSpinner />
+        </div>
+      ) : (
+        <>
+          {techData && <TechnicalHealthSection data={techData} />}
+          {behaviorData && <UserBehaviorSection data={behaviorData} />}
+          {businessData && <BusinessHealthSection data={businessData} />}
+        </>
+      )}
+    </AppShell>
+  );
+}
