@@ -33,7 +33,7 @@ import {
 } from "@/lib/formatters";
 import type { ChildInput, AttendanceRecordInput } from "@/lib/validation";
 import type { Child } from "@/types/database";
-import { track } from "@/lib/analytics.client";
+import { track } from "@/lib/analytics";
 
 export const Route = createFileRoute("/_auth/dashboard")({
   head: () => ({

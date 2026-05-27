@@ -33,7 +33,7 @@ import {
 import type { ProfessionalInput } from "@/lib/validation";
 import type { Professional } from "@/types/database";
 import { useEffect } from "react";
-import { track } from "@/lib/analytics.client";
+import { track } from "@/lib/analytics";
 
 export const Route = createFileRoute("/_auth/profissionais")({
   head: () => ({

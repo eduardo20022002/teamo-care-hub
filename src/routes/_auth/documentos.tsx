@@ -29,7 +29,7 @@ import { DocumentCard } from "@/components/documents/DocumentCard";
 import { AddChildDocumentDialog } from "@/components/documents/AddChildDocumentDialog";
 import { EmptyDocuments } from "@/components/documents/EmptyDocuments";
 import { DeleteAttachmentDialog } from "@/components/attachments/DeleteAttachmentDialog";
-import { track } from "@/lib/analytics.client";
+import { track } from "@/lib/analytics";
 
 export const Route = createFileRoute("/_auth/documentos")({
   head: () => ({

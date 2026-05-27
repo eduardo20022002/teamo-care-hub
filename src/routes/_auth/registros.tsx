@@ -25,7 +25,7 @@ import { RecordDetailSheet } from "@/components/records/RecordDetailSheet";
 import { DeleteAttendanceDialog } from "@/components/attendance/DeleteAttendanceDialog";
 import { ShareDialog } from "@/components/sharing/ShareDialog";
 import { countRecordAttachments } from "@/services/attachments.service";
-import { track } from "@/lib/analytics.client";
+import { track } from "@/lib/analytics";
 
 const BRAND_GRADIENT =
   "linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)";

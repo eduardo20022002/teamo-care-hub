@@ -13,7 +13,7 @@ import { ShareContentStep } from "./ShareContentStep";
 import { ShareProfessionalStep } from "./ShareProfessionalStep";
 import { ShareExpiryStep, type ExpiryHours } from "./ShareExpiryStep";
 import { ShareConfirmationStep } from "./ShareConfirmationStep";
-import { track } from "@/lib/analytics.client";
+import { track } from "@/lib/analytics";
 import { listAttendanceRecords } from "@/services/attendance.service";
 import { listAllDocuments, type UnifiedDocument } from "@/services/documents.service";
 import { listProfessionals, createProfessional } from "@/services/professionals.service";

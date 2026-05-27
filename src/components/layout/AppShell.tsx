@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { BrandLogo } from "./BrandLogo";
 import { AccountMenuDrawer } from "./AccountMenuDrawer";
-import { initWebVitals } from "@/lib/analytics.client";
+import { initWebVitals } from "@/lib/analytics";
 
 export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu?: boolean }) {
   const navigate = useNavigate();

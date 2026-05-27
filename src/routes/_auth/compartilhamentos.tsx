@@ -35,7 +35,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { ExpiryHours } from "@/components/sharing/ShareExpiryStep";
-import { track } from "@/lib/analytics.client";
+import { track } from "@/lib/analytics";
 
 const BRAND_GRADIENT = "linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)";
 const BRAND_SHADOW = "0 8px 18px -8px rgba(79,70,229,0.45), 0 3px 8px -3px rgba(236,72,153,0.25)";

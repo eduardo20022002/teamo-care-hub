@@ -30,7 +30,7 @@ import {
 } from "@/lib/agenda/tokens";
 import type { AgendaEventInput } from "@/lib/agenda/validation";
 import type { AgendaEventWithRelations } from "@/types/agenda";
-import { track } from "@/lib/analytics.client";
+import { track } from "@/lib/analytics";
 
 export const Route = createFileRoute("/_auth/agenda")({
   head: () => ({

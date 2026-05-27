@@ -7,6 +7,8 @@ import { trackEventServer } from "@/lib/analytics.functions";
 // Session ID gerado uma vez por aba/sessão de browser.
 // Não é identificável sozinho; serve para agrupar eventos da mesma sessão.
 function getSessionId(): string {
+  // SSR guard: sessionStorage não existe no servidor
+  if (typeof window === "undefined") return "ssr";
   const key = "__teamo_sid";
   let sid = sessionStorage.getItem(key);
   if (!sid) {
@@ -33,6 +35,8 @@ interface TrackOptions {
  * track("record.create", { module: "registros", properties: { type: "comportamento" } });
  */
 export function track(eventType: string, opts: TrackOptions = {}): void {
+  // SSR guard: só dispara no cliente após hidratação
+  if (typeof window === "undefined") return;
   // fire-and-forget com tratamento de erro silencioso
   void (async () => {
     try {
