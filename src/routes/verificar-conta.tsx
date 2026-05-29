@@ -38,11 +38,20 @@ function VerifyAccountPage() {
   }, [user]);
 
   // Se o usuário já está autenticado (confirmou o e-mail em outra aba, ou voltou
-  // depois de confirmar), encaminha diretamente para o onboarding.
+  // depois de confirmar), encaminha para o aceite de convite pendente ou onboarding.
   useEffect(() => {
     if (loading || !user) return;
+    const pendingInvite =
+      typeof window !== "undefined"
+        ? sessionStorage.getItem("teamo:pendingInvite")
+        : null;
     sessionStorage.removeItem("teamo:pendingEmail");
-    navigate({ to: "/onboarding" });
+    sessionStorage.removeItem("teamo:pendingInvite");
+    if (pendingInvite) {
+      navigate({ to: "/convite/$token/aceitar", params: { token: pendingInvite } });
+    } else {
+      navigate({ to: "/onboarding" });
+    }
   }, [loading, user, navigate]);
 
   // Countdown do botão de reenvio.

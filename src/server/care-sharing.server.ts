@@ -186,7 +186,9 @@ export async function sendInviteEmail(params: {
   expiresAt: string;
 }): Promise<{ ok: boolean; error?: string }> {
   const appUrl = process.env.VITE_APP_URL ?? "https://teamo.vercel.app";
-  const link = `${appUrl}/convite/${encodeURIComponent(params.token)}`;
+  // Link vai diretamente para login com o token como search param.
+  // O login mostra banner de contexto e redireciona para /convite/{token}/aceitar após auth.
+  const link = `${appUrl}/login?invite=${encodeURIComponent(params.token)}`;
   const expiresFormatted = formatDateBR(params.expiresAt);
 
   const html = `
