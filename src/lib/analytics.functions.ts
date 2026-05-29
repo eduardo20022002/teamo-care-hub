@@ -21,7 +21,7 @@ const trackSchema = z.object({
   durationMs: z.number().int().nonnegative().optional(),
   /** Apenas primitivos simples — nunca strings clínicas longas */
   properties: z
-    .record(z.union([z.string().max(200), z.number(), z.boolean(), z.null()]))
+    .record(z.string(), z.union([z.string().max(200), z.number(), z.boolean(), z.null()]))
     .optional(),
 });
 
