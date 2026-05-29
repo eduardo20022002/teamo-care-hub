@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Baby,
@@ -13,6 +13,8 @@ import {
   Share2,
   TimerReset,
   Users,
+  HandHeart,
+  ShieldAlert,
 } from "lucide-react";
 import { uploadRecordAttachment } from "@/services/attachments.service";
 import { toast } from "sonner";
@@ -34,6 +36,9 @@ import {
 import type { ChildInput, AttendanceRecordInput } from "@/lib/validation";
 import type { Child } from "@/types/database";
 import { track } from "@/lib/analytics";
+import { listMyCareAccessServer } from "@/lib/care-sharing.functions";
+import { supabase as supabaseClient } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/_auth/dashboard")({
   head: () => ({
@@ -256,6 +261,112 @@ function ChildRow({
   );
 }
 
+const TEAL_CARE = "#0D9488";
+
+// ─── SharedChildCard (co-cuidador) ────────────────────────────────────────────
+
+function SharedChildCard({
+  access,
+  onNavigate,
+}: {
+  access: { id: string; child: { id: string; name: string; birth_date: string }; owner: any; role: "admin" | "viewer"; alias: string };
+  onNavigate: (childId: string) => void;
+}) {
+  const child = access.child;
+  const ownerName = access.owner?.raw_user_meta_data?.display_name ||
+    access.owner?.email?.split("@")[0] || "Responsável";
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-[18px] border p-4"
+      style={{ borderColor: "#CCFBF1", background: "linear-gradient(135deg, #F0FDFA 0%, #ECFDF5 100%)", boxShadow: "0 2px 8px rgba(13,148,136,0.08)" }}
+    >
+      {/* Ribbon compartilhado */}
+      <div
+        className="absolute right-0 top-0 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest"
+        style={{ background: TEAL_CARE, color: "#fff", borderRadius: "0 18px 0 12px" }}
+      >
+        Compartilhado
+      </div>
+
+      <div className="flex items-center gap-3 mb-3">
+        <div
+          className="flex h-12 w-12 items-center justify-center rounded-full font-bold text-xl flex-shrink-0"
+          style={{ background: "#CCFBF1", color: TEAL_CARE }}
+        >
+          {child.name.charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <p className="font-bold text-[#0F172A] text-[16px]">{child.name}</p>
+          {child.birth_date && (
+            <p className="text-xs text-[#6B7280]">{formatAge(child.birth_date)}</p>
+          )}
+          <p className="text-xs text-[#6B7280] mt-0.5">Responsável: {ownerName}</p>
+        </div>
+      </div>
+
+      {/* Banner de acesso */}
+      <div
+        className="rounded-lg px-3 py-2 mb-3 text-xs leading-relaxed"
+        style={{ background: "rgba(13,148,136,0.08)", color: "#0F766E" }}
+      >
+        {access.role === "admin"
+          ? "Acesso de administrador: registros, agenda, documentos e profissionais."
+          : "Acesso de visualizador: registros, agenda e profissionais (sem documentos clínicos)."}
+      </div>
+
+      {/* Atalhos */}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => onNavigate(access.child.id)}
+          className="flex-1 h-9 rounded-lg text-xs font-bold text-white flex items-center justify-center"
+          style={{ background: TEAL_CARE }}
+        >
+          Ver registros
+        </button>
+        <button
+          type="button"
+          onClick={() => onNavigate(access.child.id)}
+          className="flex-1 h-9 rounded-lg text-xs font-semibold border flex items-center justify-center"
+          style={{ borderColor: TEAL_CARE, color: TEAL_CARE }}
+        >
+          Agenda
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── AccessRevokedOverlay (Tela 13) ──────────────────────────────────────────
+
+function AccessRevokedOverlay({ childName, onDismiss }: { childName: string; onDismiss: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(15,23,42,0.7)" }}>
+      <div className="bg-white rounded-2xl p-6 max-w-[360px] w-full text-center shadow-2xl">
+        <div
+          className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full"
+          style={{ background: "#FEF2F2" }}
+        >
+          <ShieldAlert size={28} color="#DC2626" strokeWidth={1.7} />
+        </div>
+        <h2 className="text-[18px] font-bold text-[#0F172A] mb-2">Acesso removido</h2>
+        <p className="text-sm text-[#6B7280] mb-5 leading-relaxed">
+          Você não tem mais acesso ao perfil de <strong>{childName}</strong>. Entre em contato com o responsável para mais informações.
+        </p>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="w-full h-11 rounded-xl text-white text-[14px] font-bold"
+          style={{ background: "#DC2626" }}
+        >
+          Voltar ao início
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -264,12 +375,29 @@ function DashboardPage() {
   const [attendanceOpen, setAttendanceOpen] = useState(false);
   const [quickChildId, setQuickChildId] = useState<string | undefined>();
   const [docsChild, setDocsChild] = useState<Child | null>(null);
+  const [revokedAccess, setRevokedAccess] = useState<{ childName: string } | null>(null);
+  const realtimeRef = useRef<ReturnType<typeof supabaseClient.channel> | null>(null);
 
   const { data: children, isLoading } = useQuery({
     queryKey: ["children"],
     queryFn: listChildren,
     enabled: !!user,
   });
+
+  // Co-cuidador: busca acessos ativos
+  const listMyCareAccessFn = useServerFn(listMyCareAccessServer);
+  const careAccessQuery = useQuery({
+    queryKey: ["my-care-access"],
+    queryFn: async () => {
+      const { data: session } = await supabaseClient.auth.getSession();
+      const token = session.session?.access_token;
+      const h: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+      return listMyCareAccessFn({ data: undefined, headers: h } as any);
+    },
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+  const careAccesses = careAccessQuery.data?.accesses ?? [];
 
   const professionalsQuery = useQuery({
     queryKey: ["professionals"],
@@ -281,6 +409,39 @@ function DashboardPage() {
   useEffect(() => {
     track("session.start", { route: "/dashboard" });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Realtime: detecta revogação de acesso de co-cuidador em tempo real
+  useEffect(() => {
+    if (!user || careAccesses.length === 0) return;
+
+    const accessIds = careAccesses.map((a: any) => a.id);
+    const channel = supabaseClient
+      .channel("care-access-revoke")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "care_access",
+          filter: `caregiver_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const updated = payload.new as { id: string; status: string; child_id: string };
+          if (updated.status === "revoked" && accessIds.includes(updated.id)) {
+            const access = careAccesses.find((a: any) => a.id === updated.id);
+            const childName = (access as any)?.child?.name ?? "Criança";
+            setRevokedAccess({ childName });
+            void qc.invalidateQueries({ queryKey: ["my-care-access"] });
+          }
+        },
+      )
+      .subscribe();
+
+    realtimeRef.current = channel;
+    return () => {
+      void supabaseClient.removeChannel(channel);
+    };
+  }, [user, careAccesses, qc]);
 
   useEffect(() => {
     if (!isLoading && children && children.length === 0) {
@@ -438,6 +599,27 @@ function DashboardPage() {
           </div>
         </div>
 
+        {/* CO-CUIDADOR: filhos compartilhados */}
+        {careAccesses.length > 0 && (
+          <div className="mt-7">
+            <SectionHeader
+              tint="#F0FDFA"
+              iconColor={TEAL_CARE}
+              icon={HandHeart}
+              title="Cuidados compartilhados"
+            />
+            <div className="flex flex-col gap-3">
+              {careAccesses.map((a: any) => (
+                <SharedChildCard
+                  key={a.id}
+                  access={a}
+                  onNavigate={() => navigate({ to: "/registros" })}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* EXPLORAR */}
         <div className="mt-7">
           <SectionHeader
@@ -480,6 +662,36 @@ function DashboardPage() {
                 </div>
               </button>
             ))}
+            {/* Tile dinâmico: Cuidado compartilhado (apenas para owners com filhos) */}
+            {(children ?? []).length > 0 && (
+              <button
+                type="button"
+                onClick={() => navigate({ to: "/cuidado-compartilhado/$childId", params: { childId: children![0]!.id } })}
+                className="flex flex-col gap-3 rounded-[18px] border bg-white p-4 text-left transition-shadow hover:shadow-md"
+                style={{ borderColor: "#EEF0F4", boxShadow: "0 1px 2px rgba(15,23,42,0.03)" }}
+              >
+                <div
+                  className="flex h-11 w-11 items-center justify-center rounded-xl"
+                  style={{ background: "#F0FDFA" }}
+                >
+                  <HandHeart size={20} strokeWidth={1.7} color={TEAL_CARE} />
+                </div>
+                <div>
+                  <div
+                    className="mb-1 text-[15px] font-bold"
+                    style={{ color: "#0F172A", letterSpacing: "-0.01em" }}
+                  >
+                    Cuidado compartilhado
+                  </div>
+                  <div
+                    className="text-[12.5px] leading-snug"
+                    style={{ color: "#6B7280" }}
+                  >
+                    Convide co-cuidadores.
+                  </div>
+                </div>
+              </button>
+            )}
           </div>
         </div>
 
@@ -567,6 +779,13 @@ function DashboardPage() {
         onOpenChange={(o) => !o && setDocsChild(null)}
         child={docsChild ?? ({ id: "", name: "" } as Child)}
       />
+
+      {revokedAccess && (
+        <AccessRevokedOverlay
+          childName={revokedAccess.childName}
+          onDismiss={() => setRevokedAccess(null)}
+        />
+      )}
     </AppShell>
   );
 }

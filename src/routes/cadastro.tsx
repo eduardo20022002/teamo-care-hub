@@ -1,13 +1,16 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { Loader2, Mail, Lock, Eye, EyeOff, User } from "lucide-react";
+import { Loader2, Mail, Lock, Eye, EyeOff, User, Baby } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { AuthInput } from "@/components/auth/AuthInput";
 import { PasswordStrengthBar, PasswordRules } from "@/components/auth/PasswordStrengthBar";
 import { signUp } from "@/services/auth.service";
 import { signUpSchema } from "@/lib/validation";
 import { useAuth } from "@/hooks/useAuth";
+
+const TEAL = "#0D9488";
 
 export const Route = createFileRoute("/cadastro")({
   head: () => ({
@@ -16,12 +19,33 @@ export const Route = createFileRoute("/cadastro")({
       { name: "description", content: "Crie sua conta no TEAmo em poucos segundos." },
     ],
   }),
+  validateSearch: z.object({ invite: z.string().optional() }).parse,
   component: SignupPage,
 });
+
+function InviteBanner() {
+  return (
+    <div
+      className="flex items-center gap-3 rounded-xl px-4 py-3 mb-6"
+      style={{ background: "#F0FDFA", border: "1px solid #99F6E4" }}
+    >
+      <div
+        className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg"
+        style={{ background: "#CCFBF1" }}
+      >
+        <Baby size={18} color={TEAL} strokeWidth={1.8} />
+      </div>
+      <p className="text-sm leading-snug" style={{ color: "#0F766E" }}>
+        Crie sua conta para aceitar o convite e acompanhar o cuidado no TEAmo.
+      </p>
+    </div>
+  );
+}
 
 function SignupPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const { invite } = Route.useSearch();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -47,9 +71,13 @@ function SignupPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      navigate({ to: "/onboarding" });
+      if (invite) {
+        navigate({ to: "/convite/$token/aceitar", params: { token: invite } });
+      } else {
+        navigate({ to: "/onboarding" });
+      }
     }
-  }, [loading, user, navigate]);
+  }, [loading, user, navigate, invite]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -80,26 +108,35 @@ function SignupPage() {
       return;
     }
     if (res.needsConfirmation) {
-      // Confirmação de e-mail pendente — salva email para exibir na tela de verificação
-      // try/catch: Safari em modo privado pode bloquear sessionStorage
       try { sessionStorage.setItem("teamo:pendingEmail", email); } catch { /* não crítico */ }
+      if (invite) {
+        try { sessionStorage.setItem("teamo:pendingInvite", invite); } catch { /* não crítico */ }
+      }
       toast.success("Conta criada! Verifique seu e-mail para confirmar.");
       navigate({ to: "/verificar-conta" });
     } else {
-      // Confirmação desativada no Supabase — sessão já está ativa
       toast.success("Conta criada com sucesso!");
-      navigate({ to: "/onboarding" });
+      if (invite) {
+        navigate({ to: "/convite/$token/aceitar", params: { token: invite } });
+      } else {
+        navigate({ to: "/onboarding" });
+      }
     }
   };
 
   return (
     <AuthShell>
       <div>
+        {/* Banner de convite */}
+        {invite && <InviteBanner />}
+
         <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-foreground">
-          Crie sua conta gratuita
+          {invite ? "Criar conta para aceitar convite" : "Crie sua conta gratuita"}
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          Comece a organizar o cuidado de quem você ama em poucos minutos.
+          {invite
+            ? "Crie sua conta e aceite o convite para acompanhar o cuidado."
+            : "Comece a organizar o cuidado de quem você ama em poucos minutos."}
         </p>
 
         <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-4" noValidate>
@@ -274,6 +311,7 @@ function SignupPage() {
           Já tem conta?{" "}
           <Link
             to="/login"
+            search={invite ? { invite } : {}}
             rel="noreferrer"
             className="font-semibold text-primary hover:underline"
           >

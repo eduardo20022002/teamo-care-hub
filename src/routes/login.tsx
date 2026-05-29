@@ -1,12 +1,15 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Loader2, Mail, Lock, Eye, EyeOff, Baby } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { AuthInput } from "@/components/auth/AuthInput";
 import { signIn } from "@/services/auth.service";
 import { signInSchema } from "@/lib/validation";
 import { useAuth } from "@/hooks/useAuth";
+
+const TEAL = "#0D9488";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -15,12 +18,39 @@ export const Route = createFileRoute("/login")({
       { name: "description", content: "Acesse sua conta TEAmo." },
     ],
   }),
+  validateSearch: z.object({ invite: z.string().optional() }).parse,
   component: LoginPage,
 });
+
+function InviteBanner({ ownerName }: { ownerName?: string }) {
+  return (
+    <div
+      className="flex items-center gap-3 rounded-xl px-4 py-3 mb-6"
+      style={{ background: "#F0FDFA", border: `1px solid #99F6E4` }}
+    >
+      <div
+        className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg"
+        style={{ background: "#CCFBF1" }}
+      >
+        <Baby size={18} color={TEAL} strokeWidth={1.8} />
+      </div>
+      <p className="text-sm leading-snug" style={{ color: "#0F766E" }}>
+        {ownerName ? (
+          <>
+            Você foi convidado(a) por <strong>{ownerName}</strong> para acompanhar o cuidado de uma criança no TEAmo.
+          </>
+        ) : (
+          "Faça login para aceitar o convite no TEAmo."
+        )}
+      </p>
+    </div>
+  );
+}
 
 function LoginPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const { invite } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -36,8 +66,14 @@ function LoginPage() {
   }, [cooldown]);
 
   useEffect(() => {
-    if (!loading && user) navigate({ to: "/dashboard" });
-  }, [loading, user, navigate]);
+    if (!loading && user) {
+      if (invite) {
+        navigate({ to: "/convite/$token/aceitar", params: { token: invite } });
+      } else {
+        navigate({ to: "/dashboard" });
+      }
+    }
+  }, [loading, user, navigate, invite]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -61,15 +97,24 @@ function LoginPage() {
       return;
     }
     toast.success("Bem-vindo de volta!");
-    navigate({ to: "/dashboard" });
+    if (invite) {
+      navigate({ to: "/convite/$token/aceitar", params: { token: invite } });
+    } else {
+      navigate({ to: "/dashboard" });
+    }
   };
 
   return (
     <AuthShell>
       <div>
+        {/* Banner de convite (apenas quando há invite no URL) */}
+        {invite && <InviteBanner />}
+
         {/* Desktop: título caloroso / Mobile: título direto */}
         <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-foreground">
-          <span className="hidden lg:inline">Que bom ter você de volta 👋</span>
+          <span className="hidden lg:inline">
+            {invite ? "Entre para aceitar o convite" : "Que bom ter você de volta 👋"}
+          </span>
           <span className="lg:hidden">Entrar</span>
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -163,6 +208,8 @@ function LoginPage() {
               </>
             ) : cooldown > 0 ? (
               `Aguarde ${cooldown}s`
+            ) : invite ? (
+              "Entrar e aceitar convite"
             ) : (
               "Entrar"
             )}
@@ -199,6 +246,7 @@ function LoginPage() {
           Ainda não tem conta?{" "}
           <Link
             to="/cadastro"
+            search={invite ? { invite } : {}}
             rel="noreferrer"
             className="font-semibold text-primary hover:underline"
           >

@@ -16,6 +16,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ConviteTokenRouteImport } from './routes/convite.$token'
 import { Route as CompartilhamentoTokenRouteImport } from './routes/compartilhamento.$token'
 import { Route as AuthSobreRouteImport } from './routes/_auth/sobre'
 import { Route as AuthSegurancaRouteImport } from './routes/_auth/seguranca'
@@ -33,12 +34,15 @@ import { Route as AuthBuscaRouteImport } from './routes/_auth/busca'
 import { Route as AuthAjudaRouteImport } from './routes/_auth/ajuda'
 import { Route as AuthAgendaRouteImport } from './routes/_auth/agenda'
 import { Route as AuthProfissionaisProfessionalIdRouteImport } from './routes/_auth/profissionais_.$professionalId'
+import { Route as AuthCuidadoCompartilhadoChildIdRouteImport } from './routes/_auth/cuidado-compartilhado.$childId'
 import { Route as AuthAgendaOnboardingRouteImport } from './routes/_auth/agenda_.onboarding'
 import { Route as AuthAgendaBuscaRouteImport } from './routes/_auth/agenda_.busca'
 import { Route as AuthAgendaEventIdRouteImport } from './routes/_auth/agenda_.$eventId'
 import { Route as ApiPublicShareValidateOtpRouteImport } from './routes/api/public/share/validate-otp'
 import { Route as ApiPublicShareRequestOtpRouteImport } from './routes/api/public/share/request-otp'
 import { Route as ApiPublicShareDocumentUrlRouteImport } from './routes/api/public/share/document-url'
+import { Route as AuthConviteTokenAceitarRouteImport } from './routes/_auth/convite_.$token.aceitar'
+import { Route as AuthCuidadoCompartilhadoChildIdAprovarInviteIdRouteImport } from './routes/_auth/cuidado-compartilhado_.$childId.aprovar.$inviteId'
 
 const VerificarContaRoute = VerificarContaRouteImport.update({
   id: '/verificar-conta',
@@ -72,6 +76,11 @@ const AuthRoute = AuthRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConviteTokenRoute = ConviteTokenRouteImport.update({
+  id: '/convite/$token',
+  path: '/convite/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompartilhamentoTokenRoute = CompartilhamentoTokenRouteImport.update({
@@ -160,6 +169,12 @@ const AuthProfissionaisProfessionalIdRoute =
     path: '/profissionais/$professionalId',
     getParentRoute: () => AuthRoute,
   } as any)
+const AuthCuidadoCompartilhadoChildIdRoute =
+  AuthCuidadoCompartilhadoChildIdRouteImport.update({
+    id: '/cuidado-compartilhado/$childId',
+    path: '/cuidado-compartilhado/$childId',
+    getParentRoute: () => AuthRoute,
+  } as any)
 const AuthAgendaOnboardingRoute = AuthAgendaOnboardingRouteImport.update({
   id: '/agenda_/onboarding',
   path: '/agenda/onboarding',
@@ -193,6 +208,17 @@ const ApiPublicShareDocumentUrlRoute =
     path: '/api/public/share/document-url',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthConviteTokenAceitarRoute = AuthConviteTokenAceitarRouteImport.update({
+  id: '/convite_/$token/aceitar',
+  path: '/convite/$token/aceitar',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthCuidadoCompartilhadoChildIdAprovarInviteIdRoute =
+  AuthCuidadoCompartilhadoChildIdAprovarInviteIdRouteImport.update({
+    id: '/cuidado-compartilhado_/$childId/aprovar/$inviteId',
+    path: '/cuidado-compartilhado/$childId/aprovar/$inviteId',
+    getParentRoute: () => AuthRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -217,13 +243,17 @@ export interface FileRoutesByFullPath {
   '/seguranca': typeof AuthSegurancaRoute
   '/sobre': typeof AuthSobreRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
+  '/convite/$token': typeof ConviteTokenRoute
   '/agenda/$eventId': typeof AuthAgendaEventIdRoute
   '/agenda/busca': typeof AuthAgendaBuscaRoute
   '/agenda/onboarding': typeof AuthAgendaOnboardingRoute
+  '/cuidado-compartilhado/$childId': typeof AuthCuidadoCompartilhadoChildIdRoute
   '/profissionais/$professionalId': typeof AuthProfissionaisProfessionalIdRoute
+  '/convite/$token/aceitar': typeof AuthConviteTokenAceitarRoute
   '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
   '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
   '/api/public/share/validate-otp': typeof ApiPublicShareValidateOtpRoute
+  '/cuidado-compartilhado/$childId/aprovar/$inviteId': typeof AuthCuidadoCompartilhadoChildIdAprovarInviteIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -248,13 +278,17 @@ export interface FileRoutesByTo {
   '/seguranca': typeof AuthSegurancaRoute
   '/sobre': typeof AuthSobreRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
+  '/convite/$token': typeof ConviteTokenRoute
   '/agenda/$eventId': typeof AuthAgendaEventIdRoute
   '/agenda/busca': typeof AuthAgendaBuscaRoute
   '/agenda/onboarding': typeof AuthAgendaOnboardingRoute
+  '/cuidado-compartilhado/$childId': typeof AuthCuidadoCompartilhadoChildIdRoute
   '/profissionais/$professionalId': typeof AuthProfissionaisProfessionalIdRoute
+  '/convite/$token/aceitar': typeof AuthConviteTokenAceitarRoute
   '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
   '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
   '/api/public/share/validate-otp': typeof ApiPublicShareValidateOtpRoute
+  '/cuidado-compartilhado/$childId/aprovar/$inviteId': typeof AuthCuidadoCompartilhadoChildIdAprovarInviteIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -281,13 +315,17 @@ export interface FileRoutesById {
   '/_auth/seguranca': typeof AuthSegurancaRoute
   '/_auth/sobre': typeof AuthSobreRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
+  '/convite/$token': typeof ConviteTokenRoute
   '/_auth/agenda_/$eventId': typeof AuthAgendaEventIdRoute
   '/_auth/agenda_/busca': typeof AuthAgendaBuscaRoute
   '/_auth/agenda_/onboarding': typeof AuthAgendaOnboardingRoute
+  '/_auth/cuidado-compartilhado/$childId': typeof AuthCuidadoCompartilhadoChildIdRoute
   '/_auth/profissionais_/$professionalId': typeof AuthProfissionaisProfessionalIdRoute
+  '/_auth/convite_/$token/aceitar': typeof AuthConviteTokenAceitarRoute
   '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
   '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
   '/api/public/share/validate-otp': typeof ApiPublicShareValidateOtpRoute
+  '/_auth/cuidado-compartilhado_/$childId/aprovar/$inviteId': typeof AuthCuidadoCompartilhadoChildIdAprovarInviteIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -314,13 +352,17 @@ export interface FileRouteTypes {
     | '/seguranca'
     | '/sobre'
     | '/compartilhamento/$token'
+    | '/convite/$token'
     | '/agenda/$eventId'
     | '/agenda/busca'
     | '/agenda/onboarding'
+    | '/cuidado-compartilhado/$childId'
     | '/profissionais/$professionalId'
+    | '/convite/$token/aceitar'
     | '/api/public/share/document-url'
     | '/api/public/share/request-otp'
     | '/api/public/share/validate-otp'
+    | '/cuidado-compartilhado/$childId/aprovar/$inviteId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -345,13 +387,17 @@ export interface FileRouteTypes {
     | '/seguranca'
     | '/sobre'
     | '/compartilhamento/$token'
+    | '/convite/$token'
     | '/agenda/$eventId'
     | '/agenda/busca'
     | '/agenda/onboarding'
+    | '/cuidado-compartilhado/$childId'
     | '/profissionais/$professionalId'
+    | '/convite/$token/aceitar'
     | '/api/public/share/document-url'
     | '/api/public/share/request-otp'
     | '/api/public/share/validate-otp'
+    | '/cuidado-compartilhado/$childId/aprovar/$inviteId'
   id:
     | '__root__'
     | '/'
@@ -377,13 +423,17 @@ export interface FileRouteTypes {
     | '/_auth/seguranca'
     | '/_auth/sobre'
     | '/compartilhamento/$token'
+    | '/convite/$token'
     | '/_auth/agenda_/$eventId'
     | '/_auth/agenda_/busca'
     | '/_auth/agenda_/onboarding'
+    | '/_auth/cuidado-compartilhado/$childId'
     | '/_auth/profissionais_/$professionalId'
+    | '/_auth/convite_/$token/aceitar'
     | '/api/public/share/document-url'
     | '/api/public/share/request-otp'
     | '/api/public/share/validate-otp'
+    | '/_auth/cuidado-compartilhado_/$childId/aprovar/$inviteId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -395,6 +445,7 @@ export interface RootRouteChildren {
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   VerificarContaRoute: typeof VerificarContaRoute
   CompartilhamentoTokenRoute: typeof CompartilhamentoTokenRoute
+  ConviteTokenRoute: typeof ConviteTokenRoute
   ApiPublicShareDocumentUrlRoute: typeof ApiPublicShareDocumentUrlRoute
   ApiPublicShareRequestOtpRoute: typeof ApiPublicShareRequestOtpRoute
   ApiPublicShareValidateOtpRoute: typeof ApiPublicShareValidateOtpRoute
@@ -449,6 +500,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/convite/$token': {
+      id: '/convite/$token'
+      path: '/convite/$token'
+      fullPath: '/convite/$token'
+      preLoaderRoute: typeof ConviteTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/compartilhamento/$token': {
@@ -570,6 +628,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthProfissionaisProfessionalIdRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/cuidado-compartilhado/$childId': {
+      id: '/_auth/cuidado-compartilhado/$childId'
+      path: '/cuidado-compartilhado/$childId'
+      fullPath: '/cuidado-compartilhado/$childId'
+      preLoaderRoute: typeof AuthCuidadoCompartilhadoChildIdRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/agenda_/onboarding': {
       id: '/_auth/agenda_/onboarding'
       path: '/agenda/onboarding'
@@ -612,6 +677,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicShareDocumentUrlRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_auth/convite_/$token/aceitar': {
+      id: '/_auth/convite_/$token/aceitar'
+      path: '/convite/$token/aceitar'
+      fullPath: '/convite/$token/aceitar'
+      preLoaderRoute: typeof AuthConviteTokenAceitarRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/cuidado-compartilhado_/$childId/aprovar/$inviteId': {
+      id: '/_auth/cuidado-compartilhado_/$childId/aprovar/$inviteId'
+      path: '/cuidado-compartilhado/$childId/aprovar/$inviteId'
+      fullPath: '/cuidado-compartilhado/$childId/aprovar/$inviteId'
+      preLoaderRoute: typeof AuthCuidadoCompartilhadoChildIdAprovarInviteIdRouteImport
+      parentRoute: typeof AuthRoute
+    }
   }
 }
 
@@ -634,7 +713,10 @@ interface AuthRouteChildren {
   AuthAgendaEventIdRoute: typeof AuthAgendaEventIdRoute
   AuthAgendaBuscaRoute: typeof AuthAgendaBuscaRoute
   AuthAgendaOnboardingRoute: typeof AuthAgendaOnboardingRoute
+  AuthCuidadoCompartilhadoChildIdRoute: typeof AuthCuidadoCompartilhadoChildIdRoute
   AuthProfissionaisProfessionalIdRoute: typeof AuthProfissionaisProfessionalIdRoute
+  AuthConviteTokenAceitarRoute: typeof AuthConviteTokenAceitarRoute
+  AuthCuidadoCompartilhadoChildIdAprovarInviteIdRoute: typeof AuthCuidadoCompartilhadoChildIdAprovarInviteIdRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
@@ -656,7 +738,11 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthAgendaEventIdRoute: AuthAgendaEventIdRoute,
   AuthAgendaBuscaRoute: AuthAgendaBuscaRoute,
   AuthAgendaOnboardingRoute: AuthAgendaOnboardingRoute,
+  AuthCuidadoCompartilhadoChildIdRoute: AuthCuidadoCompartilhadoChildIdRoute,
   AuthProfissionaisProfessionalIdRoute: AuthProfissionaisProfessionalIdRoute,
+  AuthConviteTokenAceitarRoute: AuthConviteTokenAceitarRoute,
+  AuthCuidadoCompartilhadoChildIdAprovarInviteIdRoute:
+    AuthCuidadoCompartilhadoChildIdAprovarInviteIdRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
@@ -670,6 +756,7 @@ const rootRouteChildren: RootRouteChildren = {
   RedefinirSenhaRoute: RedefinirSenhaRoute,
   VerificarContaRoute: VerificarContaRoute,
   CompartilhamentoTokenRoute: CompartilhamentoTokenRoute,
+  ConviteTokenRoute: ConviteTokenRoute,
   ApiPublicShareDocumentUrlRoute: ApiPublicShareDocumentUrlRoute,
   ApiPublicShareRequestOtpRoute: ApiPublicShareRequestOtpRoute,
   ApiPublicShareValidateOtpRoute: ApiPublicShareValidateOtpRoute,

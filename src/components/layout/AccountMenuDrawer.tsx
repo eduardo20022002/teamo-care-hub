@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import {
   CheckCircle2,
   ChevronRight,
+  HandHeart,
   HelpCircle,
   Info,
   LayoutDashboard,
@@ -29,6 +30,7 @@ interface AccountMenuDrawerProps {
   fullName: string | null;
   email: string | null;
   isAdmin?: boolean;
+  firstChildId?: string | null;
 }
 
 interface MenuRowProps {
@@ -68,7 +70,7 @@ function SectionLabel({ children }: { children: string }) {
   );
 }
 
-export function AccountMenuDrawer({ open, onClose, fullName, email, isAdmin }: AccountMenuDrawerProps) {
+export function AccountMenuDrawer({ open, onClose, fullName, email, isAdmin, firstChildId }: AccountMenuDrawerProps) {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -160,6 +162,15 @@ export function AccountMenuDrawer({ open, onClose, fullName, email, isAdmin }: A
             subtitle="Notificações, aparência, segurança"
             onClick={() => go("/configuracoes")}
           />
+          {firstChildId && (
+            <MenuRow
+              icon={<HandHeart className="h-5 w-5 text-[#0D9488]" strokeWidth={1.75} />}
+              iconBg="bg-[#0D9488]/10"
+              label="Cuidado compartilhado"
+              subtitle="Co-cuidadores e acessos"
+              onClick={() => go(`/cuidado-compartilhado/${firstChildId}`)}
+            />
+          )}
 
           {/* ADMINISTRAÇÃO section — visível apenas para admins */}
           {isAdmin && (

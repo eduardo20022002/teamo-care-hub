@@ -403,6 +403,48 @@ export interface PasswordChecks {
   special: boolean;
 }
 
+// ===== Cuidado Compartilhado =====
+
+export const CARE_RELATIONS = [
+  'mae',
+  'pai',
+  'avo_materno',
+  'avo_paterno',
+  'tio',
+  'cuidador',
+  'outro',
+] as const;
+
+export type CareRelation = typeof CARE_RELATIONS[number];
+
+export const CARE_RELATION_LABELS: Record<CareRelation, string> = {
+  mae: 'Mãe',
+  pai: 'Pai',
+  avo_materno: 'Avó/Avô materno',
+  avo_paterno: 'Avó/Avô paterno',
+  tio: 'Tio/Tia',
+  cuidador: 'Cuidador(a)',
+  outro: 'Outro',
+};
+
+export const CARE_ROLES = ['admin', 'viewer'] as const;
+export type CareRole = typeof CARE_ROLES[number];
+
+export const CARE_ROLE_LABELS: Record<CareRole, string> = {
+  admin: 'Administrador',
+  viewer: 'Visualizador',
+};
+
+export const careInviteSchema = z.object({
+  childId: z.string().uuid('Selecione uma criança.'),
+  inviteeEmail: z.string().email('E-mail inválido.').max(255),
+  alias: z.string().min(1, 'Informe como chamar essa pessoa.').max(80),
+  relation: z.enum(CARE_RELATIONS, { message: 'Selecione a relação.' }),
+  role: z.enum(CARE_ROLES).default('viewer'),
+});
+
+export type CareInviteInput = z.infer<typeof careInviteSchema>;
+
 export function checkPassword(password: string): PasswordChecks {
   return {
     length: password.length >= 8,

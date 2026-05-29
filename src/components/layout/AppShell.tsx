@@ -37,6 +37,22 @@ export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: firstChild } = useQuery({
+    queryKey: ["first-child-shell", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("children")
+        .select("id")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+  });
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur">
@@ -72,6 +88,7 @@ export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu
                 fullName={profile?.full_name ?? null}
                 email={user?.email ?? null}
                 isAdmin={profile?.is_admin ?? false}
+                firstChildId={firstChild?.id ?? null}
               />
             </div>
           )}
