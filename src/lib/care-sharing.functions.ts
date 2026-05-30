@@ -91,17 +91,27 @@ export const sendCareInviteServer = createServerFn({ method: "POST" })
 
     const ownerName = await getProfileName(userId);
 
-    // Envia e-mail (silencioso em caso de falha — convite já foi criado)
-    await sendInviteEmail({
-      to: data.inviteeEmail.toLowerCase(),
-      inviterName: ownerName,
-      alias: data.alias,
-      childName: (child as any).name,
-      token,
-      expiresAt,
-    });
+    // Envia e-mail. O convite já foi criado; uma falha de e-mail não desfaz o
+    // convite, mas é reportada ao cliente (emailSent) e logada para diagnóstico.
+    let emailSent = false;
+    try {
+      const emailRes = await sendInviteEmail({
+        to: data.inviteeEmail.toLowerCase(),
+        inviterName: ownerName,
+        alias: data.alias,
+        childName: (child as any).name,
+        token,
+        expiresAt,
+      });
+      emailSent = emailRes.ok;
+      if (!emailRes.ok) {
+        console.error("[care] invite email NOT sent:", emailRes.error);
+      }
+    } catch (e) {
+      console.error("[care] invite email threw:", (e as Error)?.message);
+    }
 
-    return { ok: true as const, inviteId: (invite as CareInviteRow).id };
+    return { ok: true as const, inviteId: (invite as CareInviteRow).id, emailSent };
   });
 
 // ─── 2. cancelCareInviteServer — owner cancela convite pendente ──────────────
@@ -160,16 +170,23 @@ export const resendCareInviteServer = createServerFn({ method: "POST" })
       .eq("id", inv.child_id)
       .maybeSingle();
 
-    await sendInviteEmail({
-      to: inv.invitee_email,
-      inviterName: ownerName,
-      alias: inv.invitee_alias,
-      childName: (child as any)?.name ?? "Criança",
-      token: newToken,
-      expiresAt: newExpiry,
-    });
+    let emailSent = false;
+    try {
+      const emailRes = await sendInviteEmail({
+        to: inv.invitee_email,
+        inviterName: ownerName,
+        alias: inv.invitee_alias,
+        childName: (child as any)?.name ?? "Criança",
+        token: newToken,
+        expiresAt: newExpiry,
+      });
+      emailSent = emailRes.ok;
+      if (!emailRes.ok) console.error("[care] resend email NOT sent:", emailRes.error);
+    } catch (e) {
+      console.error("[care] resend email threw:", (e as Error)?.message);
+    }
 
-    return { ok: true as const };
+    return { ok: true as const, emailSent };
   });
 
 // ─── 4. approveAccessServer — owner aprova acesso ────────────────────────────
@@ -294,7 +311,8 @@ export const listCareInvitesServer = createServerFn({ method: "POST" })
         .select("*")
         .eq("child_id", data.childId)
         .eq("owner_id", userId)
-        .not("status", "in", '("revoked","denied")')
+        // Filtro positivo (evita risco de sintaxe do not.in): só os status exibidos.
+        .in("status", ["pending", "accepted", "approved"])
         .order("created_at", { ascending: false }),
       (supabaseAdmin as any)
         .from("care_access")
@@ -303,6 +321,17 @@ export const listCareInvitesServer = createServerFn({ method: "POST" })
         .eq("owner_id", userId)
         .eq("status", "active"),
     ]);
+
+    // Não engolir erro da query de convites: se falhar, a lista apareceria
+    // silenciosamente vazia (bug difícil de diagnosticar). Falhar explicitamente.
+    if (invitesRes.error) {
+      console.error("[care] listCareInvites invites query error:", invitesRes.error.message);
+      throw new Response("Erro ao carregar convites.", { status: 500 });
+    }
+    // Erro no join de acessos (FK auth.users) é tolerável — só afeta "ativos".
+    if (accessRes.error) {
+      console.error("[care] listCareInvites access query error:", accessRes.error.message);
+    }
 
     const invites = (invitesRes.data ?? []) as CareInviteRow[];
     const accesses = (accessRes.data ?? []) as Array<CareAccessRow & { caregiver: any }>;

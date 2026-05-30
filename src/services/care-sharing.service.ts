@@ -58,8 +58,10 @@ export function useSendCareInvite(childId: string) {
       const h = await authHeaders();
       return fn({ data: input, headers: h } as any);
     },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: careKeys.invites(childId) });
+    // Aguarda o refetch concluir antes de resolver a mutation → a lista já
+    // reflete o novo convite quanto o sheet fecha.
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: careKeys.invites(childId), refetchType: "all" });
     },
   });
 }
@@ -74,8 +76,8 @@ export function useCancelCareInvite(childId: string) {
       const h = await authHeaders();
       return fn({ data: { inviteId }, headers: h } as any);
     },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: careKeys.invites(childId) });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: careKeys.invites(childId), refetchType: "all" });
     },
   });
 }
@@ -90,8 +92,8 @@ export function useResendCareInvite(childId: string) {
       const h = await authHeaders();
       return fn({ data: { inviteId }, headers: h } as any);
     },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: careKeys.invites(childId) });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: careKeys.invites(childId), refetchType: "all" });
     },
   });
 }

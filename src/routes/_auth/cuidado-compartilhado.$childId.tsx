@@ -123,8 +123,14 @@ function InviteSheet({
     }
     setErrors({});
     try {
-      await sendInvite.mutateAsync(parsed.data);
-      toast.success("Convite enviado!");
+      const res = (await sendInvite.mutateAsync(parsed.data)) as { emailSent?: boolean };
+      if (res?.emailSent === false) {
+        toast.warning(
+          "Convite criado, mas o e-mail não pôde ser enviado agora. Use \"Reenviar\" na lista.",
+        );
+      } else {
+        toast.success("Convite enviado!");
+      }
       onClose();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Erro ao enviar convite.";
