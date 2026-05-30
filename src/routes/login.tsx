@@ -18,7 +18,10 @@ export const Route = createFileRoute("/login")({
       { name: "description", content: "Acesse sua conta TEAmo." },
     ],
   }),
-  validateSearch: z.object({ invite: z.string().optional() }).parse,
+  validateSearch: z.object({
+    invite:          z.string().optional(),
+    therapistInvite: z.string().optional(),
+  }).parse,
   component: LoginPage,
 });
 
@@ -50,7 +53,7 @@ function InviteBanner({ ownerName }: { ownerName?: string }) {
 function LoginPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
-  const { invite } = Route.useSearch();
+  const { invite, therapistInvite } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -67,13 +70,15 @@ function LoginPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      if (invite) {
+      if (therapistInvite) {
+        navigate({ to: "/convite-terapeuta/$token/aceitar", params: { token: therapistInvite } });
+      } else if (invite) {
         navigate({ to: "/convite/$token/aceitar", params: { token: invite } });
       } else {
         navigate({ to: "/dashboard" });
       }
     }
-  }, [loading, user, navigate, invite]);
+  }, [loading, user, navigate, invite, therapistInvite]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -97,7 +102,9 @@ function LoginPage() {
       return;
     }
     toast.success("Bem-vindo de volta!");
-    if (invite) {
+    if (therapistInvite) {
+      navigate({ to: "/convite-terapeuta/$token/aceitar", params: { token: therapistInvite } });
+    } else if (invite) {
       navigate({ to: "/convite/$token/aceitar", params: { token: invite } });
     } else {
       navigate({ to: "/dashboard" });
@@ -107,8 +114,8 @@ function LoginPage() {
   return (
     <AuthShell>
       <div>
-        {/* Banner de convite (apenas quando há invite no URL) */}
-        {invite && <InviteBanner />}
+        {/* Banner de convite */}
+        {(invite || therapistInvite) && <InviteBanner />}
 
         {/* Desktop: título caloroso / Mobile: título direto */}
         <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-foreground">

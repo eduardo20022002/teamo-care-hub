@@ -11,10 +11,13 @@ import {
   Plus,
   Search,
   Share2,
+  Stethoscope,
   TimerReset,
   Users,
   HandHeart,
   ShieldAlert,
+  ChevronRight,
+  UserPlus,
 } from "lucide-react";
 import { uploadRecordAttachment } from "@/services/attachments.service";
 import { toast } from "sonner";
@@ -27,6 +30,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { createChild, listChildren } from "@/services/children.service";
 import { listProfessionals } from "@/services/professionals.service";
 import { createAttendanceRecord } from "@/services/attendance.service";
+import { getProfile } from "@/services/profile.service";
+import { usePatients, useMyTherapistAccesses } from "@/services/therapist.service";
 import {
   formatAge,
   formatBirthDate,
@@ -262,6 +267,8 @@ function ChildRow({
 }
 
 const TEAL_CARE = "#0D9488";
+const TEAL_SOFT = "#F0FDFA";
+const TEAL_BORDER = "#CCFBF1";
 
 // ─── SharedChildCard (co-cuidador) ────────────────────────────────────────────
 
@@ -367,6 +374,98 @@ function AccessRevokedOverlay({ childName, onDismiss }: { childName: string; onD
   );
 }
 
+// ─── PatientCard (terapeuta) ──────────────────────────────────────────────────
+
+function PatientCard({
+  patient,
+  onOpen,
+}: {
+  patient: Child;
+  onOpen: (patientId: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(patient.id)}
+      className="flex items-center gap-3.5 rounded-[18px] border bg-white p-4 text-left transition-shadow hover:shadow-md w-full"
+      style={{
+        borderColor: TEAL_BORDER,
+        background: "linear-gradient(135deg, #F0FDFA 0%, #ECFDF5 100%)",
+        boxShadow: "0 1px 2px rgba(13,148,136,0.04), 0 4px 12px rgba(13,148,136,0.06)",
+      }}
+    >
+      <div
+        className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-[19px] font-extrabold"
+        style={{ background: TEAL_BORDER, color: TEAL_CARE }}
+      >
+        {getInitial(patient.name)}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div
+          className="text-[16px] font-bold leading-tight"
+          style={{ color: "#0F172A", letterSpacing: "-0.015em" }}
+        >
+          {patient.name}
+        </div>
+        <div className="mt-0.5 text-[13px]" style={{ color: "#6B7280" }}>
+          {formatAge(patient.birth_date)} · {formatBirthDate(patient.birth_date)}
+        </div>
+      </div>
+      <ChevronRight size={18} strokeWidth={1.8} color={TEAL_CARE} className="flex-shrink-0" />
+    </button>
+  );
+}
+
+// ─── TherapistAccessCard (pai com acesso via terapeuta) ───────────────────────
+
+function TherapistAccessCard({
+  access,
+}: {
+  access: {
+    child: { id: string; name: string; birth_date: string } | null;
+    therapistName: string;
+    therapistSpecialty: string;
+  };
+}) {
+  const child = access.child;
+  if (!child) return null;
+
+  return (
+    <div
+      className="rounded-[18px] border p-4"
+      style={{
+        borderColor: TEAL_BORDER,
+        background: "linear-gradient(135deg, #F0FDFA 0%, #ECFDF5 100%)",
+        boxShadow: "0 2px 8px rgba(13,148,136,0.08)",
+      }}
+    >
+      <div className="flex items-center gap-3 mb-3">
+        <div
+          className="flex h-12 w-12 items-center justify-center rounded-full font-bold text-[18px] flex-shrink-0"
+          style={{ background: TEAL_BORDER, color: TEAL_CARE }}
+        >
+          {child.name.charAt(0).toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-bold text-[#0F172A] text-[16px] leading-tight">{child.name}</p>
+          {child.birth_date && (
+            <p className="text-xs text-[#6B7280] mt-0.5">{formatAge(child.birth_date)}</p>
+          )}
+        </div>
+      </div>
+      <div
+        className="rounded-lg px-3 py-2 text-xs leading-relaxed"
+        style={{ background: "rgba(13,148,136,0.08)", color: "#0F766E" }}
+      >
+        <span className="font-semibold">{access.therapistName}</span>
+        {access.therapistSpecialty ? ` · ${access.therapistSpecialty}` : ""}
+        {" — compartilhou o acompanhamento de "}
+        <span className="font-semibold">{child.name}</span>.
+      </div>
+    </div>
+  );
+}
+
 function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -377,6 +476,28 @@ function DashboardPage() {
   const [docsChild, setDocsChild] = useState<Child | null>(null);
   const [revokedAccess, setRevokedAccess] = useState<{ childName: string } | null>(null);
   const realtimeRef = useRef<ReturnType<typeof supabaseClient.channel> | null>(null);
+
+  // ─── Perfil do usuário (determina terapeuta vs responsável) ──────────────────
+  const profileQuery = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: () => getProfile(user!.id),
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+  const isTherapist = profileQuery.data?.user_type === "therapist";
+
+  // ─── Dados do terapeuta ───────────────────────────────────────────────────────
+  const { data: patientsData, isLoading: patientsLoading } = usePatients();
+  const patients = (patientsData?.patients ?? []) as Child[];
+
+  // ─── Dados do responsável: acessos via terapeuta ──────────────────────────────
+  const { data: therapistAccessData } = useMyTherapistAccesses();
+  const therapistAccesses = (therapistAccessData?.accesses ?? []) as Array<{
+    id: string;
+    child: { id: string; name: string; birth_date: string } | null;
+    therapistName: string;
+    therapistSpecialty: string;
+  }>;
 
   const { data: children, isLoading } = useQuery({
     queryKey: ["children"],
@@ -443,11 +564,13 @@ function DashboardPage() {
     };
   }, [user, careAccesses, qc]);
 
+  // Redireciona responsável sem filhos para o onboarding (não se aplica a terapeuta)
   useEffect(() => {
-    if (!isLoading && children && children.length === 0) {
+    if (profileQuery.isLoading || isLoading) return;
+    if (!isTherapist && children && children.length === 0) {
       navigate({ to: "/onboarding" });
     }
-  }, [isLoading, children, navigate]);
+  }, [profileQuery.isLoading, isLoading, isTherapist, children, navigate]);
 
   const createChildMutation = useMutation({
     mutationFn: (input: ChildInput) => createChild(user!.id, input),
@@ -496,7 +619,8 @@ function DashboardPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (isLoading) {
+  // Mostra skeleton enquanto carrega tipo de usuário
+  if (isLoading || profileQuery.isLoading) {
     return (
       <AppShell>
         <DashboardSkeleton />
@@ -509,6 +633,135 @@ function DashboardPage() {
     void navigate({ to: "/registros" as const, href: `/registros?new=1&childId=${child.id}` });
   };
 
+  // ─── DASHBOARD DO TERAPEUTA ───────────────────────────────────────────────────
+  if (isTherapist) {
+    return (
+      <AppShell>
+        <div className="mx-auto max-w-2xl">
+          {/* HERO teal */}
+          <section
+            className="relative overflow-hidden rounded-[22px] px-[22px] pb-[26px] pt-6"
+            style={{
+              background: "linear-gradient(140deg, #E6FFFA 0%, #F0FDF9 50%, #E0F2FE 100%)",
+              border: `1px solid ${TEAL_BORDER}`,
+            }}
+          >
+            <div className="relative">
+              <div className="text-[12.5px] font-semibold" style={{ color: "#6B7280" }}>
+                {formatTodayHero()}
+              </div>
+              <h1
+                className="mt-2 text-[26px] font-extrabold leading-tight"
+                style={{ color: "#0F172A", letterSpacing: "-0.025em" }}
+              >
+                Olá{displayName ? `, ${displayName}` : ""}
+              </h1>
+              <p className="mt-1.5 text-sm leading-relaxed" style={{ color: "#4B5563" }}>
+                {patientsLoading
+                  ? "Carregando seus pacientes…"
+                  : patients.length === 0
+                  ? "Adicione seu primeiro paciente para começar."
+                  : `Você tem ${patients.length} paciente${patients.length !== 1 ? "s" : ""} cadastrado${patients.length !== 1 ? "s" : ""}.`}
+              </p>
+            </div>
+          </section>
+
+          {/* PACIENTES */}
+          <div className="mt-7">
+            <SectionHeader
+              tint={TEAL_SOFT}
+              iconColor={TEAL_CARE}
+              icon={Stethoscope}
+              title="Meus pacientes"
+              action={
+                <button
+                  type="button"
+                  onClick={() => navigate({ to: "/onboarding/terapeuta" })}
+                  className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-bold transition-colors"
+                  style={{ background: TEAL_SOFT, color: TEAL_CARE, border: `1px solid ${TEAL_BORDER}` }}
+                >
+                  <Plus size={13} strokeWidth={2.5} />
+                  Adicionar
+                </button>
+              }
+            />
+
+            {patientsLoading ? (
+              <div className="flex flex-col gap-3">
+                {[0, 1].map((i) => (
+                  <Skeleton key={i} className="h-[72px] w-full rounded-[18px]" />
+                ))}
+              </div>
+            ) : patients.length === 0 ? (
+              <div
+                className="rounded-[18px] border p-6 text-center"
+                style={{ borderColor: TEAL_BORDER, background: TEAL_SOFT }}
+              >
+                <div
+                  className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full"
+                  style={{ background: TEAL_BORDER }}
+                >
+                  <UserPlus size={22} strokeWidth={1.7} color={TEAL_CARE} />
+                </div>
+                <p className="text-sm font-semibold" style={{ color: "#0F172A" }}>
+                  Nenhum paciente ainda
+                </p>
+                <p className="mt-1 text-xs" style={{ color: "#6B7280" }}>
+                  Adicione seu primeiro paciente pelo botão acima.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {patients.map((p) => (
+                  <PatientCard
+                    key={p.id}
+                    patient={p}
+                    onOpen={(id) => navigate({ to: "/paciente/$childId", params: { childId: id } })}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* EXPLORAR (tiles terapeuta) */}
+          <div className="mt-7">
+            <SectionHeader
+              tint="#F3E8FF"
+              iconColor="#7C3AED"
+              icon={Compass}
+              title="Explorar"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { to: "/agenda" as const, tint: "#F3E8FF", color: "#7C3AED", icon: Calendar, title: "Agenda", desc: "Sessões e compromissos." },
+                { to: "/registros" as const, tint: "#FDF2F8", color: "#EC4899", icon: ClipboardList, title: "Registros", desc: "Histórico de sessões e evoluções." },
+              ].map(({ to, tint, color, icon: Icon, title, desc }) => (
+                <button
+                  key={title}
+                  type="button"
+                  onClick={() => navigate({ to })}
+                  className="flex flex-col gap-3 rounded-[18px] border bg-white p-4 text-left transition-shadow hover:shadow-md"
+                  style={{ borderColor: "#EEF0F4", boxShadow: "0 1px 2px rgba(15,23,42,0.03)" }}
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl" style={{ background: tint }}>
+                    <Icon size={20} strokeWidth={1.7} color={color} />
+                  </div>
+                  <div>
+                    <div className="mb-1 text-[15px] font-bold" style={{ color: "#0F172A", letterSpacing: "-0.01em" }}>{title}</div>
+                    <div className="text-[12.5px] leading-snug" style={{ color: "#6B7280" }}>{desc}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="h-8" />
+        </div>
+      </AppShell>
+    );
+  }
+
+  // ─── DASHBOARD DO RESPONSÁVEL ─────────────────────────────────────────────────
   return (
     <AppShell>
       <div className="mx-auto max-w-2xl">
@@ -615,6 +868,23 @@ function DashboardPage() {
                   access={a}
                   onNavigate={() => navigate({ to: "/registros" })}
                 />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ACOMPANHAMENTO TERAPÊUTICO: filhos acompanhados por terapeuta */}
+        {therapistAccesses.length > 0 && (
+          <div className="mt-7">
+            <SectionHeader
+              tint={TEAL_SOFT}
+              iconColor={TEAL_CARE}
+              icon={Stethoscope}
+              title="Acompanhamento terapêutico"
+            />
+            <div className="flex flex-col gap-3">
+              {therapistAccesses.map((a) => (
+                <TherapistAccessCard key={a.id} access={a} />
               ))}
             </div>
           </div>

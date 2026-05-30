@@ -42,13 +42,23 @@ function VerifyAccountPage() {
   useEffect(() => {
     if (loading || !user) return;
     const pendingInvite =
-      typeof window !== "undefined"
-        ? sessionStorage.getItem("teamo:pendingInvite")
-        : null;
+      typeof window !== "undefined" ? sessionStorage.getItem("teamo:pendingInvite") : null;
+    const pendingTherapistInvite =
+      typeof window !== "undefined" ? sessionStorage.getItem("teamo:pendingTherapistInvite") : null;
+    const pendingUserType =
+      typeof window !== "undefined" ? sessionStorage.getItem("teamo:pendingUserType") : null;
+
     sessionStorage.removeItem("teamo:pendingEmail");
     sessionStorage.removeItem("teamo:pendingInvite");
-    if (pendingInvite) {
+    sessionStorage.removeItem("teamo:pendingTherapistInvite");
+    sessionStorage.removeItem("teamo:pendingUserType");
+
+    if (pendingTherapistInvite) {
+      navigate({ to: "/convite-terapeuta/$token/aceitar", params: { token: pendingTherapistInvite } });
+    } else if (pendingInvite) {
       navigate({ to: "/convite/$token/aceitar", params: { token: pendingInvite } });
+    } else if (pendingUserType === "therapist") {
+      navigate({ to: "/onboarding/terapeuta" });
     } else {
       navigate({ to: "/onboarding" });
     }

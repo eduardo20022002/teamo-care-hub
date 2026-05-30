@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { Loader2, Mail, Lock, Eye, EyeOff, User, Baby } from "lucide-react";
+import { Loader2, Mail, Lock, Eye, EyeOff, User, Baby, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { AuthShell } from "@/components/auth/AuthShell";
@@ -9,8 +9,10 @@ import { PasswordStrengthBar, PasswordRules } from "@/components/auth/PasswordSt
 import { signUp } from "@/services/auth.service";
 import { signUpSchema } from "@/lib/validation";
 import { useAuth } from "@/hooks/useAuth";
+import type { UserType } from "@/lib/validation";
 
 const TEAL = "#0D9488";
+const BRAND_GRADIENT = "linear-gradient(135deg, #4F46E5 0%, #6D3FE0 45%, #C13A8C 85%, #EC4899 100%)";
 
 export const Route = createFileRoute("/cadastro")({
   head: () => ({
@@ -19,11 +21,14 @@ export const Route = createFileRoute("/cadastro")({
       { name: "description", content: "Crie sua conta no TEAmo em poucos segundos." },
     ],
   }),
-  validateSearch: z.object({ invite: z.string().optional() }).parse,
+  validateSearch: z.object({
+    invite:          z.string().optional(),
+    therapistInvite: z.string().optional(),
+  }).parse,
   component: SignupPage,
 });
 
-function InviteBanner() {
+function InviteBanner({ therapistName }: { therapistName?: string }) {
   return (
     <div
       className="flex items-center gap-3 rounded-xl px-4 py-3 mb-6"
@@ -36,8 +41,67 @@ function InviteBanner() {
         <Baby size={18} color={TEAL} strokeWidth={1.8} />
       </div>
       <p className="text-sm leading-snug" style={{ color: "#0F766E" }}>
-        Crie sua conta para aceitar o convite e acompanhar o cuidado no TEAmo.
+        {therapistName ? (
+          <>
+            Crie sua conta para aceitar o convite de <strong>{therapistName}</strong> e acompanhar a evolução no TEAmo.
+          </>
+        ) : (
+          "Crie sua conta para aceitar o convite e acompanhar o cuidado no TEAmo."
+        )}
       </p>
+    </div>
+  );
+}
+
+function UserTypeSelector({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: UserType;
+  onChange: (v: UserType) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-sm font-medium text-foreground">Você é:</label>
+      <div className="grid grid-cols-2 gap-3">
+        {(
+          [
+            { type: "parent" as UserType, icon: Baby, label: "Responsável / Familiar", desc: "Pai, mãe, cuidador" },
+            { type: "therapist" as UserType, icon: Stethoscope, label: "Terapeuta / Profissional", desc: "Psicólogo, fonoaudiólogo…" },
+          ] as const
+        ).map(({ type, icon: Icon, label, desc }) => {
+          const selected = value === type;
+          return (
+            <button
+              key={type}
+              type="button"
+              disabled={disabled}
+              onClick={() => onChange(type)}
+              className="flex flex-col items-center gap-2 rounded-xl border-2 px-3 py-4 text-center transition-all"
+              style={{
+                borderColor: selected ? TEAL : "#E5E7EB",
+                background:  selected ? "#F0FDFA" : "#FAFAFA",
+                boxShadow:   selected ? `0 0 0 1px ${TEAL}` : "none",
+              }}
+            >
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-full"
+                style={{ background: selected ? "#CCFBF1" : "#F3F4F6" }}
+              >
+                <Icon size={20} color={selected ? TEAL : "#9CA3AF"} strokeWidth={1.7} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold leading-tight" style={{ color: selected ? "#0F766E" : "#374151" }}>
+                  {label}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: "#9CA3AF" }}>{desc}</p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -45,7 +109,8 @@ function InviteBanner() {
 function SignupPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
-  const { invite } = Route.useSearch();
+  const { invite, therapistInvite } = Route.useSearch();
+  const [userType, setUserType] = useState<UserType>(therapistInvite ? "parent" : "parent");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -71,13 +136,15 @@ function SignupPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      if (invite) {
+      if (therapistInvite) {
+        navigate({ to: "/convite-terapeuta/$token/aceitar", params: { token: therapistInvite } });
+      } else if (invite) {
         navigate({ to: "/convite/$token/aceitar", params: { token: invite } });
       } else {
         navigate({ to: "/onboarding" });
       }
     }
-  }, [loading, user, navigate, invite]);
+  }, [loading, user, navigate, invite, therapistInvite]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -100,7 +167,7 @@ function SignupPage() {
 
     setErrors({});
     setSubmitting(true);
-    const res = await signUp(parsed.data!.email, parsed.data!.password, parsed.data!.displayName);
+    const res = await signUp(parsed.data!.email, parsed.data!.password, parsed.data!.displayName, { userType });
     setSubmitting(false);
     if (!res.ok) {
       toast.error(res.error ?? "Não foi possível criar a conta.");
@@ -112,34 +179,51 @@ function SignupPage() {
       if (invite) {
         try { sessionStorage.setItem("teamo:pendingInvite", invite); } catch { /* não crítico */ }
       }
+      if (therapistInvite) {
+        try { sessionStorage.setItem("teamo:pendingTherapistInvite", therapistInvite); } catch { /* não crítico */ }
+      }
+      if (userType === "therapist") {
+        try { sessionStorage.setItem("teamo:pendingUserType", "therapist"); } catch { /* não crítico */ }
+      }
       toast.success("Conta criada! Verifique seu e-mail para confirmar.");
       navigate({ to: "/verificar-conta" });
     } else {
       toast.success("Conta criada com sucesso!");
-      if (invite) {
+      if (therapistInvite) {
+        navigate({ to: "/convite-terapeuta/$token/aceitar", params: { token: therapistInvite } });
+      } else if (invite) {
         navigate({ to: "/convite/$token/aceitar", params: { token: invite } });
+      } else if (userType === "therapist") {
+        navigate({ to: "/onboarding/terapeuta" });
       } else {
         navigate({ to: "/onboarding" });
       }
     }
   };
 
+  const hasAnyInvite = !!(invite || therapistInvite);
+  const titleText = hasAnyInvite ? "Criar conta para aceitar convite" : "Crie sua conta gratuita";
+  const subtitleText = hasAnyInvite
+    ? "Crie sua conta e aceite o convite para acompanhar."
+    : "Comece a organizar o cuidado de quem você ama em poucos minutos.";
+
   return (
     <AuthShell>
       <div>
         {/* Banner de convite */}
-        {invite && <InviteBanner />}
+        {(invite || therapistInvite) && <InviteBanner />}
 
         <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-foreground">
-          {invite ? "Criar conta para aceitar convite" : "Crie sua conta gratuita"}
+          {titleText}
         </h1>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          {invite
-            ? "Crie sua conta e aceite o convite para acompanhar o cuidado."
-            : "Comece a organizar o cuidado de quem você ama em poucos minutos."}
-        </p>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{subtitleText}</p>
 
         <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-4" noValidate>
+          {/* Tipo de conta — só mostra se não vier de convite de terapeuta (que assume "parent") */}
+          {!therapistInvite && (
+            <UserTypeSelector value={userType} onChange={setUserType} disabled={submitting} />
+          )}
+
           {/* Nome */}
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-foreground">
@@ -162,9 +246,7 @@ function SignupPage() {
 
           {/* E-mail */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-foreground">
-              E-mail
-            </label>
+            <label className="text-sm font-medium text-foreground">E-mail</label>
             <AuthInput
               type="email"
               autoComplete="email"
@@ -182,9 +264,7 @@ function SignupPage() {
 
           {/* Senha */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-foreground">
-              Senha
-            </label>
+            <label className="text-sm font-medium text-foreground">Senha</label>
             <AuthInput
               type={showPassword ? "text" : "password"}
               autoComplete="new-password"
@@ -214,9 +294,7 @@ function SignupPage() {
 
           {/* Confirmar senha */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-foreground">
-              Confirmar senha
-            </label>
+            <label className="text-sm font-medium text-foreground">Confirmar senha</label>
             <AuthInput
               type={showConfirm ? "text" : "password"}
               autoComplete="new-password"
@@ -264,19 +342,11 @@ function SignupPage() {
               </span>
               <span className="text-sm leading-snug text-muted-foreground">
                 Concordo com os{" "}
-                <a
-                  href="#"
-                  className="font-semibold text-primary hover:underline"
-                  onClick={(e) => e.preventDefault()}
-                >
+                <a href="#" className="font-semibold text-primary hover:underline" onClick={(e) => e.preventDefault()}>
                   Termos de Uso
                 </a>{" "}
                 e a{" "}
-                <a
-                  href="#"
-                  className="font-semibold text-primary hover:underline"
-                  onClick={(e) => e.preventDefault()}
-                >
+                <a href="#" className="font-semibold text-primary hover:underline" onClick={(e) => e.preventDefault()}>
                   Política de Privacidade
                 </a>
                 .
@@ -291,7 +361,8 @@ function SignupPage() {
           <button
             type="submit"
             disabled={submitting || cooldown > 0}
-            className="btn-brand"
+            className="flex h-[52px] items-center justify-center gap-2 w-full rounded-xl text-white font-semibold text-sm transition-all duration-200 hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+            style={{ background: BRAND_GRADIENT, boxShadow: "0 10px 24px -8px rgba(79,70,229,0.5)" }}
           >
             {submitting ? (
               <>
@@ -311,8 +382,7 @@ function SignupPage() {
           Já tem conta?{" "}
           <Link
             to="/login"
-            search={invite ? { invite } : {}}
-            rel="noreferrer"
+            search={invite ? { invite } : therapistInvite ? { therapistInvite } : {}}
             className="font-semibold text-primary hover:underline"
           >
             Entrar

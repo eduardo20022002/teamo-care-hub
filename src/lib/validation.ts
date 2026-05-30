@@ -453,3 +453,73 @@ export function checkPassword(password: string): PasswordChecks {
     special: /[^A-Za-z0-9]/.test(password),
   };
 }
+
+// ===== Terapeuta / Profissional de saúde =====
+
+export const USER_TYPES = ['parent', 'therapist'] as const;
+export type UserType = typeof USER_TYPES[number];
+
+export const THERAPIST_SPECIALTIES = [
+  'Psicólogo(a)',
+  'Fonoaudiólogo(a)',
+  'Terapeuta Ocupacional',
+  'Fisioterapeuta',
+  'Psicopedagogo(a)',
+  'Neuropsicólogo(a)',
+  'ABA Terapeuta',
+  'Musicoterapeuta',
+  'Neuropediatra',
+  'Outro',
+] as const;
+export type TherapistSpecialty = typeof THERAPIST_SPECIALTIES[number];
+
+export const COUNCIL_TYPES = [
+  'CRP', 'CREFONO', 'CREFITO', 'CRM', 'CFFa', 'CFP', 'CREFITO', 'Outro',
+] as const;
+export type CouncilType = typeof COUNCIL_TYPES[number];
+
+export const BR_STATES = [
+  'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
+  'PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO',
+] as const;
+export type BRState = typeof BR_STATES[number];
+
+export const therapistProfileSchema = z.object({
+  specialty:     z.string().min(1, 'Selecione a especialidade.').max(80),
+  councilType:   z.string().min(1, 'Selecione o conselho.').max(20),
+  councilNumber: z.string().min(1, 'Informe o número do registro.').max(30),
+  councilState:  z.string().length(2, 'Selecione o estado.'),
+  bio:           z.string().max(500).optional(),
+});
+export type TherapistProfileInput = z.infer<typeof therapistProfileSchema>;
+
+export const THERAPIST_INVITE_RELATIONS = [
+  'mae', 'pai', 'avo_materno', 'avo_paterno', 'outro_responsavel',
+] as const;
+export type TherapistInviteRelation = typeof THERAPIST_INVITE_RELATIONS[number];
+
+export const THERAPIST_INVITE_RELATION_LABELS: Record<TherapistInviteRelation, string> = {
+  mae:               'Mãe',
+  pai:               'Pai',
+  avo_materno:       'Avó / Avô materno(a)',
+  avo_paterno:       'Avó / Avô paterno(a)',
+  outro_responsavel: 'Outro responsável',
+};
+
+export const therapistInviteSchema = z.object({
+  childId:      z.string().uuid('Selecione um paciente.'),
+  inviteeEmail: z.string().email('E-mail inválido.').max(255),
+  alias:        z.string().min(1, 'Informe o nome do responsável.').max(80),
+  relation:     z.enum(THERAPIST_INVITE_RELATIONS, { message: 'Selecione a relação.' }),
+});
+export type TherapistInviteInput = z.infer<typeof therapistInviteSchema>;
+
+export const therapistPatientSchema = z.object({
+  name:      z.string().trim().min(1, 'Informe o nome do paciente.').max(100),
+  birthDate: z.string().min(1, 'Informe a data de nascimento.').refine((v) => {
+    const d = new Date(v);
+    return !Number.isNaN(d.getTime()) && d <= new Date();
+  }, 'Data inválida.'),
+  diagnosis: z.string().max(200).optional(),
+});
+export type TherapistPatientInput = z.infer<typeof therapistPatientSchema>;

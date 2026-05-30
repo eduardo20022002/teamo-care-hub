@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Plus, ClipboardList, FolderOpen, Users, Baby } from "lucide-react";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { ChildFormSheet } from "@/components/children/ChildFormSheet";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { useAuth } from "@/hooks/useAuth";
 import { createChild, deleteChild, listChildren } from "@/services/children.service";
+import { getProfile } from "@/services/profile.service";
 import type { Child } from "@/types/database";
 import type { ChildInput } from "@/lib/validation";
 
@@ -69,6 +70,18 @@ function OnboardingPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  // Redireciona terapeutas para o onboarding correto
+  useEffect(() => {
+    if (!user) return;
+    getProfile(user.id)
+      .then((profile) => {
+        if (profile.user_type === "therapist") {
+          navigate({ to: "/onboarding/terapeuta" });
+        }
+      })
+      .catch(() => { /* silencia — continua fluxo normal */ });
+  }, [user, navigate]);
 
   const { data: children, isLoading } = useQuery({
     queryKey: ["children"],

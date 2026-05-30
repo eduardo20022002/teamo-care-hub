@@ -34,6 +34,8 @@ import { Route as AuthBuscaRouteImport } from './routes/_auth/busca'
 import { Route as AuthAjudaRouteImport } from './routes/_auth/ajuda'
 import { Route as AuthAgendaRouteImport } from './routes/_auth/agenda'
 import { Route as AuthProfissionaisProfessionalIdRouteImport } from './routes/_auth/profissionais_.$professionalId'
+import { Route as AuthPacienteChildIdRouteImport } from './routes/_auth/paciente.$childId'
+import { Route as AuthOnboardingTerapeutaRouteImport } from './routes/_auth/onboarding.terapeuta'
 import { Route as AuthCuidadoCompartilhadoChildIdRouteImport } from './routes/_auth/cuidado-compartilhado.$childId'
 import { Route as AuthAgendaOnboardingRouteImport } from './routes/_auth/agenda_.onboarding'
 import { Route as AuthAgendaBuscaRouteImport } from './routes/_auth/agenda_.busca'
@@ -42,6 +44,7 @@ import { Route as ApiPublicShareValidateOtpRouteImport } from './routes/api/publ
 import { Route as ApiPublicShareRequestOtpRouteImport } from './routes/api/public/share/request-otp'
 import { Route as ApiPublicShareDocumentUrlRouteImport } from './routes/api/public/share/document-url'
 import { Route as AuthConviteTokenAceitarRouteImport } from './routes/_auth/convite_.$token.aceitar'
+import { Route as AuthConviteTerapeutaTokenAceitarRouteImport } from './routes/_auth/convite-terapeuta_.$token.aceitar'
 import { Route as AuthCuidadoCompartilhadoChildIdAprovarInviteIdRouteImport } from './routes/_auth/cuidado-compartilhado_.$childId.aprovar.$inviteId'
 
 const VerificarContaRoute = VerificarContaRouteImport.update({
@@ -169,6 +172,16 @@ const AuthProfissionaisProfessionalIdRoute =
     path: '/profissionais/$professionalId',
     getParentRoute: () => AuthRoute,
   } as any)
+const AuthPacienteChildIdRoute = AuthPacienteChildIdRouteImport.update({
+  id: '/paciente/$childId',
+  path: '/paciente/$childId',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthOnboardingTerapeutaRoute = AuthOnboardingTerapeutaRouteImport.update({
+  id: '/terapeuta',
+  path: '/terapeuta',
+  getParentRoute: () => AuthOnboardingRoute,
+} as any)
 const AuthCuidadoCompartilhadoChildIdRoute =
   AuthCuidadoCompartilhadoChildIdRouteImport.update({
     id: '/cuidado-compartilhado/$childId',
@@ -213,6 +226,12 @@ const AuthConviteTokenAceitarRoute = AuthConviteTokenAceitarRouteImport.update({
   path: '/convite/$token/aceitar',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthConviteTerapeutaTokenAceitarRoute =
+  AuthConviteTerapeutaTokenAceitarRouteImport.update({
+    id: '/convite-terapeuta_/$token/aceitar',
+    path: '/convite-terapeuta/$token/aceitar',
+    getParentRoute: () => AuthRoute,
+  } as any)
 const AuthCuidadoCompartilhadoChildIdAprovarInviteIdRoute =
   AuthCuidadoCompartilhadoChildIdAprovarInviteIdRouteImport.update({
     id: '/cuidado-compartilhado_/$childId/aprovar/$inviteId',
@@ -235,7 +254,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthDashboardRoute
   '/documentos': typeof AuthDocumentosRoute
   '/feedbacks': typeof AuthFeedbacksRoute
-  '/onboarding': typeof AuthOnboardingRoute
+  '/onboarding': typeof AuthOnboardingRouteWithChildren
   '/painel': typeof AuthPainelRoute
   '/perfil': typeof AuthPerfilRoute
   '/profissionais': typeof AuthProfissionaisRoute
@@ -248,7 +267,10 @@ export interface FileRoutesByFullPath {
   '/agenda/busca': typeof AuthAgendaBuscaRoute
   '/agenda/onboarding': typeof AuthAgendaOnboardingRoute
   '/cuidado-compartilhado/$childId': typeof AuthCuidadoCompartilhadoChildIdRoute
+  '/onboarding/terapeuta': typeof AuthOnboardingTerapeutaRoute
+  '/paciente/$childId': typeof AuthPacienteChildIdRoute
   '/profissionais/$professionalId': typeof AuthProfissionaisProfessionalIdRoute
+  '/convite-terapeuta/$token/aceitar': typeof AuthConviteTerapeutaTokenAceitarRoute
   '/convite/$token/aceitar': typeof AuthConviteTokenAceitarRoute
   '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
   '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
@@ -270,7 +292,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthDashboardRoute
   '/documentos': typeof AuthDocumentosRoute
   '/feedbacks': typeof AuthFeedbacksRoute
-  '/onboarding': typeof AuthOnboardingRoute
+  '/onboarding': typeof AuthOnboardingRouteWithChildren
   '/painel': typeof AuthPainelRoute
   '/perfil': typeof AuthPerfilRoute
   '/profissionais': typeof AuthProfissionaisRoute
@@ -283,7 +305,10 @@ export interface FileRoutesByTo {
   '/agenda/busca': typeof AuthAgendaBuscaRoute
   '/agenda/onboarding': typeof AuthAgendaOnboardingRoute
   '/cuidado-compartilhado/$childId': typeof AuthCuidadoCompartilhadoChildIdRoute
+  '/onboarding/terapeuta': typeof AuthOnboardingTerapeutaRoute
+  '/paciente/$childId': typeof AuthPacienteChildIdRoute
   '/profissionais/$professionalId': typeof AuthProfissionaisProfessionalIdRoute
+  '/convite-terapeuta/$token/aceitar': typeof AuthConviteTerapeutaTokenAceitarRoute
   '/convite/$token/aceitar': typeof AuthConviteTokenAceitarRoute
   '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
   '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
@@ -307,7 +332,7 @@ export interface FileRoutesById {
   '/_auth/dashboard': typeof AuthDashboardRoute
   '/_auth/documentos': typeof AuthDocumentosRoute
   '/_auth/feedbacks': typeof AuthFeedbacksRoute
-  '/_auth/onboarding': typeof AuthOnboardingRoute
+  '/_auth/onboarding': typeof AuthOnboardingRouteWithChildren
   '/_auth/painel': typeof AuthPainelRoute
   '/_auth/perfil': typeof AuthPerfilRoute
   '/_auth/profissionais': typeof AuthProfissionaisRoute
@@ -320,7 +345,10 @@ export interface FileRoutesById {
   '/_auth/agenda_/busca': typeof AuthAgendaBuscaRoute
   '/_auth/agenda_/onboarding': typeof AuthAgendaOnboardingRoute
   '/_auth/cuidado-compartilhado/$childId': typeof AuthCuidadoCompartilhadoChildIdRoute
+  '/_auth/onboarding/terapeuta': typeof AuthOnboardingTerapeutaRoute
+  '/_auth/paciente/$childId': typeof AuthPacienteChildIdRoute
   '/_auth/profissionais_/$professionalId': typeof AuthProfissionaisProfessionalIdRoute
+  '/_auth/convite-terapeuta_/$token/aceitar': typeof AuthConviteTerapeutaTokenAceitarRoute
   '/_auth/convite_/$token/aceitar': typeof AuthConviteTokenAceitarRoute
   '/api/public/share/document-url': typeof ApiPublicShareDocumentUrlRoute
   '/api/public/share/request-otp': typeof ApiPublicShareRequestOtpRoute
@@ -357,7 +385,10 @@ export interface FileRouteTypes {
     | '/agenda/busca'
     | '/agenda/onboarding'
     | '/cuidado-compartilhado/$childId'
+    | '/onboarding/terapeuta'
+    | '/paciente/$childId'
     | '/profissionais/$professionalId'
+    | '/convite-terapeuta/$token/aceitar'
     | '/convite/$token/aceitar'
     | '/api/public/share/document-url'
     | '/api/public/share/request-otp'
@@ -392,7 +423,10 @@ export interface FileRouteTypes {
     | '/agenda/busca'
     | '/agenda/onboarding'
     | '/cuidado-compartilhado/$childId'
+    | '/onboarding/terapeuta'
+    | '/paciente/$childId'
     | '/profissionais/$professionalId'
+    | '/convite-terapeuta/$token/aceitar'
     | '/convite/$token/aceitar'
     | '/api/public/share/document-url'
     | '/api/public/share/request-otp'
@@ -428,7 +462,10 @@ export interface FileRouteTypes {
     | '/_auth/agenda_/busca'
     | '/_auth/agenda_/onboarding'
     | '/_auth/cuidado-compartilhado/$childId'
+    | '/_auth/onboarding/terapeuta'
+    | '/_auth/paciente/$childId'
     | '/_auth/profissionais_/$professionalId'
+    | '/_auth/convite-terapeuta_/$token/aceitar'
     | '/_auth/convite_/$token/aceitar'
     | '/api/public/share/document-url'
     | '/api/public/share/request-otp'
@@ -628,6 +665,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthProfissionaisProfessionalIdRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/paciente/$childId': {
+      id: '/_auth/paciente/$childId'
+      path: '/paciente/$childId'
+      fullPath: '/paciente/$childId'
+      preLoaderRoute: typeof AuthPacienteChildIdRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/onboarding/terapeuta': {
+      id: '/_auth/onboarding/terapeuta'
+      path: '/terapeuta'
+      fullPath: '/onboarding/terapeuta'
+      preLoaderRoute: typeof AuthOnboardingTerapeutaRouteImport
+      parentRoute: typeof AuthOnboardingRoute
+    }
     '/_auth/cuidado-compartilhado/$childId': {
       id: '/_auth/cuidado-compartilhado/$childId'
       path: '/cuidado-compartilhado/$childId'
@@ -684,6 +735,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthConviteTokenAceitarRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/convite-terapeuta_/$token/aceitar': {
+      id: '/_auth/convite-terapeuta_/$token/aceitar'
+      path: '/convite-terapeuta/$token/aceitar'
+      fullPath: '/convite-terapeuta/$token/aceitar'
+      preLoaderRoute: typeof AuthConviteTerapeutaTokenAceitarRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/cuidado-compartilhado_/$childId/aprovar/$inviteId': {
       id: '/_auth/cuidado-compartilhado_/$childId/aprovar/$inviteId'
       path: '/cuidado-compartilhado/$childId/aprovar/$inviteId'
@@ -694,6 +752,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthOnboardingRouteChildren {
+  AuthOnboardingTerapeutaRoute: typeof AuthOnboardingTerapeutaRoute
+}
+
+const AuthOnboardingRouteChildren: AuthOnboardingRouteChildren = {
+  AuthOnboardingTerapeutaRoute: AuthOnboardingTerapeutaRoute,
+}
+
+const AuthOnboardingRouteWithChildren = AuthOnboardingRoute._addFileChildren(
+  AuthOnboardingRouteChildren,
+)
+
 interface AuthRouteChildren {
   AuthAgendaRoute: typeof AuthAgendaRoute
   AuthAjudaRoute: typeof AuthAjudaRoute
@@ -703,7 +773,7 @@ interface AuthRouteChildren {
   AuthDashboardRoute: typeof AuthDashboardRoute
   AuthDocumentosRoute: typeof AuthDocumentosRoute
   AuthFeedbacksRoute: typeof AuthFeedbacksRoute
-  AuthOnboardingRoute: typeof AuthOnboardingRoute
+  AuthOnboardingRoute: typeof AuthOnboardingRouteWithChildren
   AuthPainelRoute: typeof AuthPainelRoute
   AuthPerfilRoute: typeof AuthPerfilRoute
   AuthProfissionaisRoute: typeof AuthProfissionaisRoute
@@ -714,7 +784,9 @@ interface AuthRouteChildren {
   AuthAgendaBuscaRoute: typeof AuthAgendaBuscaRoute
   AuthAgendaOnboardingRoute: typeof AuthAgendaOnboardingRoute
   AuthCuidadoCompartilhadoChildIdRoute: typeof AuthCuidadoCompartilhadoChildIdRoute
+  AuthPacienteChildIdRoute: typeof AuthPacienteChildIdRoute
   AuthProfissionaisProfessionalIdRoute: typeof AuthProfissionaisProfessionalIdRoute
+  AuthConviteTerapeutaTokenAceitarRoute: typeof AuthConviteTerapeutaTokenAceitarRoute
   AuthConviteTokenAceitarRoute: typeof AuthConviteTokenAceitarRoute
   AuthCuidadoCompartilhadoChildIdAprovarInviteIdRoute: typeof AuthCuidadoCompartilhadoChildIdAprovarInviteIdRoute
 }
@@ -728,7 +800,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthDashboardRoute: AuthDashboardRoute,
   AuthDocumentosRoute: AuthDocumentosRoute,
   AuthFeedbacksRoute: AuthFeedbacksRoute,
-  AuthOnboardingRoute: AuthOnboardingRoute,
+  AuthOnboardingRoute: AuthOnboardingRouteWithChildren,
   AuthPainelRoute: AuthPainelRoute,
   AuthPerfilRoute: AuthPerfilRoute,
   AuthProfissionaisRoute: AuthProfissionaisRoute,
@@ -739,7 +811,9 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthAgendaBuscaRoute: AuthAgendaBuscaRoute,
   AuthAgendaOnboardingRoute: AuthAgendaOnboardingRoute,
   AuthCuidadoCompartilhadoChildIdRoute: AuthCuidadoCompartilhadoChildIdRoute,
+  AuthPacienteChildIdRoute: AuthPacienteChildIdRoute,
   AuthProfissionaisProfessionalIdRoute: AuthProfissionaisProfessionalIdRoute,
+  AuthConviteTerapeutaTokenAceitarRoute: AuthConviteTerapeutaTokenAceitarRoute,
   AuthConviteTokenAceitarRoute: AuthConviteTokenAceitarRoute,
   AuthCuidadoCompartilhadoChildIdAprovarInviteIdRoute:
     AuthCuidadoCompartilhadoChildIdAprovarInviteIdRoute,

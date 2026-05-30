@@ -1,3 +1,4 @@
+Initialising login role...
 export type Json =
   | string
   | number
@@ -322,6 +323,42 @@ export type Database = {
           },
         ]
       }
+      analytics_events: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          event_type: string
+          id: string
+          module: string | null
+          properties: Json
+          route: string | null
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          event_type: string
+          id?: string
+          module?: string | null
+          properties?: Json
+          route?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          event_type?: string
+          id?: string
+          module?: string | null
+          properties?: Json
+          route?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       attendance_records: {
         Row: {
           category: string
@@ -412,6 +449,134 @@ export type Database = {
         }
         Relationships: []
       }
+      care_access: {
+        Row: {
+          alias: string
+          caregiver_id: string
+          child_id: string
+          created_at: string
+          granted_at: string
+          id: string
+          invite_id: string
+          owner_id: string
+          relation: string
+          revoked_at: string | null
+          role: string
+          status: string
+        }
+        Insert: {
+          alias: string
+          caregiver_id: string
+          child_id: string
+          created_at?: string
+          granted_at?: string
+          id?: string
+          invite_id: string
+          owner_id: string
+          relation: string
+          revoked_at?: string | null
+          role: string
+          status?: string
+        }
+        Update: {
+          alias?: string
+          caregiver_id?: string
+          child_id?: string
+          created_at?: string
+          granted_at?: string
+          id?: string
+          invite_id?: string
+          owner_id?: string
+          relation?: string
+          revoked_at?: string | null
+          role?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "care_access_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "care_access_invite_id_fkey"
+            columns: ["invite_id"]
+            isOneToOne: false
+            referencedRelation: "care_invites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      care_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          approved_at: string | null
+          child_id: string
+          created_at: string
+          denied_at: string | null
+          expires_at: string
+          id: string
+          invitee_alias: string
+          invitee_email: string
+          owner_id: string
+          relation: string
+          revoked_at: string | null
+          role: string
+          status: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          approved_at?: string | null
+          child_id: string
+          created_at?: string
+          denied_at?: string | null
+          expires_at: string
+          id?: string
+          invitee_alias: string
+          invitee_email: string
+          owner_id: string
+          relation: string
+          revoked_at?: string | null
+          role?: string
+          status?: string
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          approved_at?: string | null
+          child_id?: string
+          created_at?: string
+          denied_at?: string | null
+          expires_at?: string
+          id?: string
+          invitee_alias?: string
+          invitee_email?: string
+          owner_id?: string
+          relation?: string
+          revoked_at?: string | null
+          role?: string
+          status?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "care_invites_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       child_attachments: {
         Row: {
           child_id: string
@@ -460,6 +625,8 @@ export type Database = {
         Row: {
           birth_date: string
           created_at: string
+          created_by_type: string
+          diagnosis: string | null
           id: string
           name: string
           relation: string | null
@@ -468,6 +635,8 @@ export type Database = {
         Insert: {
           birth_date: string
           created_at?: string
+          created_by_type?: string
+          diagnosis?: string | null
           id?: string
           name: string
           relation?: string | null
@@ -476,6 +645,8 @@ export type Database = {
         Update: {
           birth_date?: string
           created_at?: string
+          created_by_type?: string
+          diagnosis?: string | null
           id?: string
           name?: string
           relation?: string | null
@@ -549,6 +720,7 @@ export type Database = {
           id: string
           is_admin: boolean
           phone: string | null
+          user_type: string
         }
         Insert: {
           birth_date?: string | null
@@ -558,6 +730,7 @@ export type Database = {
           id: string
           is_admin?: boolean
           phone?: string | null
+          user_type?: string
         }
         Update: {
           birth_date?: string | null
@@ -567,6 +740,7 @@ export type Database = {
           id?: string
           is_admin?: boolean
           phone?: string | null
+          user_type?: string
         }
         Relationships: []
       }
@@ -700,11 +874,168 @@ export type Database = {
         }
         Relationships: []
       }
+      therapist_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          child_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          invitee_alias: string
+          invitee_email: string
+          relation: string
+          revoked_at: string | null
+          status: string
+          therapist_id: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          child_id: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invitee_alias: string
+          invitee_email: string
+          relation: string
+          revoked_at?: string | null
+          status?: string
+          therapist_id: string
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          child_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invitee_alias?: string
+          invitee_email?: string
+          relation?: string
+          revoked_at?: string | null
+          status?: string
+          therapist_id?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "therapist_invites_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      therapist_parent_access: {
+        Row: {
+          alias: string
+          child_id: string
+          created_at: string
+          granted_at: string
+          id: string
+          invite_id: string
+          parent_id: string
+          relation: string
+          revoked_at: string | null
+          status: string
+          therapist_id: string
+        }
+        Insert: {
+          alias: string
+          child_id: string
+          created_at?: string
+          granted_at?: string
+          id?: string
+          invite_id: string
+          parent_id: string
+          relation: string
+          revoked_at?: string | null
+          status?: string
+          therapist_id: string
+        }
+        Update: {
+          alias?: string
+          child_id?: string
+          created_at?: string
+          granted_at?: string
+          id?: string
+          invite_id?: string
+          parent_id?: string
+          relation?: string
+          revoked_at?: string | null
+          status?: string
+          therapist_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "therapist_parent_access_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "therapist_parent_access_invite_id_fkey"
+            columns: ["invite_id"]
+            isOneToOne: false
+            referencedRelation: "therapist_invites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      therapist_profiles: {
+        Row: {
+          bio: string | null
+          council_number: string
+          council_state: string
+          council_type: string
+          created_at: string
+          id: string
+          specialty: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bio?: string | null
+          council_number: string
+          council_state: string
+          council_type: string
+          created_at?: string
+          id?: string
+          specialty: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bio?: string | null
+          council_number?: string
+          council_state?: string
+          council_type?: string
+          created_at?: string
+          id?: string
+          specialty?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      has_care_access: { Args: { p_child_id: string }; Returns: boolean }
+      has_therapist_parent_access: {
+        Args: { p_child_id: string }
+        Returns: boolean
+      }
       schedule_agenda_notifications: { Args: never; Returns: undefined }
     }
     Enums: {
@@ -841,3 +1172,5 @@ export const Constants = {
     Enums: {},
   },
 } as const
+A new version of Supabase CLI is available: v2.102.0 (currently installed v)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

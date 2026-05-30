@@ -68,7 +68,9 @@ export async function signUp(
   email: string,
   password: string,
   displayName?: string,
+  options?: { userType?: "parent" | "therapist" },
 ): Promise<AuthResult> {
+  const userType = options?.userType ?? "parent";
   const redirectTo =
     typeof window !== "undefined" ? `${window.location.origin}/onboarding` : undefined;
   const trimmedName = displayName?.trim();
@@ -77,7 +79,7 @@ export async function signUp(
     password,
     options: {
       emailRedirectTo: redirectTo,
-      data: trimmedName ? { display_name: trimmedName } : undefined,
+      data: { ...(trimmedName ? { display_name: trimmedName } : {}), user_type: userType },
     },
   });
   if (error) {
