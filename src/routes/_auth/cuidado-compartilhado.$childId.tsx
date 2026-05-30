@@ -4,9 +4,7 @@ import {
   Loader2,
   Plus,
   Mail,
-  ChevronRight,
-  UserCheck,
-  Clock,
+  ArrowLeft,
   XCircle,
   Users,
   AlertTriangle,
@@ -462,8 +460,9 @@ function PendingRow({
 
 function ManageCarePage() {
   const { childId } = Route.useParams();
+  const navigate = useNavigate();
   const [sheetOpen, setSheetOpen] = useState(false);
-  const { data, isLoading } = useCareInvites(childId);
+  const { data, isLoading, isError, refetch } = useCareInvites(childId);
 
   const totalPending =
     (data?.aguardandoAprovacao?.length ?? 0) + (data?.aguardandoAceite?.length ?? 0);
@@ -473,16 +472,26 @@ function ManageCarePage() {
       <div className="mx-auto max-w-2xl px-4 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-[22px] font-bold text-[#0F172A]">Cuidado compartilhado</h1>
-            {data?.childName && (
-              <p className="text-sm text-[#6B7280]">{data.childName}</p>
-            )}
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={() => navigate({ to: "/dashboard" })}
+              aria-label="Voltar"
+              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] text-[#6B7280] hover:bg-[#F3F4F6] transition-colors"
+            >
+              <ArrowLeft size={18} />
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-[22px] font-bold text-[#0F172A] leading-tight">Cuidado compartilhado</h1>
+              {data?.childName && (
+                <p className="text-sm text-[#6B7280] truncate">{data.childName}</p>
+              )}
+            </div>
           </div>
           <button
             type="button"
             onClick={() => setSheetOpen(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl text-white"
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-white"
             style={{ background: TEAL }}
           >
             <Plus size={20} strokeWidth={2.2} />
@@ -492,6 +501,27 @@ function ManageCarePage() {
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 size={28} color={TEAL} className="animate-spin" />
+          </div>
+        ) : isError ? (
+          <div className="text-center py-12">
+            <div
+              className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full"
+              style={{ background: "#FEF2F2" }}
+            >
+              <AlertTriangle size={26} color="#DC2626" strokeWidth={1.7} />
+            </div>
+            <h3 className="text-[16px] font-bold text-[#0F172A] mb-1">Não foi possível carregar</h3>
+            <p className="text-sm text-[#6B7280] mb-4">
+              Houve um erro ao buscar os co-cuidadores. Tente novamente.
+            </p>
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              className="inline-flex items-center gap-2 h-11 rounded-xl px-5 text-white text-[14px] font-bold"
+              style={{ background: TEAL }}
+            >
+              <RefreshCw size={16} /> Tentar novamente
+            </button>
           </div>
         ) : (
           <div className="flex flex-col gap-6">
