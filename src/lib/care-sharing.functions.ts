@@ -465,8 +465,26 @@ export const getCareInviteContextServer = createServerFn({ method: "POST" })
     if (new Date(invite.expires_at) < new Date()) {
       return { state: "expired" as const, expiresAt: invite.expires_at };
     }
-    if (invite.status === "approved" || invite.status === "accepted") {
-      return { state: "already_used" as const };
+    // "approved" → acesso já foi liberado (owner aprovou)
+    if (invite.status === "approved") {
+      return {
+        state: "approved" as const,
+        inviteId: invite.id,
+        ownerName: ctx.ownerName,
+        childName: ctx.childName,
+      };
+    }
+    // "accepted" → co-cuidador aceitou mas owner ainda não aprovou
+    if (invite.status === "accepted") {
+      return {
+        state: "already_used" as const,
+        inviteId: invite.id,
+        ownerName: ctx.ownerName,
+        childName: ctx.childName,
+        childBirthDate: ctx.childBirthDate,
+        role: invite.role,
+        expiresAt: invite.expires_at,
+      };
     }
     if (invite.status !== "pending") {
       return { state: "invalid" as const };

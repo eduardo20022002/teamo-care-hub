@@ -18,6 +18,7 @@ import { supabase as supabaseClient } from "@/integrations/supabase/client";
 import { formatAge } from "@/lib/formatters";
 
 const TEAL = "#0D9488";
+const POLL_INTERVAL_MS = 5_000; // fallback: polling a cada 5s caso Realtime falhe
 
 export const Route = createFileRoute("/_auth/convite_/$token/aceitar")({
   head: () => ({
@@ -56,9 +57,14 @@ function AcceptInvitePage() {
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("loading");
   const [ctx, setCtx] = useState<InviteCtx | null>(null);
+  // Mantém o inviteId separado para o Realtime funcionar mesmo quando ctx muda de fase
+  const [inviteId, setInviteId] = useState<string | null>(null);
+  const [ownerName, setOwnerName] = useState<string>("");
+  const [childName, setChildName] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState("");
   const [lgpdChecked, setLgpdChecked] = useState(false);
   const realtimeRef = useRef<ReturnType<typeof supabaseClient.channel> | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const acceptMutation = useAcceptCareInvite();
 
@@ -68,6 +74,7 @@ function AcceptInvitePage() {
     getCareInviteContextServer({ data: { token } })
       .then((res) => {
         if (cancelled) return;
+
         if (res.state === "valid") {
           setCtx({
             inviteId: res.inviteId,
@@ -77,10 +84,22 @@ function AcceptInvitePage() {
             role: res.role,
             expiresAt: res.expiresAt,
           });
+          setInviteId(res.inviteId);
+          setOwnerName(res.ownerName);
+          setChildName(res.childName);
           setPhase("confirm");
         } else if (res.state === "already_used") {
-          // Convite já aceito — provavelmente co-cuidador voltou após aceitar
+          // Co-cuidador voltou à página após ter aceito mas antes da aprovação
+          setInviteId(res.inviteId);
+          setOwnerName(res.ownerName);
+          setChildName(res.childName);
           setPhase("awaiting");
+        } else if (res.state === "approved") {
+          // Owner já aprovou — mostra aprovação direto
+          setInviteId(res.inviteId);
+          setOwnerName(res.ownerName);
+          setChildName(res.childName);
+          setPhase("approved");
         } else {
           setErrorMsg(
             res.state === "expired"
@@ -101,17 +120,17 @@ function AcceptInvitePage() {
 
   // Realtime: observa status do invite aprovado
   useEffect(() => {
-    if (phase !== "awaiting" || !ctx?.inviteId) return;
+    if (phase !== "awaiting" || !inviteId) return;
 
     const channel = supabaseClient
-      .channel(`invite-${ctx.inviteId}`)
+      .channel(`invite-${inviteId}`)
       .on(
         "postgres_changes",
         {
           event: "UPDATE",
           schema: "public",
           table: "care_invites",
-          filter: `id=eq.${ctx.inviteId}`,
+          filter: `id=eq.${inviteId}`,
         },
         (payload) => {
           const newStatus = (payload.new as { status: string }).status;
@@ -129,7 +148,42 @@ function AcceptInvitePage() {
     return () => {
       void supabaseClient.removeChannel(channel);
     };
-  }, [phase, ctx?.inviteId]);
+  }, [phase, inviteId]);
+
+  // Polling de fallback: caso o Realtime não dispare, consulta o status a cada 5s
+  useEffect(() => {
+    if (phase !== "awaiting") {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+      return;
+    }
+
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await getCareInviteContextServer({ data: { token } });
+        if (res.state === "approved") {
+          setOwnerName(res.ownerName);
+          setChildName(res.childName);
+          setPhase("approved");
+        } else if (res.state === "invalid") {
+          // Convite revogado enquanto aguardava
+          setErrorMsg("O acesso foi cancelado.");
+          setPhase("error");
+        }
+      } catch {
+        // Silencioso — próximo ciclo tenta novamente
+      }
+    }, POLL_INTERVAL_MS);
+
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [phase, token]);
 
   const handleAccept = async () => {
     if (!lgpdChecked) {
@@ -218,6 +272,8 @@ function AcceptInvitePage() {
 
   // ─── Aprovado! (Tela 11b) ─────────────────────────────────────────────────────
   if (phase === "approved") {
+    const displayOwner = ownerName || ctx?.ownerName || "";
+    const displayChild = childName || ctx?.childName || "";
     return (
       <AppShell>
         <div className="mx-auto max-w-[420px] px-4 py-10">
@@ -230,8 +286,8 @@ function AcceptInvitePage() {
             </div>
             <h2 className="text-[22px] font-bold text-[#0F172A] mb-2">Acesso aprovado!</h2>
             <p className="text-sm text-[#6B7280] mb-6 leading-relaxed">
-              {ctx?.ownerName} aprovou seu acesso. Agora você pode acompanhar o cuidado de{" "}
-              <strong>{ctx?.childName}</strong>.
+              {displayOwner} aprovou seu acesso. Agora você pode acompanhar o cuidado de{" "}
+              <strong>{displayChild}</strong>.
             </p>
             <button
               type="button"
