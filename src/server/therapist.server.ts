@@ -2,6 +2,7 @@
 // Nunca importar de código cliente.
 import { randomBytes } from "crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { appBaseUrl } from "@/server/app-url";
 
 // ─── Token ───────────────────────────────────────────────────────────────────
 
@@ -192,9 +193,8 @@ export async function sendTherapistInviteEmail(params: {
   childName: string;
   token: string;
 }): Promise<{ ok: boolean; error?: string }> {
-  const appUrl = process.env.VITE_APP_URL ?? "https://teamo.vercel.app";
   // Link vai direto para login com o token como search param
-  const link = `${appUrl}/login?therapistInvite=${encodeURIComponent(params.token)}`;
+  const link = `${appBaseUrl()}/login?therapistInvite=${encodeURIComponent(params.token)}`;
 
   const specialtyLabel = params.therapistSpecialty
     ? `<span style="color:#0D9488;font-weight:600">${escapeHtml(params.therapistSpecialty)}</span>`

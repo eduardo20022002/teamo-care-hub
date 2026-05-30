@@ -16,8 +16,9 @@ import {
   type TherapistParentAccessRow,
 } from "@/server/therapist.server";
 import { therapistProfileSchema, therapistInviteSchema, therapistPatientSchema } from "@/lib/validation";
+import { appBaseUrl } from "@/server/app-url";
 
-const APP_URL = () => process.env.VITE_APP_URL ?? "https://teamo.vercel.app";
+const APP_URL = appBaseUrl;
 
 // ─── Helper: nome do perfil ───────────────────────────────────────────────────
 

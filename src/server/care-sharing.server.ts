@@ -2,6 +2,7 @@
 // Nunca importar de código cliente.
 import { randomBytes } from "crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { appBaseUrl } from "@/server/app-url";
 
 // ─── Token ───────────────────────────────────────────────────────────────────
 
@@ -185,10 +186,9 @@ export async function sendInviteEmail(params: {
   token: string;
   expiresAt: string;
 }): Promise<{ ok: boolean; error?: string }> {
-  const appUrl = process.env.VITE_APP_URL ?? "https://teamo.vercel.app";
-  // Link vai diretamente para login com o token como search param.
-  // O login mostra banner de contexto e redireciona para /convite/{token}/aceitar após auth.
-  const link = `${appUrl}/login?invite=${encodeURIComponent(params.token)}`;
+  // Link vai para a landing pública do convite, que mostra o contexto e oferece
+  // criar conta OU fazer login (ambos preservam o token) → /convite/{token}/aceitar.
+  const link = `${appBaseUrl()}/convite/${encodeURIComponent(params.token)}`;
   const expiresFormatted = formatDateBR(params.expiresAt);
 
   const html = `

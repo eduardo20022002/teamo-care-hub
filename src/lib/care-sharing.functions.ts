@@ -17,8 +17,9 @@ import {
   type CareAccessRow,
 } from "@/server/care-sharing.server";
 import { careInviteSchema } from "@/lib/validation";
+import { appBaseUrl } from "@/server/app-url";
 
-const APP_URL = () => process.env.VITE_APP_URL ?? "https://teamo.vercel.app";
+const APP_URL = appBaseUrl;
 const INVITE_TTL_HOURS = 48;
 
 // ─── Helper: busca perfil do user ────────────────────────────────────────────
