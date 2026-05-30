@@ -23,8 +23,10 @@ function translateAuthError(message: string): string {
     return "Esta senha aparece em vazamentos conhecidos. Escolha outra.";
   if (m.includes("email not confirmed"))
     return "Confirme seu e-mail antes de entrar. Verifique sua caixa de entrada.";
-  if (m.includes("invalid token") || m.includes("token has expired") || m.includes("otp expired"))
-    return "Este link expirou ou já foi usado. Solicite um novo.";
+  if (m.includes("token has expired") || m.includes("otp expired") || m.includes("expired or is invalid"))
+    return "Código inválido ou expirado. Solicite um novo código.";
+  if (m.includes("invalid token") || (m.includes("otp") && m.includes("invalid")))
+    return "Código inválido. Verifique os dígitos e tente novamente.";
   if (m.includes("new password should be different"))
     return "A nova senha deve ser diferente da senha atual.";
   if ((m.includes("password") && m.includes("at least")) || m.includes("weak password"))
@@ -118,6 +120,29 @@ export async function resendVerification(email: string): Promise<AuthResult> {
     options: { emailRedirectTo: redirectTo },
   });
   if (error) return { ok: false, error: translateAuthError(error.message), rateLimitSeconds: getRateLimitSeconds(error.message) };
+  return { ok: true };
+}
+
+/**
+ * Confirma o cadastro com o código de 6 dígitos (OTP) enviado por e-mail.
+ * Em caso de sucesso, o Supabase cria a sessão automaticamente — o usuário
+ * fica autenticado e o fluxo de redirecionamento (onboarding/convite) assume.
+ */
+export async function verifySignupOtp(email: string, code: string): Promise<AuthResult> {
+  const { data, error } = await supabase.auth.verifyOtp({
+    email,
+    token: code.trim(),
+    type: "signup",
+  });
+  if (error) {
+    await logAuthEvent(null, "auth.login_failure", { stage: "signup_otp" });
+    return {
+      ok: false,
+      error: translateAuthError(error.message),
+      rateLimitSeconds: getRateLimitSeconds(error.message),
+    };
+  }
+  await logAuthEvent(data.user?.id ?? null, "auth.signup_success", { method: "otp" });
   return { ok: true };
 }
 

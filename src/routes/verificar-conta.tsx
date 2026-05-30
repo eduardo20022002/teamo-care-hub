@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { Loader2, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { AuthShell } from "@/components/auth/AuthShell";
-import { resendVerification } from "@/services/auth.service";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { resendVerification, verifySignupOtp } from "@/services/auth.service";
 import { useAuth } from "@/hooks/useAuth";
 
 const BRAND_GRADIENT =
@@ -24,6 +25,8 @@ function VerifyAccountPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const [email, setEmail] = useState<string>("");
+  const [code, setCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
@@ -37,8 +40,8 @@ function VerifyAccountPage() {
     }
   }, [user]);
 
-  // Se o usuário já está autenticado (confirmou o e-mail em outra aba, ou voltou
-  // depois de confirmar), encaminha para o aceite de convite pendente ou onboarding.
+  // Quando o usuário fica autenticado (código validado, ou confirmou em outra
+  // aba), encaminha para o aceite de convite pendente ou onboarding.
   useEffect(() => {
     if (loading || !user) return;
     const pendingInvite =
@@ -71,16 +74,34 @@ function VerifyAccountPage() {
     return () => clearTimeout(t);
   }, [cooldown]);
 
+  const handleVerify = async (value?: string) => {
+    const otp = (value ?? code).trim();
+    if (!email || otp.length !== 6 || verifying) return;
+    setVerifying(true);
+    const res = await verifySignupOtp(email, otp);
+    setVerifying(false);
+    if (!res.ok) {
+      toast.error(res.error ?? "Não foi possível confirmar o código.");
+      setCode("");
+      return;
+    }
+    // Sucesso: a sessão é criada pelo Supabase; o useEffect acima detecta o
+    // usuário autenticado e redireciona para o destino correto.
+    toast.success("E-mail confirmado!");
+  };
+
   const handleResend = async () => {
     if (!email || resending || cooldown > 0) return;
     setResending(true);
     const res = await resendVerification(email);
     setResending(false);
     if (!res.ok) {
-      toast.error(res.error ?? "Não foi possível reenviar o link.");
+      toast.error(res.error ?? "Não foi possível reenviar o código.");
+      if (res.rateLimitSeconds) setCooldown(res.rateLimitSeconds);
       return;
     }
-    toast.success("Link reenviado. Verifique seu e-mail.");
+    toast.success("Código reenviado. Verifique seu e-mail.");
+    setCode("");
     setCooldown(RESEND_COOLDOWN_S);
   };
 
@@ -105,11 +126,60 @@ function VerifyAccountPage() {
           Confirme seu e-mail
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-center" style={{ color: "#6B7280" }}>
-          Enviamos um link de confirmação para{" "}
+          Enviamos um código de 6 dígitos para{" "}
           <span className="font-semibold" style={{ color: "#1F2937" }}>{maskedEmail}</span>.
           <br />
-          Clique no link recebido para ativar sua conta e continuar.
+          Digite o código abaixo para ativar sua conta.
         </p>
+
+        {/* Entrada do código */}
+        <div className="mt-7 flex justify-center">
+          <InputOTP
+            maxLength={6}
+            value={code}
+            onChange={(v) => {
+              const digits = v.replace(/\D/g, "").slice(0, 6);
+              setCode(digits);
+              if (digits.length === 6) void handleVerify(digits);
+            }}
+            inputMode="numeric"
+            disabled={verifying}
+            containerClassName="gap-2"
+          >
+            <InputOTPGroup className="gap-2">
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <InputOTPSlot
+                  key={i}
+                  index={i}
+                  className="h-12 w-11 rounded-xl border border-[#E5E7EB] text-lg font-bold"
+                />
+              ))}
+            </InputOTPGroup>
+          </InputOTP>
+        </div>
+
+        {/* Botão confirmar */}
+        <button
+          type="button"
+          onClick={() => void handleVerify()}
+          disabled={code.length !== 6 || verifying}
+          className="mt-7 flex items-center justify-center gap-2 w-full text-white font-semibold text-sm transition-all duration-200 hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+          style={{
+            height: 52,
+            borderRadius: 12,
+            background: BRAND_GRADIENT,
+            boxShadow: "0 10px 24px -8px rgba(79,70,229,0.5), 0 4px 12px -4px rgba(236,72,153,0.3)",
+          }}
+        >
+          {verifying ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Confirmando…
+            </>
+          ) : (
+            "Confirmar código"
+          )}
+        </button>
 
         <div
           className="mt-6 rounded-2xl p-4 text-sm"
@@ -119,22 +189,15 @@ function VerifyAccountPage() {
             <span className="font-semibold" style={{ color: "#1F2937" }}>Não recebeu?</span>{" "}
             Verifique a caixa de spam ou solicite o reenvio abaixo.
           </p>
-          <p className="mt-2 text-xs">
-            Em breve você poderá receber o código também por SMS.
-          </p>
         </div>
 
+        {/* Reenviar código */}
         <button
           type="button"
           onClick={handleResend}
           disabled={!email || resending || cooldown > 0}
-          className="mt-6 flex items-center justify-center gap-2 w-full text-white font-semibold text-sm transition-all duration-200 hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-          style={{
-            height: 52,
-            borderRadius: 12,
-            background: BRAND_GRADIENT,
-            boxShadow: "0 10px 24px -8px rgba(79,70,229,0.5), 0 4px 12px -4px rgba(236,72,153,0.3)",
-          }}
+          className="mt-4 flex items-center justify-center gap-2 w-full text-sm font-semibold rounded-xl border border-[#E5E7EB] text-[#4F46E5] transition-colors hover:bg-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ height: 48 }}
         >
           {resending ? (
             <>
@@ -144,7 +207,7 @@ function VerifyAccountPage() {
           ) : cooldown > 0 ? (
             `Aguarde ${cooldown}s para reenviar`
           ) : (
-            "Reenviar link de confirmação"
+            "Reenviar código"
           )}
         </button>
 
