@@ -50,20 +50,52 @@ export const sendCareInviteServer = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!child) throw new Response("Criança não encontrada.", { status: 404 });
 
-    // Verifica duplicata de convite pendente para o mesmo email+child
-    const { data: existing } = await (supabaseAdmin as any)
+    // Bloqueia apenas quando há um vínculo REALMENTE ativo/pendente para este
+    // e-mail+criança. Importante: um convite "approved" cujo acesso foi revogado
+    // NÃO deve bloquear (e era invisível na lista) — antes isso travava o
+    // reconvite silenciosamente (409 sem nada aparecer na tela).
+    // Usamos lista ordenada (não .maybeSingle, que erra com múltiplas linhas).
+    const { data: priorInvites } = await (supabaseAdmin as any)
       .from("care_invites")
-      .select("id, status")
+      .select("id, status, expires_at")
       .eq("child_id", data.childId)
       .eq("invitee_email", data.inviteeEmail.toLowerCase())
       .in("status", ["pending", "accepted", "approved"])
-      .maybeSingle();
+      .order("created_at", { ascending: false });
 
-    if (existing) {
-      throw new Response(
-        "Já existe um convite ativo ou acesso aprovado para este e-mail.",
-        { status: 409 },
-      );
+    let blockMsg: string | null = null;
+    for (const inv of (priorInvites ?? []) as Array<{
+      id: string;
+      status: string;
+      expires_at: string | null;
+    }>) {
+      if (inv.status === "pending") {
+        const notExpired = !inv.expires_at || new Date(inv.expires_at) > new Date();
+        if (notExpired) {
+          blockMsg = "Já existe um convite pendente para este e-mail. Use \"Reenviar\" na lista.";
+          break;
+        }
+      } else if (inv.status === "accepted") {
+        blockMsg = "Já há um convite aceito aguardando sua aprovação para este e-mail.";
+        break;
+      } else if (inv.status === "approved") {
+        // Só bloqueia se o acesso ainda estiver ativo (é co-cuidador atual).
+        const { data: activeAccess } = await (supabaseAdmin as any)
+          .from("care_access")
+          .select("id")
+          .eq("invite_id", inv.id)
+          .eq("status", "active")
+          .maybeSingle();
+        if (activeAccess) {
+          blockMsg = "Este e-mail já é um co-cuidador ativo desta criança.";
+          break;
+        }
+        // approved sem acesso ativo (revogado) → não bloqueia: permite reconvidar.
+      }
+    }
+
+    if (blockMsg) {
+      throw new Response(blockMsg, { status: 409 });
     }
 
     const token = generateInviteToken();

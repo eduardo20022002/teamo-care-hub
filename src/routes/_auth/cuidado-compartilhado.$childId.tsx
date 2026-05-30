@@ -132,7 +132,11 @@ function InviteSheet({
       onClose();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Erro ao enviar convite.";
-      toast.error(msg.includes("409") ? "Já existe um convite ativo para este e-mail." : msg);
+      toast.error(
+        msg.includes("409")
+          ? "Já existe um convite ou acesso para este e-mail. Veja na lista (Reenviar/Cancelar)."
+          : msg,
+      );
     }
   };
 
