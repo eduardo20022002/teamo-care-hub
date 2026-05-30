@@ -19,6 +19,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ConviteTokenRouteImport } from './routes/convite.$token'
 import { Route as CompartilhamentoTokenRouteImport } from './routes/compartilhamento.$token'
 import { Route as AuthSobreRouteImport } from './routes/_auth/sobre'
+import { Route as AuthSelecionarPerfilRouteImport } from './routes/_auth/selecionar-perfil'
 import { Route as AuthSegurancaRouteImport } from './routes/_auth/seguranca'
 import { Route as AuthRegistrosRouteImport } from './routes/_auth/registros'
 import { Route as AuthProfissionaisRouteImport } from './routes/_auth/profissionais'
@@ -94,6 +95,11 @@ const CompartilhamentoTokenRoute = CompartilhamentoTokenRouteImport.update({
 const AuthSobreRoute = AuthSobreRouteImport.update({
   id: '/sobre',
   path: '/sobre',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthSelecionarPerfilRoute = AuthSelecionarPerfilRouteImport.update({
+  id: '/selecionar-perfil',
+  path: '/selecionar-perfil',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthSegurancaRoute = AuthSegurancaRouteImport.update({
@@ -260,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/profissionais': typeof AuthProfissionaisRoute
   '/registros': typeof AuthRegistrosRoute
   '/seguranca': typeof AuthSegurancaRoute
+  '/selecionar-perfil': typeof AuthSelecionarPerfilRoute
   '/sobre': typeof AuthSobreRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
   '/convite/$token': typeof ConviteTokenRoute
@@ -298,6 +305,7 @@ export interface FileRoutesByTo {
   '/profissionais': typeof AuthProfissionaisRoute
   '/registros': typeof AuthRegistrosRoute
   '/seguranca': typeof AuthSegurancaRoute
+  '/selecionar-perfil': typeof AuthSelecionarPerfilRoute
   '/sobre': typeof AuthSobreRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
   '/convite/$token': typeof ConviteTokenRoute
@@ -338,6 +346,7 @@ export interface FileRoutesById {
   '/_auth/profissionais': typeof AuthProfissionaisRoute
   '/_auth/registros': typeof AuthRegistrosRoute
   '/_auth/seguranca': typeof AuthSegurancaRoute
+  '/_auth/selecionar-perfil': typeof AuthSelecionarPerfilRoute
   '/_auth/sobre': typeof AuthSobreRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
   '/convite/$token': typeof ConviteTokenRoute
@@ -378,6 +387,7 @@ export interface FileRouteTypes {
     | '/profissionais'
     | '/registros'
     | '/seguranca'
+    | '/selecionar-perfil'
     | '/sobre'
     | '/compartilhamento/$token'
     | '/convite/$token'
@@ -416,6 +426,7 @@ export interface FileRouteTypes {
     | '/profissionais'
     | '/registros'
     | '/seguranca'
+    | '/selecionar-perfil'
     | '/sobre'
     | '/compartilhamento/$token'
     | '/convite/$token'
@@ -455,6 +466,7 @@ export interface FileRouteTypes {
     | '/_auth/profissionais'
     | '/_auth/registros'
     | '/_auth/seguranca'
+    | '/_auth/selecionar-perfil'
     | '/_auth/sobre'
     | '/compartilhamento/$token'
     | '/convite/$token'
@@ -558,6 +570,13 @@ declare module '@tanstack/react-router' {
       path: '/sobre'
       fullPath: '/sobre'
       preLoaderRoute: typeof AuthSobreRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/selecionar-perfil': {
+      id: '/_auth/selecionar-perfil'
+      path: '/selecionar-perfil'
+      fullPath: '/selecionar-perfil'
+      preLoaderRoute: typeof AuthSelecionarPerfilRouteImport
       parentRoute: typeof AuthRoute
     }
     '/_auth/seguranca': {
@@ -779,6 +798,7 @@ interface AuthRouteChildren {
   AuthProfissionaisRoute: typeof AuthProfissionaisRoute
   AuthRegistrosRoute: typeof AuthRegistrosRoute
   AuthSegurancaRoute: typeof AuthSegurancaRoute
+  AuthSelecionarPerfilRoute: typeof AuthSelecionarPerfilRoute
   AuthSobreRoute: typeof AuthSobreRoute
   AuthAgendaEventIdRoute: typeof AuthAgendaEventIdRoute
   AuthAgendaBuscaRoute: typeof AuthAgendaBuscaRoute
@@ -806,6 +826,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthProfissionaisRoute: AuthProfissionaisRoute,
   AuthRegistrosRoute: AuthRegistrosRoute,
   AuthSegurancaRoute: AuthSegurancaRoute,
+  AuthSelecionarPerfilRoute: AuthSelecionarPerfilRoute,
   AuthSobreRoute: AuthSobreRoute,
   AuthAgendaEventIdRoute: AuthAgendaEventIdRoute,
   AuthAgendaBuscaRoute: AuthAgendaBuscaRoute,

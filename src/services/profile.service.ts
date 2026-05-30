@@ -10,6 +10,7 @@ export interface ProfileData {
   created_at: string;
   is_admin: boolean;
   user_type: "parent" | "therapist";
+  secondary_role: "parent" | "therapist" | null;
 }
 
 export interface ChildWithCounts {
@@ -74,7 +75,7 @@ function sanitizeRelation(v: string): string {
 export async function getProfile(userId: string): Promise<ProfileData> {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, full_name, email, phone, birth_date, created_at, is_admin, user_type")
+    .select("id, full_name, email, phone, birth_date, created_at, is_admin, user_type, secondary_role")
     .eq("id", userId)
     .single();
 

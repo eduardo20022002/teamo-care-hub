@@ -32,6 +32,7 @@ import { listProfessionals } from "@/services/professionals.service";
 import { createAttendanceRecord } from "@/services/attendance.service";
 import { getProfile } from "@/services/profile.service";
 import { usePatients, useMyTherapistAccesses } from "@/services/therapist.service";
+import { resolveActiveRole, isDualRole } from "@/lib/roles";
 import {
   formatAge,
   formatBirthDate,
@@ -484,7 +485,17 @@ function DashboardPage() {
     enabled: !!user,
     staleTime: 60_000,
   });
-  const isTherapist = profileQuery.data?.user_type === "therapist";
+  // Papel ativo: papel único → automático; dual → escolhido em /selecionar-perfil
+  const activeRole = profileQuery.data ? resolveActiveRole(profileQuery.data) : null;
+  const isTherapist = activeRole === "therapist";
+
+  // Dual-role sem escolha → manda escolher o perfil primeiro
+  useEffect(() => {
+    const p = profileQuery.data;
+    if (p && isDualRole(p) && !activeRole) {
+      navigate({ to: "/selecionar-perfil" });
+    }
+  }, [profileQuery.data, activeRole, navigate]);
 
   // ─── Dados do terapeuta ───────────────────────────────────────────────────────
   const { data: patientsData, isLoading: patientsLoading } = usePatients();
@@ -564,13 +575,15 @@ function DashboardPage() {
     };
   }, [user, careAccesses, qc]);
 
-  // Redireciona responsável sem filhos para o onboarding (não se aplica a terapeuta)
+  // Redireciona responsável sem filhos para o onboarding.
+  // Só quando o papel ativo é explicitamente 'parent' (não dispara enquanto
+  // um usuário dual ainda não escolheu o perfil).
   useEffect(() => {
     if (profileQuery.isLoading || isLoading) return;
-    if (!isTherapist && children && children.length === 0) {
+    if (activeRole === "parent" && children && children.length === 0) {
       navigate({ to: "/onboarding" });
     }
-  }, [profileQuery.isLoading, isLoading, isTherapist, children, navigate]);
+  }, [profileQuery.isLoading, isLoading, activeRole, children, navigate]);
 
   const createChildMutation = useMutation({
     mutationFn: (input: ChildInput) => createChild(user!.id, input),

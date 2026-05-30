@@ -31,27 +31,50 @@ async function getProfileName(userId: string): Promise<string> {
   return (data as any).full_name || ((data as any).email ?? "").split("@")[0] || "Terapeuta";
 }
 
-// ─── Helper: assertTherapist ──────────────────────────────────────────────────
+// ─── Helper: papéis efetivos ──────────────────────────────────────────────────
 
+/** Um usuário "é terapeuta" se user_type OU secondary_role for 'therapist'. */
 async function assertTherapist(userId: string): Promise<void> {
   const { data: profile } = await supabaseAdmin
     .from("profiles")
-    .select("user_type")
+    .select("user_type, secondary_role")
     .eq("id", userId)
     .maybeSingle();
-  if ((profile as any)?.user_type !== "therapist") {
+  const isTherapist =
+    (profile as any)?.user_type === "therapist" ||
+    (profile as any)?.secondary_role === "therapist";
+  if (!isTherapist) {
     throw new Response("Apenas terapeutas podem executar esta ação.", { status: 403 });
   }
 }
 
 // ─── 1. upsertTherapistProfileServer ─────────────────────────────────────────
+//     Concluir o onboarding de terapeuta CONCEDE o papel. Se o usuário ainda
+//     não é terapeuta (ex.: um pai adicionando o papel), grava secondary_role.
 
 export const upsertTherapistProfileServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => therapistProfileSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { userId } = context as any;
-    await assertTherapist(userId);
+
+    // Concede o papel de terapeuta se ainda não tiver.
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("user_type, secondary_role")
+      .eq("id", userId)
+      .maybeSingle();
+    const alreadyTherapist =
+      (profile as any)?.user_type === "therapist" ||
+      (profile as any)?.secondary_role === "therapist";
+    if (!alreadyTherapist) {
+      // user_type já é 'parent' (ou outro) → adiciona terapeuta como secundário.
+      const { error: roleErr } = await (supabaseAdmin as any)
+        .from("profiles")
+        .update({ secondary_role: "therapist" })
+        .eq("id", userId);
+      if (roleErr) throw new Response(roleErr.message, { status: 500 });
+    }
 
     const { error } = await supabaseAdmin.from("therapist_profiles" as any).upsert(
       {

@@ -5,9 +5,23 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { AuthInput } from "@/components/auth/AuthInput";
-import { signIn } from "@/services/auth.service";
+import { signIn, getSession } from "@/services/auth.service";
+import { getProfile } from "@/services/profile.service";
 import { signInSchema } from "@/lib/validation";
 import { useAuth } from "@/hooks/useAuth";
+import { isDualRole, getUserRoles, setActiveRole } from "@/lib/roles";
+
+/** Decide para onde ir após autenticar: seleção de perfil (dual) ou dashboard. */
+async function destinationAfterAuth(userId: string): Promise<"/selecionar-perfil" | "/dashboard"> {
+  try {
+    const prof = await getProfile(userId);
+    if (isDualRole(prof)) return "/selecionar-perfil";
+    setActiveRole(getUserRoles(prof)[0]);
+  } catch {
+    /* sem perfil legível — cai no dashboard, que resolve o papel */
+  }
+  return "/dashboard";
+}
 
 const TEAL = "#0D9488";
 
@@ -75,7 +89,7 @@ function LoginPage() {
       } else if (invite) {
         navigate({ to: "/convite/$token/aceitar", params: { token: invite } });
       } else {
-        navigate({ to: "/dashboard" });
+        void destinationAfterAuth(user.id).then((to) => navigate({ to }));
       }
     }
   }, [loading, user, navigate, invite, therapistInvite]);
@@ -107,7 +121,10 @@ function LoginPage() {
     } else if (invite) {
       navigate({ to: "/convite/$token/aceitar", params: { token: invite } });
     } else {
-      navigate({ to: "/dashboard" });
+      const session = await getSession();
+      const uid = session?.user?.id;
+      const to = uid ? await destinationAfterAuth(uid) : "/dashboard";
+      navigate({ to });
     }
   };
 

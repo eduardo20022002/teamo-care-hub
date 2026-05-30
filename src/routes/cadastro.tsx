@@ -6,9 +6,11 @@ import { z } from "zod";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { AuthInput } from "@/components/auth/AuthInput";
 import { PasswordStrengthBar, PasswordRules } from "@/components/auth/PasswordStrengthBar";
-import { signUp } from "@/services/auth.service";
+import { signUp, signIn, getSession } from "@/services/auth.service";
+import { getProfile } from "@/services/profile.service";
 import { signUpSchema } from "@/lib/validation";
 import { useAuth } from "@/hooks/useAuth";
+import { hasRole, setActiveRole } from "@/lib/roles";
 import type { UserType } from "@/lib/validation";
 
 const TEAL = "#0D9488";
@@ -127,6 +129,7 @@ function SignupPage() {
   }>({});
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [linkNotice, setLinkNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -166,8 +169,44 @@ function SignupPage() {
     }
 
     setErrors({});
+    setLinkNotice(null);
     setSubmitting(true);
     const res = await signUp(parsed.data!.email, parsed.data!.password, parsed.data!.displayName, { userType });
+
+    // E-mail já existe + escolheu Terapeuta → oferecer ADICIONAR papel à conta.
+    // Tentamos vincular usando as credenciais já digitadas (prova de posse).
+    if (!res.ok && res.emailExists && userType === "therapist") {
+      const signInRes = await signIn(parsed.data!.email, parsed.data!.password);
+      if (!signInRes.ok) {
+        setSubmitting(false);
+        setLinkNotice(
+          "Este e-mail já tem uma conta no TEAmo. A senha digitada não confere — faça login para adicionar o perfil de terapeuta.",
+        );
+        return;
+      }
+      // Logado: decide destino conforme papéis atuais.
+      try {
+        const session = await getSession();
+        const uid = session?.user?.id;
+        if (uid) {
+          const prof = await getProfile(uid);
+          if (hasRole(prof, "therapist")) {
+            setActiveRole("therapist");
+            setSubmitting(false);
+            toast.success("Bem-vindo de volta!");
+            navigate({ to: "/dashboard" });
+            return;
+          }
+        }
+      } catch {
+        /* sem perfil legível — segue para o onboarding mesmo assim */
+      }
+      setSubmitting(false);
+      toast.success("Vamos adicionar seu perfil de terapeuta.");
+      navigate({ to: "/onboarding/terapeuta" });
+      return;
+    }
+
     setSubmitting(false);
     if (!res.ok) {
       toast.error(res.error ?? "Não foi possível criar a conta.");
@@ -222,6 +261,23 @@ function SignupPage() {
           {/* Tipo de conta — só mostra se não vier de convite de terapeuta (que assume "parent") */}
           {!therapistInvite && (
             <UserTypeSelector value={userType} onChange={setUserType} disabled={submitting} />
+          )}
+
+          {/* Aviso: e-mail já existe (fluxo de adicionar papel de terapeuta) */}
+          {linkNotice && (
+            <div
+              className="flex flex-col gap-2 rounded-xl px-4 py-3"
+              style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}
+            >
+              <p className="text-sm leading-snug" style={{ color: "#92400E" }}>{linkNotice}</p>
+              <Link
+                to="/login"
+                className="text-sm font-semibold underline"
+                style={{ color: "#0D9488" }}
+              >
+                Ir para o login
+              </Link>
+            </div>
           )}
 
           {/* Nome */}

@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { BrandLogo } from "./BrandLogo";
 import { AccountMenuDrawer } from "./AccountMenuDrawer";
 import { initWebVitals } from "@/lib/analytics";
+import { isDualRole } from "@/lib/roles";
 
 export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu?: boolean }) {
   const navigate = useNavigate();
@@ -28,7 +29,7 @@ export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu
     queryFn: async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("full_name, is_admin")
+        .select("full_name, is_admin, user_type, secondary_role")
         .eq("id", user!.id)
         .maybeSingle();
       return data;
@@ -89,6 +90,17 @@ export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu
                 email={user?.email ?? null}
                 isAdmin={profile?.is_admin ?? false}
                 firstChildId={firstChild?.id ?? null}
+                canSwitchRole={
+                  profile?.user_type
+                    ? isDualRole({
+                        user_type: profile.user_type as "parent" | "therapist",
+                        secondary_role: (profile.secondary_role ?? null) as
+                          | "parent"
+                          | "therapist"
+                          | null,
+                      })
+                    : false
+                }
               />
             </div>
           )}

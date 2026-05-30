@@ -9,6 +9,8 @@ export interface AuthResult {
   needsConfirmation?: boolean;
   /** segundos de espera quando o erro é rate limit — para a UI travar o botão */
   rateLimitSeconds?: number;
+  /** true quando o e-mail já tem conta (permite oferecer adicionar outro papel) */
+  emailExists?: boolean;
 }
 
 function translateAuthError(message: string): string {
@@ -84,7 +86,13 @@ export async function signUp(
   });
   if (error) {
     await logAuthEvent(null, "auth.login_failure", { stage: "signup" });
-    return { ok: false, error: translateAuthError(error.message), rateLimitSeconds: getRateLimitSeconds(error.message) };
+    const isExisting = /already registered|already exists|user already registered/i.test(error.message);
+    return {
+      ok: false,
+      error: translateAuthError(error.message),
+      rateLimitSeconds: getRateLimitSeconds(error.message),
+      emailExists: isExisting || undefined,
+    };
   }
   // Supabase retorna user com identities vazio quando o email já está cadastrado
   // (proteção contra enumeração). Detectamos aqui para dar feedback claro.
@@ -92,6 +100,7 @@ export async function signUp(
     return {
       ok: false,
       error: "Este e-mail já está cadastrado. Faça login ou recupere sua senha.",
+      emailExists: true,
     };
   }
   await logAuthEvent(data.user?.id ?? null, "auth.signup_success", {});

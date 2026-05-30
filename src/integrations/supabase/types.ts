@@ -1,4 +1,3 @@
-Initialising login role...
 export type Json =
   | string
   | number
@@ -720,6 +719,7 @@ export type Database = {
           id: string
           is_admin: boolean
           phone: string | null
+          secondary_role: string | null
           user_type: string
         }
         Insert: {
@@ -730,6 +730,7 @@ export type Database = {
           id: string
           is_admin?: boolean
           phone?: string | null
+          secondary_role?: string | null
           user_type?: string
         }
         Update: {
@@ -740,6 +741,7 @@ export type Database = {
           id?: string
           is_admin?: boolean
           phone?: string | null
+          secondary_role?: string | null
           user_type?: string
         }
         Relationships: []
@@ -1172,5 +1174,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-A new version of Supabase CLI is available: v2.102.0 (currently installed v)
-We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
