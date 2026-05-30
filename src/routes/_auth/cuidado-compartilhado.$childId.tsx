@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   Loader2,
@@ -460,7 +460,6 @@ function PendingRow({
 
 function ManageCarePage() {
   const { childId } = Route.useParams();
-  const navigate = useNavigate();
   const [sheetOpen, setSheetOpen] = useState(false);
   const { data, isLoading, isError, refetch } = useCareInvites(childId);
 
@@ -470,23 +469,24 @@ function ManageCarePage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-2xl px-4 py-6">
+        {/* Voltar — padrão consistente com os demais módulos */}
+        <div className="mb-5">
+          <Link
+            to="/dashboard"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" strokeWidth={1.75} />
+            Voltar ao início
+          </Link>
+        </div>
+
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              type="button"
-              onClick={() => navigate({ to: "/dashboard" })}
-              aria-label="Voltar"
-              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] text-[#6B7280] hover:bg-[#F3F4F6] transition-colors"
-            >
-              <ArrowLeft size={18} />
-            </button>
-            <div className="min-w-0">
-              <h1 className="text-[22px] font-bold text-[#0F172A] leading-tight">Cuidado compartilhado</h1>
-              {data?.childName && (
-                <p className="text-sm text-[#6B7280] truncate">{data.childName}</p>
-              )}
-            </div>
+          <div className="min-w-0">
+            <h1 className="text-[22px] font-bold text-[#0F172A] leading-tight">Cuidado compartilhado</h1>
+            {data?.childName && (
+              <p className="text-sm text-[#6B7280] truncate">{data.childName}</p>
+            )}
           </div>
           <button
             type="button"
