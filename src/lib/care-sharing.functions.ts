@@ -346,9 +346,13 @@ export const listCareInvitesServer = createServerFn({ method: "POST" })
         // Filtro positivo (evita risco de sintaxe do not.in): só os status exibidos.
         .in("status", ["pending", "accepted", "approved"])
         .order("created_at", { ascending: false }),
+      // IMPORTANTE: NÃO embutir auth.users (caregiver:caregiver_id(...)) — o
+      // PostgREST não expõe o schema auth, então o embed FALHA e a lista de
+      // "Ativos" vinha sempre vazia (co-cuidador aprovado nunca aparecia).
+      // Buscamos os acessos simples e enriquecemos o e-mail via admin API abaixo.
       (supabaseAdmin as any)
         .from("care_access")
-        .select("*, caregiver:caregiver_id(id, email, raw_user_meta_data)")
+        .select("*")
         .eq("child_id", data.childId)
         .eq("owner_id", userId)
         .eq("status", "active"),
@@ -360,13 +364,27 @@ export const listCareInvitesServer = createServerFn({ method: "POST" })
       console.error("[care] listCareInvites invites query error:", invitesRes.error.message);
       throw new Response("Erro ao carregar convites.", { status: 500 });
     }
-    // Erro no join de acessos (FK auth.users) é tolerável — só afeta "ativos".
     if (accessRes.error) {
       console.error("[care] listCareInvites access query error:", accessRes.error.message);
+      throw new Response("Erro ao carregar acessos.", { status: 500 });
     }
 
     const invites = (invitesRes.data ?? []) as CareInviteRow[];
-    const accesses = (accessRes.data ?? []) as Array<CareAccessRow & { caregiver: any }>;
+    const accessRows = (accessRes.data ?? []) as CareAccessRow[];
+
+    // Enriquece cada acesso ativo com o e-mail do co-cuidador (auth.users via admin).
+    const accesses = await Promise.all(
+      accessRows.map(async (a) => {
+        let email = "";
+        try {
+          const { data: au } = await supabaseAdmin.auth.admin.getUserById(a.caregiver_id);
+          email = au?.user?.email ?? "";
+        } catch {
+          /* e-mail é secundário; alias já vem em a.alias */
+        }
+        return { ...a, caregiver: { id: a.caregiver_id, email } };
+      }),
+    );
 
     return {
       childName: (child as any).name as string,
