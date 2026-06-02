@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Bell, Heart, Menu, Stethoscope } from "lucide-react";
+import { ArrowLeft, Bell, Heart, Menu, Stethoscope } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { NotificationsDrawer } from "@/components/agenda/NotificationsDrawer";
@@ -32,7 +32,16 @@ const ROLE_THEME = {
   },
 } as const;
 
-export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu?: boolean }) {
+export function AppShell({
+  children,
+  hideMenu,
+  onBack,
+}: {
+  children: ReactNode;
+  hideMenu?: boolean;
+  /** Quando fornecido, exibe botão de voltar no header (útil com hideMenu=true). */
+  onBack?: () => void;
+}) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -97,6 +106,17 @@ export function AppShell({ children, hideMenu }: { children: ReactNode; hideMenu
       >
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
+            {/* Botão de voltar — exibido apenas quando onBack é fornecido */}
+            {onBack && (
+              <button
+                type="button"
+                aria-label="Voltar"
+                onClick={onBack}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] text-foreground transition-colors hover:bg-muted -ml-1"
+              >
+                <ArrowLeft className="h-5 w-5" strokeWidth={1.9} />
+              </button>
+            )}
             <BrandLogo className="text-2xl" />
 
             {/* Role pill — visível apenas quando autenticado e não em páginas de onboarding */}

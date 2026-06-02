@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Loader2, ArrowRight, ArrowLeft, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
-import { useUpsertTherapistProfile, useCreatePatient } from "@/services/therapist.service";
+import { useUpsertTherapistProfile, useCreatePatient, useTherapistProfile } from "@/services/therapist.service";
 import {
   THERAPIST_SPECIALTIES,
   COUNCIL_TYPES,
@@ -43,6 +43,10 @@ function TherapistOnboardingPage() {
   const navigate = useNavigate();
   const upsertProfile = useUpsertTherapistProfile();
   const createPatient = useCreatePatient();
+  // Se o perfil de terapeuta já existe, o usuário está adicionando paciente via dashboard
+  // e deve ter um botão de voltar.
+  const therapistProfileQuery = useTherapistProfile();
+  const hasExistingProfile = !!therapistProfileQuery.data?.profile;
 
   const [step, setStep] = useState<Step>(1);
 
@@ -151,7 +155,10 @@ function TherapistOnboardingPage() {
   };
 
   return (
-    <AppShell hideMenu>
+    <AppShell
+      hideMenu
+      onBack={hasExistingProfile ? () => navigate({ to: "/dashboard" }) : undefined}
+    >
       <div className="mx-auto max-w-[480px] px-4 py-6">
         <StepIndicator step={step} total={3} />
 
