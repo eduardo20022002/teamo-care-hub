@@ -16,6 +16,16 @@ export const deleteAccountServer = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { userId } = context as any;
 
+    // Defesa em profundidade: remove o perfil explicitamente antes do deleteUser.
+    // O FK com ON DELETE CASCADE já faria isso, mas garantir aqui evita
+    // que o e-mail fique "preso" se o cascade demorar ou falhar silenciosamente.
+    await (supabaseAdmin as any)
+      .from("profiles")
+      .delete()
+      .eq("id", userId);
+
+    // Remove o usuário do auth.users — cascade apaga children, attendance_records,
+    // care_invites, care_access, therapist_invites, therapist_parent_access, etc.
     const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
     if (error) {

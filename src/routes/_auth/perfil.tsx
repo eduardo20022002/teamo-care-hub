@@ -34,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/hooks/useAuth";
 import { formatAge, formatBirthDate, formatDateLong } from "@/lib/formatters";
 import { createChild } from "@/services/children.service";
@@ -46,6 +47,7 @@ import {
 } from "@/services/profile.service";
 import { deleteAccountServer } from "@/lib/account.functions";
 import { signOut } from "@/services/auth.service";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_auth/perfil")({
   head: () => ({
@@ -101,6 +103,9 @@ function PerfilPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();
+
+  // useServerFn deve ser chamado no topo do componente (é um hook)
+  const deleteAccountFn = useServerFn(deleteAccountServer);
 
   // ── Editing state ──────────────────────────────────────────────────────────
   const [editField, setEditField] = useState<
@@ -496,10 +501,18 @@ function PerfilPage() {
               onClick={async () => {
                 setDeleting(true);
                 try {
-                  // Faz logout local antes para invalidar tokens no cliente
+                  // 1. Obtém token ANTES de qualquer signOut
+                  const { data: sessionData } = await supabase.auth.getSession();
+                  const token = sessionData.session?.access_token;
+                  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+                  // 2. Exclui a conta no servidor (cascade apaga todos os dados)
+                  //    DEVE vir antes do signOut para que o token ainda seja válido
+                  await deleteAccountFn({ data: {}, headers });
+
+                  // 3. Faz logout local após a exclusão bem-sucedida
                   await signOut("manual");
-                  // Exclui a conta no servidor (cascade apaga todos os dados)
-                  await deleteAccountServer({ data: {} });
+
                   setDeleteDialogOpen(false);
                   toast.success("Conta excluída com sucesso.");
                   navigate({ to: "/login" });
