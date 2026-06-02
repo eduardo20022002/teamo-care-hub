@@ -573,10 +573,11 @@ function DashboardPage() {
   // um usuário dual ainda não escolheu o perfil).
   useEffect(() => {
     if (profileQuery.isLoading || isLoading) return;
-    if (activeRole === "parent" && children && children.length === 0) {
+    if (!profileQuery.data) return; // perfil ainda não carregou (evita redirect prematuro)
+    if (!isTherapist && children && children.length === 0) {
       navigate({ to: "/onboarding" });
     }
-  }, [profileQuery.isLoading, isLoading, activeRole, children, navigate]);
+  }, [profileQuery.isLoading, profileQuery.data, isLoading, isTherapist, children, navigate]);
 
   const createChildMutation = useMutation({
     mutationFn: (input: ChildInput) => createChild(user!.id, input),
