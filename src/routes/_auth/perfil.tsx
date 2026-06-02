@@ -44,6 +44,8 @@ import {
   updateProfile,
   type ProfilePatch,
 } from "@/services/profile.service";
+import { deleteAccountServer } from "@/lib/account.functions";
+import { signOut } from "@/services/auth.service";
 
 export const Route = createFileRoute("/_auth/perfil")({
   head: () => ({
@@ -108,6 +110,7 @@ function PerfilPage() {
   const [addChildOpen, setAddChildOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   // ── Queries ────────────────────────────────────────────────────────────────
   const profileQuery = useQuery({
@@ -489,15 +492,28 @@ function PerfilPage() {
             </Button>
             <Button
               variant="destructive"
-              disabled={deleteConfirm !== "EXCLUIR"}
-              onClick={() => {
-                toast.error(
-                  "Para excluir sua conta, entre em contato com suporte@teamotech.online",
-                );
-                setDeleteDialogOpen(false);
+              disabled={deleteConfirm !== "EXCLUIR" || deleting}
+              onClick={async () => {
+                setDeleting(true);
+                try {
+                  // Faz logout local antes para invalidar tokens no cliente
+                  await signOut("manual");
+                  // Exclui a conta no servidor (cascade apaga todos os dados)
+                  await deleteAccountServer({ data: {} });
+                  setDeleteDialogOpen(false);
+                  toast.success("Conta excluída com sucesso.");
+                  navigate({ to: "/login" });
+                } catch {
+                  toast.error("Não foi possível excluir a conta. Tente novamente.");
+                  setDeleting(false);
+                }
               }}
             >
-              Excluir
+              {deleting ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-2" />Excluindo…</>
+              ) : (
+                "Excluir"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
