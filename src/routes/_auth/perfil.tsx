@@ -504,11 +504,11 @@ function PerfilPage() {
                   // 1. Obtém token ANTES de qualquer signOut
                   const { data: sessionData } = await supabase.auth.getSession();
                   const token = sessionData.session?.access_token;
-                  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+                  const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
 
                   // 2. Exclui a conta no servidor (cascade apaga todos os dados)
                   //    DEVE vir antes do signOut para que o token ainda seja válido
-                  await deleteAccountFn({ data: {}, headers });
+                  await deleteAccountFn({ headers });
 
                   // 3. Faz logout local após a exclusão bem-sucedida
                   await signOut("manual");
