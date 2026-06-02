@@ -9,7 +9,6 @@ import {
   LogOut,
   MessageSquare,
   Pencil,
-  Repeat,
   Settings,
   User,
   X,
@@ -24,7 +23,6 @@ import {
   DrawerPortal,
 } from "@/components/ui/drawer";
 import { signOut } from "@/services/auth.service";
-import { clearActiveRole } from "@/lib/roles";
 
 interface AccountMenuDrawerProps {
   open: boolean;
@@ -33,8 +31,6 @@ interface AccountMenuDrawerProps {
   email: string | null;
   isAdmin?: boolean;
   firstChildId?: string | null;
-  /** true quando a conta tem dois papéis (pai + terapeuta) */
-  canSwitchRole?: boolean;
 }
 
 interface MenuRowProps {
@@ -74,7 +70,7 @@ function SectionLabel({ children }: { children: string }) {
   );
 }
 
-export function AccountMenuDrawer({ open, onClose, fullName, email, isAdmin, firstChildId, canSwitchRole }: AccountMenuDrawerProps) {
+export function AccountMenuDrawer({ open, onClose, fullName, email, isAdmin, firstChildId }: AccountMenuDrawerProps) {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -83,12 +79,6 @@ export function AccountMenuDrawer({ open, onClose, fullName, email, isAdmin, fir
   const go = (to: string) => {
     onClose();
     void navigate({ to });
-  };
-
-  const handleSwitchRole = () => {
-    clearActiveRole();
-    onClose();
-    void navigate({ to: "/selecionar-perfil" });
   };
 
   const handleLogout = async () => {
@@ -158,15 +148,6 @@ export function AccountMenuDrawer({ open, onClose, fullName, email, isAdmin, fir
 
           {/* CONTA section */}
           <SectionLabel>Conta</SectionLabel>
-          {canSwitchRole && (
-            <MenuRow
-              icon={<Repeat className="h-5 w-5 text-[#0D9488]" strokeWidth={1.75} />}
-              iconBg="bg-[#0D9488]/10"
-              label="Trocar perfil"
-              subtitle="Alternar entre responsável e terapeuta"
-              onClick={handleSwitchRole}
-            />
-          )}
           <MenuRow
             icon={<User className="h-5 w-5 text-primary" strokeWidth={1.75} />}
             iconBg="bg-primary/10"

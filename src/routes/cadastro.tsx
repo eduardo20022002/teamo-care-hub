@@ -6,11 +6,10 @@ import { z } from "zod";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { AuthInput } from "@/components/auth/AuthInput";
 import { PasswordStrengthBar, PasswordRules } from "@/components/auth/PasswordStrengthBar";
-import { signUp, signIn, getSession } from "@/services/auth.service";
-import { getProfile } from "@/services/profile.service";
+import { signUp } from "@/services/auth.service";
 import { signUpSchema } from "@/lib/validation";
 import { useAuth } from "@/hooks/useAuth";
-import { hasRole, setActiveRole } from "@/lib/roles";
+import { checkEmailTypeServer } from "@/lib/auth.functions";
 import type { UserType } from "@/lib/validation";
 
 const TEAL = "#0D9488";
@@ -173,37 +172,30 @@ function SignupPage() {
     setSubmitting(true);
     const res = await signUp(parsed.data!.email, parsed.data!.password, parsed.data!.displayName, { userType });
 
-    // E-mail já existe + escolheu Terapeuta → oferecer ADICIONAR papel à conta.
-    // Tentamos vincular usando as credenciais já digitadas (prova de posse).
-    if (!res.ok && res.emailExists && userType === "therapist") {
-      const signInRes = await signIn(parsed.data!.email, parsed.data!.password);
-      if (!signInRes.ok) {
-        setSubmitting(false);
-        setLinkNotice(
-          "Este e-mail já tem uma conta no TEAmo. A senha digitada não confere — faça login para adicionar o perfil de terapeuta.",
-        );
-        return;
-      }
-      // Logado: decide destino conforme papéis atuais.
+    // E-mail já cadastrado → descobre qual tipo e exibe mensagem orientativa.
+    // Regra: 1 e-mail = 1 tipo de perfil. Não há adição de papel secundário.
+    if (!res.ok && res.emailExists) {
+      setSubmitting(false);
       try {
-        const session = await getSession();
-        const uid = session?.user?.id;
-        if (uid) {
-          const prof = await getProfile(uid);
-          if (hasRole(prof, "therapist")) {
-            setActiveRole("therapist");
-            setSubmitting(false);
-            toast.success("Bem-vindo de volta!");
-            navigate({ to: "/dashboard" });
-            return;
+        const check = await checkEmailTypeServer({ data: { email: parsed.data!.email } });
+        if (check.found) {
+          const existingLabel = check.userType === "therapist" ? "Terapeuta" : "Responsável";
+          const attemptedLabel = userType === "therapist" ? "Terapeuta" : "Responsável";
+          if (check.userType === userType) {
+            setLinkNotice(
+              `Este e-mail já está cadastrado como ${existingLabel}. Faça login para acessar sua conta.`,
+            );
+          } else {
+            setLinkNotice(
+              `Este e-mail já está cadastrado como ${existingLabel}. Para usar o TEAmo como ${attemptedLabel}, cadastre-se com outro e-mail.`,
+            );
           }
+        } else {
+          setLinkNotice("Este e-mail já está em uso. Faça login ou use outro e-mail.");
         }
       } catch {
-        /* sem perfil legível — segue para o onboarding mesmo assim */
+        setLinkNotice("Este e-mail já está em uso. Faça login ou use outro e-mail.");
       }
-      setSubmitting(false);
-      toast.success("Vamos adicionar seu perfil de terapeuta.");
-      navigate({ to: "/onboarding/terapeuta" });
       return;
     }
 

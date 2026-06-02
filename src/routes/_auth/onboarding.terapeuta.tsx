@@ -11,7 +11,6 @@ import {
   therapistProfileSchema,
   therapistPatientSchema,
 } from "@/lib/validation";
-import { setActiveRole } from "@/lib/roles";
 
 const TEAL = "#0D9488";
 const TEAL_SOFT = "#F0FDFA";
@@ -99,9 +98,6 @@ function TherapistOnboardingPage() {
     setSubmitting(true);
     try {
       await upsertProfile.mutateAsync(parsed.data);
-      // Concluiu o perfil profissional → papel de terapeuta concedido.
-      // Fixa o papel ativo para não cair na tela de seleção ao ir ao dashboard.
-      setActiveRole("therapist");
       setStep(3);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao salvar perfil.");

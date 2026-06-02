@@ -32,7 +32,7 @@ import { listProfessionals } from "@/services/professionals.service";
 import { createAttendanceRecord } from "@/services/attendance.service";
 import { getProfile } from "@/services/profile.service";
 import { usePatients, useMyTherapistAccesses } from "@/services/therapist.service";
-import { resolveActiveRole, isDualRole } from "@/lib/roles";
+import { getRole } from "@/lib/roles";
 import {
   formatAge,
   formatBirthDate,
@@ -485,17 +485,10 @@ function DashboardPage() {
     enabled: !!user,
     staleTime: 60_000,
   });
-  // Papel ativo: papel único → automático; dual → escolhido em /selecionar-perfil
-  const activeRole = profileQuery.data ? resolveActiveRole(profileQuery.data) : null;
-  const isTherapist = activeRole === "therapist";
-
-  // Dual-role sem escolha → manda escolher o perfil primeiro
-  useEffect(() => {
-    const p = profileQuery.data;
-    if (p && isDualRole(p) && !activeRole) {
-      navigate({ to: "/selecionar-perfil" });
-    }
-  }, [profileQuery.data, activeRole, navigate]);
+  // Papel do usuário — sempre user_type (1 e-mail = 1 perfil)
+  const isTherapist = profileQuery.data
+    ? getRole(profileQuery.data) === "therapist"
+    : false;
 
   // ─── Dados do terapeuta ───────────────────────────────────────────────────────
   const { data: patientsData, isLoading: patientsLoading } = usePatients();

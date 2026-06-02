@@ -34,24 +34,19 @@ async function getProfileName(userId: string): Promise<string> {
 
 // ─── Helper: papéis efetivos ──────────────────────────────────────────────────
 
-/** Um usuário "é terapeuta" se user_type OU secondary_role for 'therapist'. */
+/** Um usuário "é terapeuta" se user_type for 'therapist'. Regra: 1 e-mail = 1 perfil. */
 async function assertTherapist(userId: string): Promise<void> {
   const { data: profile } = await supabaseAdmin
     .from("profiles")
-    .select("user_type, secondary_role")
+    .select("user_type")
     .eq("id", userId)
     .maybeSingle();
-  const isTherapist =
-    (profile as any)?.user_type === "therapist" ||
-    (profile as any)?.secondary_role === "therapist";
-  if (!isTherapist) {
+  if ((profile as any)?.user_type !== "therapist") {
     throw new Response("Apenas terapeutas podem executar esta ação.", { status: 403 });
   }
 }
 
 // ─── 1. upsertTherapistProfileServer ─────────────────────────────────────────
-//     Concluir o onboarding de terapeuta CONCEDE o papel. Se o usuário ainda
-//     não é terapeuta (ex.: um pai adicionando o papel), grava secondary_role.
 
 export const upsertTherapistProfileServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -59,23 +54,9 @@ export const upsertTherapistProfileServer = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context as any;
 
-    // Concede o papel de terapeuta se ainda não tiver.
-    const { data: profile } = await supabaseAdmin
-      .from("profiles")
-      .select("user_type, secondary_role")
-      .eq("id", userId)
-      .maybeSingle();
-    const alreadyTherapist =
-      (profile as any)?.user_type === "therapist" ||
-      (profile as any)?.secondary_role === "therapist";
-    if (!alreadyTherapist) {
-      // user_type já é 'parent' (ou outro) → adiciona terapeuta como secundário.
-      const { error: roleErr } = await (supabaseAdmin as any)
-        .from("profiles")
-        .update({ secondary_role: "therapist" })
-        .eq("id", userId);
-      if (roleErr) throw new Response(roleErr.message, { status: 500 });
-    }
+    // Regra: apenas usuários com user_type = 'therapist' chegam aqui.
+    // Não há mais concessão de secondary_role (1 e-mail = 1 perfil).
+    await assertTherapist(userId);
 
     const { error } = await supabaseAdmin.from("therapist_profiles" as any).upsert(
       {
