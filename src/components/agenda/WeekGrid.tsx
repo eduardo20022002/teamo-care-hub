@@ -9,6 +9,8 @@ interface Props {
   onNext: () => void;
   events: AgendaEventWithRelations[];
   onSelectEvent: (eventId: string) => void;
+  /** Quando fornecida, substitui TYPE_STYLES por cores personalizadas por evento */
+  getEventColor?: (event: AgendaEventWithRelations) => { col: string; label?: string };
 }
 
 const HOURS = [8, 10, 12, 14, 16, 18];
@@ -46,6 +48,7 @@ export function WeekGrid({
   onNext,
   events,
   onSelectEvent,
+  getEventColor,
 }: Props) {
   const today = new Date();
   const days = Array.from({ length: 7 }, (_, i) => {
@@ -149,21 +152,33 @@ export function WeekGrid({
             </div>
             {days.map((_, i) => {
               const cellEv = eventByCell.get(`${i}-${h}`);
+              const evColor = cellEv
+                ? getEventColor
+                  ? getEventColor(cellEv)
+                  : { col: TYPE_STYLES[cellEv.type].col }
+                : null;
               return (
                 <button
                   key={`cell-${h}-${i}`}
                   type="button"
                   onClick={cellEv ? () => onSelectEvent(cellEv.id) : undefined}
-                  className="h-7 rounded-[6px]"
+                  className="h-7 rounded-[6px] relative overflow-hidden"
                   style={{
-                    background: cellEv
-                      ? TYPE_STYLES[cellEv.type].col
-                      : "#FAFBFD",
+                    background: evColor ? evColor.col : "#FAFBFD",
                     border: cellEv ? "none" : "1px solid #F1F2F6",
                     cursor: cellEv ? "pointer" : "default",
                   }}
                   aria-label={cellEv ? cellEv.title : undefined}
-                />
+                >
+                  {evColor?.label && (
+                    <span
+                      className="absolute inset-0 flex items-center justify-center text-[9px] font-extrabold text-white"
+                      style={{ textShadow: "0 1px 2px rgba(0,0,0,0.2)" }}
+                    >
+                      {evColor.label}
+                    </span>
+                  )}
+                </button>
               );
             })}
           </Fragment>

@@ -2,6 +2,15 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AGENDA_BRAND, TYPE_STYLES } from "@/lib/agenda/tokens";
 import type { AgendaEventWithRelations } from "@/types/agenda";
 
+export type SessionDayStatus = "complete" | "pending" | "missed" | "upcoming";
+
+const SESSION_STATUS_COLORS: Record<SessionDayStatus, string> = {
+  complete: "#0D9488",  // teal verde
+  pending:  "#D97706",  // amber
+  missed:   "#DC2626",  // vermelho
+  upcoming: "#9CA3AF",  // cinza
+};
+
 interface Props {
   monthYear: { year: number; month: number }; // month 0-indexed
   selectedDate: Date;
@@ -9,6 +18,8 @@ interface Props {
   onPrevMonth: () => void;
   onNextMonth: () => void;
   events: AgendaEventWithRelations[];
+  /** Quando fornecido (modo terapeuta), mostra dots de status em vez de dots de tipo */
+  sessionStatusMap?: Map<string, SessionDayStatus>;
 }
 
 const MONTH_LABELS_PT = [
@@ -47,18 +58,22 @@ export function MonthGrid({
   onPrevMonth,
   onNextMonth,
   events,
+  sessionStatusMap,
 }: Props) {
   const days = buildCalendarDays(monthYear.year, monthYear.month);
   const today = new Date();
+  const therapistMode = !!sessionStatusMap;
 
-  // Mapeia "year-month-day" → set de tipos (até 3) presentes
+  // Mapeia "year-month-day" → set de tipos (até 3) presentes (modo pai)
   const typesByDay = new Map<string, string[]>();
-  for (const ev of events) {
-    const d = new Date(ev.start_at);
-    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-    const arr = typesByDay.get(key) ?? [];
-    if (!arr.includes(ev.type)) arr.push(ev.type);
-    typesByDay.set(key, arr);
+  if (!therapistMode) {
+    for (const ev of events) {
+      const d = new Date(ev.start_at);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      const arr = typesByDay.get(key) ?? [];
+      if (!arr.includes(ev.type)) arr.push(ev.type);
+      typesByDay.set(key, arr);
+    }
   }
 
   const isSameDay = (a: Date, b: Date) =>
@@ -114,7 +129,13 @@ export function MonthGrid({
           const isToday = isSameDay(d, today);
           const isSelected = isSameDay(d, selectedDate);
           const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-          const dots = (typesByDay.get(key) ?? []).slice(0, 3);
+
+          // Modo terapeuta: 1 dot de status por dia
+          const sessionStatus = therapistMode ? sessionStatusMap!.get(key) : undefined;
+
+          // Modo pai: até 3 dots de tipo
+          const dots = !therapistMode ? (typesByDay.get(key) ?? []).slice(0, 3) : [];
+
           return (
             <button
               key={i}
@@ -123,7 +144,7 @@ export function MonthGrid({
               className="relative flex flex-col items-center justify-center rounded-[10px]"
               style={{
                 aspectRatio: "1",
-                background: isSelected ? AGENDA_BRAND.col : "transparent",
+                background: isSelected ? (therapistMode ? "#0D9488" : AGENDA_BRAND.col) : "transparent",
               }}
             >
               <span
@@ -140,6 +161,16 @@ export function MonthGrid({
               >
                 {d.getDate()}
               </span>
+              {/* Dot de status (modo terapeuta) */}
+              {sessionStatus && (
+                <span
+                  className="mt-0.5 h-1 w-1 rounded-full"
+                  style={{
+                    background: isSelected ? "white" : SESSION_STATUS_COLORS[sessionStatus],
+                  }}
+                />
+              )}
+              {/* Dots de tipo (modo pai) */}
               {dots.length > 0 && (
                 <div className="mt-0.5 flex h-1 gap-0.5">
                   {dots.map((tType, j) => (
@@ -182,6 +213,33 @@ export function MonthLegend() {
           </span>
         ),
       )}
+    </div>
+  );
+}
+
+/** Legenda de status de sessão para a visão de mês do terapeuta. */
+export function TherapistMonthLegend() {
+  const items: { status: SessionDayStatus; label: string }[] = [
+    { status: "complete", label: "Registro completo" },
+    { status: "pending",  label: "Pendente" },
+    { status: "missed",   label: "Falta" },
+    { status: "upcoming", label: "Futura" },
+  ];
+  return (
+    <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+      {items.map(({ status, label }) => (
+        <span
+          key={status}
+          className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold"
+          style={{ color: "#6B7280" }}
+        >
+          <span
+            className="h-[7px] w-[7px] rounded-full"
+            style={{ background: SESSION_STATUS_COLORS[status] }}
+          />
+          {label}
+        </span>
+      ))}
     </div>
   );
 }

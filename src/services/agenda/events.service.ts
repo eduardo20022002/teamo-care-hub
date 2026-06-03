@@ -161,6 +161,25 @@ const MOCK_EVENTS: AgendaEventWithRelations[] = DEV_BYPASS
     ]
   : [];
 
+// ─── TherapistSessionInput — usado por TherapistEventFormSheet ────────────────
+export interface TherapistSessionInput {
+  childId: string;
+  childName: string;
+  sessionType: "individual" | "grupo" | "familiar";
+  date: string;           // "YYYY-MM-DD"
+  startTime: string;      // "HH:MM"
+  durationMinutes: number;
+  recurrence: "none" | "weekly" | "biweekly" | "monthly";
+  daysOfWeek: number[];   // 0=Dom .. 6=Sáb (usados quando recurrence = weekly/biweekly)
+  locale: string;
+}
+
+const SESSION_TYPE_LABELS: Record<string, string> = {
+  individual: "Individual",
+  grupo: "Em grupo",
+  familiar: "Familiar",
+};
+
 function mapError(message: string): string {
   if (/network|failed to fetch/i.test(message)) {
     return "Sem conexão com o servidor. Tente novamente.";
@@ -267,6 +286,67 @@ export async function createAgendaEvent(
   }
 
   return created;
+}
+
+export async function createTherapistSession(
+  userId: string,
+  input: TherapistSessionInput,
+): Promise<AgendaEvent> {
+  if (DEV_BYPASS) {
+    throw new Error("Modo preview: operação indisponível.");
+  }
+
+  const startAt = combineDateTime(input.date, input.startTime);
+  // end_at = start_at + durationMinutes
+  const endDate = new Date(startAt);
+  endDate.setMinutes(endDate.getMinutes() + input.durationMinutes);
+  const endAt = endDate.toISOString();
+
+  const typeLabel = SESSION_TYPE_LABELS[input.sessionType] ?? "Sessão";
+  const title = `${input.childName} — ${typeLabel}`;
+
+  type RecurrencePayload =
+    | { freq: "none" }
+    | { freq: "weekly"; daysOfWeek: number[] }
+    | { freq: "biweekly"; dayOfWeek: number }
+    | { freq: "monthly" };
+
+  let recurrence: RecurrencePayload;
+  if (input.recurrence === "weekly") {
+    recurrence = { freq: "weekly", daysOfWeek: input.daysOfWeek.length ? input.daysOfWeek : [new Date(startAt).getDay()] };
+  } else if (input.recurrence === "biweekly") {
+    recurrence = { freq: "biweekly", dayOfWeek: input.daysOfWeek[0] ?? new Date(startAt).getDay() };
+  } else if (input.recurrence === "monthly") {
+    recurrence = { freq: "monthly" };
+  } else {
+    recurrence = { freq: "none" };
+  }
+
+  const payload = {
+    user_id: userId,
+    child_id: input.childId,
+    therapist_id: userId,
+    session_type: input.sessionType,
+    type: "terapia" as const,
+    title: title.slice(0, 120),
+    professional_id: null,
+    professional_name_raw: null,
+    start_at: startAt,
+    end_at: endAt,
+    locale: input.locale.trim() || null,
+    recurrence,
+    reminders: { oneDayBefore: false, oneHourBefore: false },
+    type_data: { kind: "terapia" },
+  };
+
+  const { data, error } = await supabase
+    .from("agenda_events")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .insert(payload as any)
+    .select()
+    .single();
+  if (error) throw new Error(mapError(error.message));
+  return data as unknown as AgendaEvent;
 }
 
 export async function deleteAgendaEvent(id: string): Promise<void> {

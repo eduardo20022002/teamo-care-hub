@@ -6,6 +6,9 @@ import {
   ArrowRight,
   Bell,
   Calendar,
+  ClipboardCheck,
+  ClipboardEdit,
+  Eye,
   MapPin,
   Plus,
   Repeat,
@@ -23,6 +26,10 @@ import {
   listAgendaEvents,
   updateAgendaEventStatus,
 } from "@/services/agenda/events.service";
+import { getProfile } from "@/services/profile.service";
+import { getRole } from "@/lib/roles";
+import { useGetSessionRecord } from "@/services/therapist.service";
+import { getPatientColor } from "@/lib/agenda/tokens";
 import {
   listObservationsByEvent,
   listPendingObservationsByEvent,
@@ -127,6 +134,23 @@ function AgendaEventDetailPage() {
   const { eventId } = Route.useParams();
   const qc = useQueryClient();
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  const TEAL = "#0D9488";
+
+  // Papel do usuário
+  const profileQuery = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: () => getProfile(user!.id),
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+  const isTherapist = profileQuery.data
+    ? getRole(profileQuery.data) === "therapist"
+    : false;
+
+  // Registro de sessão (só para terapeuta)
+  const sessionRecordQuery = useGetSessionRecord(isTherapist ? eventId : undefined);
+  const sessionRecord = sessionRecordQuery.data?.sessionRecord as any;
 
   // Pegamos o evento do listAgendaEvents (com relations já carregadas).
   // Numa fase posterior podemos ter um getAgendaEvent(id) dedicado.
@@ -401,8 +425,109 @@ function AgendaEventDetailPage() {
           </div>
         )}
 
-        {/* Após o compromisso (só se já passou da hora) */}
-        {isPast && (
+        {/* ── Ações de sessão para TERAPEUTA ──────────────────────────── */}
+        {isTherapist && (() => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const evAny = event as any;
+          const isOwnSession = evAny.therapist_id === user?.id;
+          if (!isOwnSession) return null;
+
+          const attendance = evAny.session_attendance as string | null;
+          const hasDraft    = sessionRecord && sessionRecord.is_draft === true;
+          const hasPublished = sessionRecord && sessionRecord.is_draft === false;
+
+          let primaryCTA: React.ReactNode = null;
+          let secondaryCTA: React.ReactNode = null;
+
+          if (hasPublished) {
+            // Registro publicado — ver apenas
+            primaryCTA = (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate({ to: "/agenda/sessao/$eventId/registro" as any, params: { eventId } as any })
+                }
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold text-white"
+                style={{ background: TEAL }}
+              >
+                <Eye size={16} strokeWidth={2} />
+                Ver registro publicado
+              </button>
+            );
+          } else if (hasDraft) {
+            // Rascunho — continuar
+            primaryCTA = (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate({ to: "/agenda/sessao/$eventId/registro" as any, params: { eventId } as any })
+                }
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold text-white"
+                style={{ background: TEAL }}
+              >
+                <ClipboardEdit size={16} strokeWidth={2} />
+                Continuar registro
+              </button>
+            );
+          } else if (attendance === "happened" || (isPast && !attendance)) {
+            // Sessão passada sem registro
+            primaryCTA = (
+              <button
+                type="button"
+                onClick={() =>
+                  attendance === "happened"
+                    ? navigate({ to: "/agenda/sessao/$eventId/registro" as any, params: { eventId } as any })
+                    : navigate({ to: "/agenda/sessao/$eventId/confirmacao" as any, params: { eventId } as any })
+                }
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold text-white"
+                style={{ background: TEAL }}
+              >
+                <ClipboardCheck size={16} strokeWidth={2} />
+                Registrar sessão
+              </button>
+            );
+          } else if (!isPast) {
+            // Futura — planejar
+            primaryCTA = (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate({ to: "/agenda/sessao/$eventId/plano" as any, params: { eventId } as any })
+                }
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold text-white"
+                style={{ background: TEAL }}
+              >
+                <ClipboardEdit size={16} strokeWidth={2} />
+                Planejar sessão
+              </button>
+            );
+            secondaryCTA = (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate({ to: "/agenda/sessao/$eventId/confirmacao" as any, params: { eventId } as any })
+                }
+                className="flex h-[46px] w-full items-center justify-center gap-2 rounded-xl border bg-white text-[14px] font-bold transition-colors hover:bg-[#F4F5FA]"
+                style={{ borderColor: "#E5E7EB", color: "#0F172A" }}
+              >
+                <ClipboardCheck size={16} strokeWidth={2} />
+                Confirmar comparecimento
+              </button>
+            );
+          }
+
+          if (!primaryCTA && !secondaryCTA) return null;
+
+          return (
+            <div className="mt-6 flex flex-col gap-2">
+              {primaryCTA}
+              {secondaryCTA}
+            </div>
+          );
+        })()}
+
+        {/* Após o compromisso (só para PAIS) */}
+        {!isTherapist && isPast && (
           <div className="mt-6">
             <AfterAppointmentActions
               currentStatus={event.status}
@@ -411,37 +536,39 @@ function AgendaEventDetailPage() {
           </div>
         )}
 
-        {/* Ações primárias */}
-        <div className="mt-6 flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={() =>
-              navigate({
-                to: "/registros",
-                search: { prefillFromEvent: eventId },
-              })
-            }
-            className="flex h-12 items-center justify-center gap-2 rounded-xl text-[14px] font-bold text-white transition-transform hover:-translate-y-px"
-            style={{ background: BRAND_GRADIENT, boxShadow: BRAND_SHADOW }}
-          >
-            Registrar atendimento
-            <ArrowRight size={16} strokeWidth={2} />
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              navigate({
-                to: "/compartilhamentos",
-                search: { prefillEventId: eventId },
-              })
-            }
-            className="flex h-[46px] items-center justify-center gap-2 rounded-xl border bg-white text-[14px] font-bold transition-colors hover:bg-[#F4F5FA]"
-            style={{ borderColor: "#E5E7EB", color: "#0F172A" }}
-          >
-            Compartilhar evento via link
-            <ArrowRight size={16} strokeWidth={2} />
-          </button>
-        </div>
+        {/* Ações primárias (só para PAIS) */}
+        {!isTherapist && (
+          <div className="mt-6 flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                navigate({
+                  to: "/registros",
+                  search: { prefillFromEvent: eventId },
+                })
+              }
+              className="flex h-12 items-center justify-center gap-2 rounded-xl text-[14px] font-bold text-white transition-transform hover:-translate-y-px"
+              style={{ background: BRAND_GRADIENT, boxShadow: BRAND_SHADOW }}
+            >
+              Registrar atendimento
+              <ArrowRight size={16} strokeWidth={2} />
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                navigate({
+                  to: "/compartilhamentos",
+                  search: { prefillEventId: eventId },
+                })
+              }
+              className="flex h-[46px] items-center justify-center gap-2 rounded-xl border bg-white text-[14px] font-bold transition-colors hover:bg-[#F4F5FA]"
+              style={{ borderColor: "#E5E7EB", color: "#0F172A" }}
+            >
+              Compartilhar evento via link
+              <ArrowRight size={16} strokeWidth={2} />
+            </button>
+          </div>
+        )}
 
         <div className="h-8" />
       </div>
