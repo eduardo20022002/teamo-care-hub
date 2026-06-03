@@ -276,6 +276,8 @@ function AgendaEventDetailPage() {
     .filter(Boolean)
     .join(" · ");
   const isPast = new Date(event.start_at) < new Date();
+  // Sessão pertencente ao próprio terapeuta logado
+  const isOwnSession = isTherapist && (event as any).therapist_id === user?.id;
   const observations = observationsQuery.data ?? [];
   const pending = pendingQuery.data ?? [];
   const recurrenceLabel = formatRecurrenceLabel(event.recurrence);
@@ -364,73 +366,76 @@ function AgendaEventDetailPage() {
           />
         </div>
 
-        {/* Observações */}
-        <div className="mt-6 mb-2 flex items-baseline justify-between">
-          <div className="flex items-baseline gap-2">
-            <h2
-              className="text-base font-extrabold"
-              style={{ color: "#0F172A", letterSpacing: "-0.02em" }}
-            >
-              Observações
-            </h2>
-            <span
-              className="text-[13px] font-semibold"
-              style={{ color: "#9CA3AF" }}
-            >
-              {observations.length}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setSheetOpen(true)}
-            className="inline-flex h-8 items-center gap-1 rounded-[9px] px-3 text-[12.5px] font-bold text-white transition-transform hover:-translate-y-px"
-            style={{
-              background: AGENDA_BRAND.col,
-              boxShadow: "0 8px 18px -8px rgba(124,58,237,0.35)",
-            }}
-          >
-            <Plus size={14} strokeWidth={2.2} />
-            Anotar
-          </button>
-        </div>
-        {observations.length === 0 ? (
-          <div
-            className="rounded-2xl border border-dashed px-4 py-6 text-center text-sm"
-            style={{ borderColor: "#E5E7EB", color: "#9CA3AF" }}
-          >
-            Sem observações por enquanto. Toque em "Anotar" pra registrar a primeira.
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2.5">
-            {observations.map((obs) => (
-              <NoteCardWithAttachments
-                key={obs.id}
-                observationId={obs.id}
-                observation={obs}
-                reminderLabel={
-                  obs.reminder_enabled && obs.reminder_fire_at
-                    ? `Lembrar na próxima consulta com ${
-                        professionalsQuery.data?.find(
-                          (p) => p.id === obs.reminder_target_professional_id,
-                        )?.name ?? "o profissional"
-                      }`
-                    : null
-                }
-                onPromote={() => promoteToRegistro(obs.id)}
-                onEdit={() =>
-                  toast.message("Edição de observação — em breve.")
-                }
-              />
-            ))}
-          </div>
+        {/* Observações — apenas para pais/responsáveis (não para sessões do terapeuta) */}
+        {!isOwnSession && (
+          <>
+            <div className="mt-6 mb-2 flex items-baseline justify-between">
+              <div className="flex items-baseline gap-2">
+                <h2
+                  className="text-base font-extrabold"
+                  style={{ color: "#0F172A", letterSpacing: "-0.02em" }}
+                >
+                  Observações
+                </h2>
+                <span
+                  className="text-[13px] font-semibold"
+                  style={{ color: "#9CA3AF" }}
+                >
+                  {observations.length}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSheetOpen(true)}
+                className="inline-flex h-8 items-center gap-1 rounded-[9px] px-3 text-[12.5px] font-bold text-white transition-transform hover:-translate-y-px"
+                style={{
+                  background: AGENDA_BRAND.col,
+                  boxShadow: "0 8px 18px -8px rgba(124,58,237,0.35)",
+                }}
+              >
+                <Plus size={14} strokeWidth={2.2} />
+                Anotar
+              </button>
+            </div>
+            {observations.length === 0 ? (
+              <div
+                className="rounded-2xl border border-dashed px-4 py-6 text-center text-sm"
+                style={{ borderColor: "#E5E7EB", color: "#9CA3AF" }}
+              >
+                Sem observações por enquanto. Toque em "Anotar" pra registrar a primeira.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {observations.map((obs) => (
+                  <NoteCardWithAttachments
+                    key={obs.id}
+                    observationId={obs.id}
+                    observation={obs}
+                    reminderLabel={
+                      obs.reminder_enabled && obs.reminder_fire_at
+                        ? `Lembrar na próxima consulta com ${
+                            professionalsQuery.data?.find(
+                              (p) => p.id === obs.reminder_target_professional_id,
+                            )?.name ?? "o profissional"
+                          }`
+                        : null
+                    }
+                    onPromote={() => promoteToRegistro(obs.id)}
+                    onEdit={() =>
+                      toast.message("Edição de observação — em breve.")
+                    }
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         {/* ── Ações de sessão para TERAPEUTA ──────────────────────────── */}
         {isTherapist && (() => {
+          if (!isOwnSession) return null;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const evAny = event as any;
-          const isOwnSession = evAny.therapist_id === user?.id;
-          if (!isOwnSession) return null;
 
           const attendance = evAny.session_attendance as string | null;
           const hasDraft    = sessionRecord && sessionRecord.is_draft === true;
@@ -573,21 +578,23 @@ function AgendaEventDetailPage() {
         <div className="h-8" />
       </div>
 
-      <ObservationFormSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        onSubmit={async (data, pendingFiles) => {
-          await createObsMutation.mutateAsync({ data, pendingFiles });
-        }}
-        submitting={createObsMutation.isPending}
-        eventId={eventId}
-        professionals={professionalsQuery.data ?? []}
-        currentEventProfessional={
-          event.professional
-            ? { id: event.professional.id, name: event.professional.name }
-            : null
-        }
-      />
+      {!isOwnSession && (
+        <ObservationFormSheet
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          onSubmit={async (data, pendingFiles) => {
+            await createObsMutation.mutateAsync({ data, pendingFiles });
+          }}
+          submitting={createObsMutation.isPending}
+          eventId={eventId}
+          professionals={professionalsQuery.data ?? []}
+          currentEventProfessional={
+            event.professional
+              ? { id: event.professional.id, name: event.professional.name }
+              : null
+          }
+        />
+      )}
     </AppShell>
   );
 }

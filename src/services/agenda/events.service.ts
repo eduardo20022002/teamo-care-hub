@@ -288,6 +288,56 @@ export async function createAgendaEvent(
   return created;
 }
 
+/**
+ * Gera as datas de ocorrência para uma sessão recorrente.
+ * - weekly:   até 12 ocorrências (≈3 meses)
+ * - biweekly: até 6 ocorrências  (≈3 meses)
+ * - monthly:  até 6 ocorrências  (≈6 meses)
+ *
+ * Para "weekly" com múltiplos `daysOfWeek`, cada combinação
+ * semana×dia gera uma ocorrência separada.
+ */
+function computeOccurrenceDates(
+  firstDate: Date,
+  recurrence: "weekly" | "biweekly" | "monthly",
+  daysOfWeek: number[],
+): Date[] {
+  const h = firstDate.getHours();
+  const m = firstDate.getMinutes();
+
+  if (recurrence === "weekly") {
+    const selectedDays = daysOfWeek.length ? daysOfWeek : [firstDate.getDay()];
+    const dates: Date[] = [];
+    for (let week = 0; week < 12; week++) {
+      for (const day of selectedDays) {
+        const diff = (day - firstDate.getDay() + 7) % 7 + week * 7;
+        const d = new Date(firstDate);
+        d.setDate(d.getDate() + diff);
+        d.setHours(h, m, 0, 0);
+        if (d >= firstDate) dates.push(d);
+      }
+    }
+    return dates.sort((a, b) => a.getTime() - b.getTime());
+  }
+
+  if (recurrence === "biweekly") {
+    return Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(firstDate);
+      d.setDate(d.getDate() + i * 14);
+      d.setHours(h, m, 0, 0);
+      return d;
+    });
+  }
+
+  // monthly
+  return Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(firstDate);
+    d.setMonth(d.getMonth() + i);
+    d.setHours(h, m, 0, 0);
+    return d;
+  });
+}
+
 export async function createTherapistSession(
   userId: string,
   input: TherapistSessionInput,
@@ -297,10 +347,8 @@ export async function createTherapistSession(
   }
 
   const startAt = combineDateTime(input.date, input.startTime);
-  // end_at = start_at + durationMinutes
-  const endDate = new Date(startAt);
-  endDate.setMinutes(endDate.getMinutes() + input.durationMinutes);
-  const endAt = endDate.toISOString();
+  const startDateObj = new Date(startAt);
+  const durationMs = input.durationMinutes * 60 * 1000;
 
   const typeLabel = SESSION_TYPE_LABELS[input.sessionType] ?? "Sessão";
   const title = `${input.childName} — ${typeLabel}`;
@@ -311,18 +359,18 @@ export async function createTherapistSession(
     | { freq: "biweekly"; dayOfWeek: number }
     | { freq: "monthly" };
 
-  let recurrence: RecurrencePayload;
+  let recurrencePayload: RecurrencePayload;
   if (input.recurrence === "weekly") {
-    recurrence = { freq: "weekly", daysOfWeek: input.daysOfWeek.length ? input.daysOfWeek : [new Date(startAt).getDay()] };
+    recurrencePayload = { freq: "weekly", daysOfWeek: input.daysOfWeek.length ? input.daysOfWeek : [startDateObj.getDay()] };
   } else if (input.recurrence === "biweekly") {
-    recurrence = { freq: "biweekly", dayOfWeek: input.daysOfWeek[0] ?? new Date(startAt).getDay() };
+    recurrencePayload = { freq: "biweekly", dayOfWeek: input.daysOfWeek[0] ?? startDateObj.getDay() };
   } else if (input.recurrence === "monthly") {
-    recurrence = { freq: "monthly" };
+    recurrencePayload = { freq: "monthly" };
   } else {
-    recurrence = { freq: "none" };
+    recurrencePayload = { freq: "none" };
   }
 
-  const payload = {
+  const basePayload = {
     user_id: userId,
     child_id: input.childId,
     therapist_id: userId,
@@ -331,22 +379,50 @@ export async function createTherapistSession(
     title: title.slice(0, 120),
     professional_id: null,
     professional_name_raw: null,
-    start_at: startAt,
-    end_at: endAt,
     locale: input.locale.trim() || null,
-    recurrence,
+    recurrence: recurrencePayload,
     reminders: { oneDayBefore: false, oneHourBefore: false },
     type_data: { kind: "terapia" },
   };
 
+  // Sessão sem recorrência — insere linha única (comportamento original)
+  if (input.recurrence === "none") {
+    const { data, error } = await supabase
+      .from("agenda_events")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .insert({
+        ...basePayload,
+        start_at: startAt,
+        end_at: new Date(startDateObj.getTime() + durationMs).toISOString(),
+      } as any)
+      .select()
+      .single();
+    if (error) throw new Error(mapError(error.message));
+    return data as unknown as AgendaEvent;
+  }
+
+  // Sessão recorrente — insere uma linha por ocorrência
+  const occurrenceDates = computeOccurrenceDates(
+    startDateObj,
+    input.recurrence,
+    input.daysOfWeek,
+  );
+
+  const rows = occurrenceDates.map((occDate) => ({
+    ...basePayload,
+    start_at: occDate.toISOString(),
+    end_at: new Date(occDate.getTime() + durationMs).toISOString(),
+  }));
+
   const { data, error } = await supabase
     .from("agenda_events")
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .insert(payload as any)
-    .select()
-    .single();
+    .insert(rows as any)
+    .select();
   if (error) throw new Error(mapError(error.message));
-  return data as unknown as AgendaEvent;
+
+  // Retorna a primeira ocorrência (a mais próxima)
+  return (data as unknown as AgendaEvent[])[0];
 }
 
 export async function deleteAgendaEvent(id: string): Promise<void> {
