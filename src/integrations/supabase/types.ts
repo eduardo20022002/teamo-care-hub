@@ -41,18 +41,25 @@ export type Database = {
     Tables: {
       agenda_events: {
         Row: {
+          actual_duration_minutes: number | null
+          actual_start_at: string | null
           child_id: string
           created_at: string
           end_at: string | null
           id: string
           linked_event_id: string | null
           locale: string | null
+          plan_visible_to_parents: boolean | null
           professional_id: string | null
           professional_name_raw: string | null
           recurrence: Json
           reminders: Json
+          session_attendance: string | null
+          session_plan: Json | null
+          session_type: string | null
           start_at: string
           status: string
+          therapist_id: string | null
           title: string
           type: string
           type_data: Json
@@ -60,18 +67,25 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          actual_duration_minutes?: number | null
+          actual_start_at?: string | null
           child_id: string
           created_at?: string
           end_at?: string | null
           id?: string
           linked_event_id?: string | null
           locale?: string | null
+          plan_visible_to_parents?: boolean | null
           professional_id?: string | null
           professional_name_raw?: string | null
           recurrence?: Json
           reminders?: Json
+          session_attendance?: string | null
+          session_plan?: Json | null
+          session_type?: string | null
           start_at: string
           status?: string
+          therapist_id?: string | null
           title: string
           type: string
           type_data?: Json
@@ -79,18 +93,25 @@ export type Database = {
           user_id: string
         }
         Update: {
+          actual_duration_minutes?: number | null
+          actual_start_at?: string | null
           child_id?: string
           created_at?: string
           end_at?: string | null
           id?: string
           linked_event_id?: string | null
           locale?: string | null
+          plan_visible_to_parents?: boolean | null
           professional_id?: string | null
           professional_name_raw?: string | null
           recurrence?: Json
           reminders?: Json
+          session_attendance?: string | null
+          session_plan?: Json | null
+          session_type?: string | null
           start_at?: string
           status?: string
+          therapist_id?: string | null
           title?: string
           type?: string
           type_data?: Json
@@ -626,6 +647,7 @@ export type Database = {
           created_at: string
           created_by_type: string
           diagnosis: string | null
+          guardian_info: Json | null
           id: string
           name: string
           relation: string | null
@@ -636,6 +658,7 @@ export type Database = {
           created_at?: string
           created_by_type?: string
           diagnosis?: string | null
+          guardian_info?: Json | null
           id?: string
           name: string
           relation?: string | null
@@ -646,6 +669,7 @@ export type Database = {
           created_at?: string
           created_by_type?: string
           diagnosis?: string | null
+          guardian_info?: Json | null
           id?: string
           name?: string
           relation?: string | null
@@ -783,6 +807,84 @@ export type Database = {
             columns: ["record_id"]
             isOneToOne: false
             referencedRelation: "attendance_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_records: {
+        Row: {
+          approach_adjustment: string | null
+          child_id: string
+          clinical_observations: string | null
+          created_at: string
+          engagement_level: string | null
+          event_id: string
+          family_instruction: string | null
+          frequency_suggestion: string | null
+          goals_achieved: Json
+          id: string
+          is_draft: boolean
+          is_private: boolean
+          notable_behaviors: Json
+          points_to_continue: string | null
+          published_at: string | null
+          therapist_id: string
+          updated_at: string
+          what_was_done: string | null
+        }
+        Insert: {
+          approach_adjustment?: string | null
+          child_id: string
+          clinical_observations?: string | null
+          created_at?: string
+          engagement_level?: string | null
+          event_id: string
+          family_instruction?: string | null
+          frequency_suggestion?: string | null
+          goals_achieved?: Json
+          id?: string
+          is_draft?: boolean
+          is_private?: boolean
+          notable_behaviors?: Json
+          points_to_continue?: string | null
+          published_at?: string | null
+          therapist_id: string
+          updated_at?: string
+          what_was_done?: string | null
+        }
+        Update: {
+          approach_adjustment?: string | null
+          child_id?: string
+          clinical_observations?: string | null
+          created_at?: string
+          engagement_level?: string | null
+          event_id?: string
+          family_instruction?: string | null
+          frequency_suggestion?: string | null
+          goals_achieved?: Json
+          id?: string
+          is_draft?: boolean
+          is_private?: boolean
+          notable_behaviors?: Json
+          points_to_continue?: string | null
+          published_at?: string | null
+          therapist_id?: string
+          updated_at?: string
+          what_was_done?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_records_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_records_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "agenda_events"
             referencedColumns: ["id"]
           },
         ]
@@ -994,37 +1096,49 @@ export type Database = {
       }
       therapist_profiles: {
         Row: {
+          attendance_modality: string | null
+          attendance_setting: string | null
           bio: string | null
           council_number: string
           council_state: string
           council_type: string
           created_at: string
           id: string
+          patient_count_range: string | null
           specialty: string
           updated_at: string
           user_id: string
+          weekly_hours_range: string | null
         }
         Insert: {
+          attendance_modality?: string | null
+          attendance_setting?: string | null
           bio?: string | null
           council_number: string
           council_state: string
           council_type: string
           created_at?: string
           id?: string
+          patient_count_range?: string | null
           specialty: string
           updated_at?: string
           user_id: string
+          weekly_hours_range?: string | null
         }
         Update: {
+          attendance_modality?: string | null
+          attendance_setting?: string | null
           bio?: string | null
           council_number?: string
           council_state?: string
           council_type?: string
           created_at?: string
           id?: string
+          patient_count_range?: string | null
           specialty?: string
           updated_at?: string
           user_id?: string
+          weekly_hours_range?: string | null
         }
         Relationships: []
       }

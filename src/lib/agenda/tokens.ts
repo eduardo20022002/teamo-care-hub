@@ -28,6 +28,34 @@ export const TYPE_STYLES: Record<AgendaEventType, TypeStyle> = {
   outro: { col: "#6B7280", tint: "#F4F5FA", label: "Outro" },
 };
 
+// ─── Paleta de cores por paciente (terapeuta) ────────────────────────────────
+// 8 cores distintas, deterministicamente atribuídas por patientId.
+export const PATIENT_COLORS = [
+  { col: "#0D9488", tint: "#F0FDFA" }, // teal
+  { col: "#7C3AED", tint: "#F3E8FF" }, // purple
+  { col: "#EA580C", tint: "#FFF4ED" }, // orange
+  { col: "#0284C7", tint: "#F0F9FF" }, // sky
+  { col: "#BE185D", tint: "#FDF2F8" }, // pink
+  { col: "#65A30D", tint: "#F7FEE7" }, // lime
+  { col: "#B45309", tint: "#FFFBEB" }, // amber
+  { col: "#6366F1", tint: "#EEF2FF" }, // indigo
+] as const;
+
+export type PatientColor = (typeof PATIENT_COLORS)[number];
+
+/**
+ * Retorna a cor do paciente de forma determinística.
+ * Usa os charCodes do início + fim do ID para distribuir uniformemente.
+ */
+export function getPatientColor(patientId: string): PatientColor {
+  if (!patientId) return PATIENT_COLORS[0];
+  let hash = 0;
+  for (let i = 0; i < patientId.length; i++) {
+    hash = (hash * 31 + patientId.charCodeAt(i)) & 0xffff;
+  }
+  return PATIENT_COLORS[hash % PATIENT_COLORS.length];
+}
+
 // Reservado SÓ para "observações pendentes" / "lembrar de mencionar".
 export const ALERT_TONE = {
   titleColor: "#7C2D12",

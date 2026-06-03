@@ -523,3 +523,140 @@ export const therapistPatientSchema = z.object({
   diagnosis: z.string().max(200).optional(),
 });
 export type TherapistPatientInput = z.infer<typeof therapistPatientSchema>;
+
+// ─── Onboarding — perguntas de perfil (chips) ─────────────────────────────────
+
+export const ATTENDANCE_SETTINGS = ['particular', 'clinica', 'ambos'] as const;
+export const ATTENDANCE_MODALITIES = ['presencial', 'online', 'ambos'] as const;
+export const PATIENT_COUNT_RANGES = ['1-5', '6-10', '11-20', '20+'] as const;
+export const WEEKLY_HOURS_RANGES = ['<10h', '10-20h', '20-30h', '30h+'] as const;
+
+export const ATTENDANCE_SETTING_LABELS: Record<typeof ATTENDANCE_SETTINGS[number], string> = {
+  particular: 'Consultório particular',
+  clinica: 'Clínica ou instituição',
+  ambos: 'Ambos',
+};
+export const ATTENDANCE_MODALITY_LABELS: Record<typeof ATTENDANCE_MODALITIES[number], string> = {
+  presencial: 'Presencial',
+  online: 'Online',
+  ambos: 'Ambos',
+};
+export const PATIENT_COUNT_RANGE_LABELS: Record<typeof PATIENT_COUNT_RANGES[number], string> = {
+  '1-5': '1 a 5',
+  '6-10': '6 a 10',
+  '11-20': '11 a 20',
+  '20+': 'Mais de 20',
+};
+export const WEEKLY_HOURS_RANGE_LABELS: Record<typeof WEEKLY_HOURS_RANGES[number], string> = {
+  '<10h': 'Menos de 10h',
+  '10-20h': '10h a 20h',
+  '20-30h': '20h a 30h',
+  '30h+': 'Mais de 30h',
+};
+
+export const therapistProfileQuestionsSchema = z.object({
+  attendanceSetting:  z.enum(ATTENDANCE_SETTINGS).optional(),
+  attendanceModality: z.enum(ATTENDANCE_MODALITIES).optional(),
+  patientCountRange:  z.enum(PATIENT_COUNT_RANGES).optional(),
+  weeklyHoursRange:   z.enum(WEEKLY_HOURS_RANGES).optional(),
+});
+export type TherapistProfileQuestionsInput = z.infer<typeof therapistProfileQuestionsSchema>;
+
+// ─── Onboarding — paciente com responsáveis ───────────────────────────────────
+
+export const guardianSchema = z.object({
+  name:  z.string().trim().min(1, 'Informe o nome do responsável.').max(80),
+  email: z.string().trim().email('E-mail inválido.').optional().or(z.literal('')),
+});
+export type GuardianInput = z.infer<typeof guardianSchema>;
+
+export const therapistPatientWithGuardiansSchema = z.object({
+  name: z.string().trim().min(1, 'Informe o primeiro nome do paciente.').max(60),
+  guardians: z
+    .array(guardianSchema)
+    .min(1, 'Informe ao menos um responsável.')
+    .max(4, 'Máximo de 4 responsáveis.'),
+});
+export type TherapistPatientWithGuardiansInput = z.infer<typeof therapistPatientWithGuardiansSchema>;
+
+// ─── Sessão — plano pré-sessão ────────────────────────────────────────────────
+
+export const sessionPlanSchema = z.object({
+  eventId:          z.string().uuid(),
+  objectives:       z.string().max(1000).optional(),
+  activities:       z.array(z.string().trim().max(200)).optional(),
+  materials:        z.string().max(500).optional(),
+  visibleToParents: z.boolean().default(true),
+});
+export type SessionPlanInput = z.infer<typeof sessionPlanSchema>;
+
+// ─── Sessão — confirmação de comparecimento ───────────────────────────────────
+
+export const SESSION_ATTENDANCES = ['happened', 'missed_justified', 'missed_no_show'] as const;
+export type SessionAttendance = typeof SESSION_ATTENDANCES[number];
+
+export const sessionConfirmSchema = z.object({
+  eventId:               z.string().uuid(),
+  attendance:            z.enum(SESSION_ATTENDANCES),
+  actualDurationMinutes: z.number().int().min(1).max(480).optional(),
+  actualStartAt:         z.string().optional(),
+  absenceReason:         z.string().max(500).optional(),
+  notifyFamily:          z.boolean().optional(),
+});
+export type SessionConfirmInput = z.infer<typeof sessionConfirmSchema>;
+
+// ─── Sessão — registro pós-sessão (4 blocos) ──────────────────────────────────
+
+export const ENGAGEMENT_LEVELS = ['baixo', 'medio', 'alto'] as const;
+export type EngagementLevel = typeof ENGAGEMENT_LEVELS[number];
+
+export const ENGAGEMENT_LEVEL_LABELS: Record<EngagementLevel, string> = {
+  baixo: 'Baixo',
+  medio: 'Médio',
+  alto: 'Alto',
+};
+
+export const NOTABLE_BEHAVIOR_TYPES = [
+  'conquista', 'dificuldade', 'regulacao', 'comunicacao', 'interacao_social', 'outro',
+] as const;
+export type NotableBehaviorType = typeof NOTABLE_BEHAVIOR_TYPES[number];
+
+export const NOTABLE_BEHAVIOR_TYPE_LABELS: Record<NotableBehaviorType, string> = {
+  conquista: 'Conquista',
+  dificuldade: 'Dificuldade',
+  regulacao: 'Regulação',
+  comunicacao: 'Comunicação',
+  interacao_social: 'Interação social',
+  outro: 'Outro',
+};
+
+export const goalAchievedSchema = z.object({
+  goal:     z.string().max(200),
+  achieved: z.boolean(),
+});
+
+export const notableBehaviorSchema = z.object({
+  description: z.string().trim().max(300),
+  type:        z.enum(NOTABLE_BEHAVIOR_TYPES),
+});
+
+export const sessionRecordSchema = z.object({
+  eventId: z.string().uuid(),
+  // Bloco 1
+  goalsAchieved:       z.array(goalAchievedSchema).optional(),
+  whatWasDone:         z.string().max(2000).optional(),
+  engagementLevel:     z.enum(ENGAGEMENT_LEVELS).optional(),
+  // Bloco 2
+  clinicalObservations: z.string().max(3000).optional(),
+  notableBehaviors:    z.array(notableBehaviorSchema).optional(),
+  isPrivate:           z.boolean().default(false),
+  // Bloco 3
+  familyInstruction:   z.string().max(2000).optional(),
+  frequencySuggestion: z.string().max(200).optional(),
+  // Bloco 4
+  pointsToContinue:    z.string().max(1000).optional(),
+  approachAdjustment:  z.string().max(1000).optional(),
+  // Controle
+  isDraft:             z.boolean().default(true),
+});
+export type SessionRecordInput = z.infer<typeof sessionRecordSchema>;

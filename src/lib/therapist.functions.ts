@@ -15,7 +15,16 @@ import {
   type TherapistInviteRow,
   type TherapistParentAccessRow,
 } from "@/server/therapist.server";
-import { therapistProfileSchema, therapistInviteSchema, therapistPatientSchema } from "@/lib/validation";
+import {
+  therapistProfileSchema,
+  therapistInviteSchema,
+  therapistPatientSchema,
+  therapistProfileQuestionsSchema,
+  therapistPatientWithGuardiansSchema,
+  sessionPlanSchema,
+  sessionConfirmSchema,
+  sessionRecordSchema,
+} from "@/lib/validation";
 import { appBaseUrl } from "@/server/app-url";
 
 const APP_URL = appBaseUrl;
@@ -521,3 +530,288 @@ export const revokeTherapistParentAccessServer = createServerFn({ method: "POST"
     if (error) throw new Response(error.message, { status: 500 });
     return { ok: true as const };
   });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MÓDULO AGENDA DO TERAPEUTA — Onboarding + Sessões
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── 13. saveTherapistProfileQuestionsServer — salva chips do onboarding ──────
+
+export const saveTherapistProfileQuestionsServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => therapistProfileQuestionsSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+    await assertTherapist(userId);
+
+    const patch: Record<string, string | null> = {};
+    if (data.attendanceSetting  !== undefined) patch.attendance_setting  = data.attendanceSetting ?? null;
+    if (data.attendanceModality !== undefined) patch.attendance_modality = data.attendanceModality ?? null;
+    if (data.patientCountRange  !== undefined) patch.patient_count_range = data.patientCountRange ?? null;
+    if (data.weeklyHoursRange   !== undefined) patch.weekly_hours_range  = data.weeklyHoursRange ?? null;
+
+    // Upsert — cria o registro se ainda não existe (terapeuta que pulou a step de perfil)
+    const { error } = await (supabaseAdmin as any)
+      .from("therapist_profiles")
+      .upsert(
+        { user_id: userId, ...patch, updated_at: new Date().toISOString() },
+        { onConflict: "user_id" },
+      );
+
+    if (error) throw new Response(error.message, { status: 500 });
+    return { ok: true as const };
+  });
+
+// ─── 14. createPatientWithGuardiansServer — cria paciente + responsáveis ──────
+
+export const createPatientWithGuardiansServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => therapistPatientWithGuardiansSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+    await assertTherapist(userId);
+
+    // INSERT na tabela children com guardian_info
+    const { data: child, error } = await (supabaseAdmin as any)
+      .from("children")
+      .insert({
+        user_id:         userId,
+        name:            data.name.trim(),
+        birth_date:      new Date().toISOString().split("T")[0], // placeholder — sem campo de data no onboarding novo
+        created_by_type: "therapist",
+        guardian_info:   data.guardians,
+      })
+      .select("id, name")
+      .single();
+
+    if (error) throw new Response(error.message, { status: 500 });
+
+    // Fire-and-forget: enviar convites para responsáveis com e-mail preenchido
+    const guardianName = await getProfileName(userId);
+    for (const guardian of data.guardians) {
+      if (guardian.email && guardian.email.trim()) {
+        void sendTherapistInviteEmail({
+          to: guardian.email.trim(),
+          therapistName: guardianName,
+          therapistSpecialty: "",
+          alias: guardian.name,
+          childName: data.name,
+          token: "",   // sem token ainda — convite formal é criado separadamente
+        }).catch(() => undefined);
+      }
+    }
+
+    return { child: child as { id: string; name: string } };
+  });
+
+// ─── 15. saveSessionPlanServer — salva plano pré-sessão no agenda_event ───────
+
+export const saveSessionPlanServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => sessionPlanSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+
+    // Verifica propriedade do evento
+    const { data: event, error: fetchErr } = await (supabaseAdmin as any)
+      .from("agenda_events")
+      .select("therapist_id")
+      .eq("id", data.eventId)
+      .maybeSingle();
+
+    if (fetchErr || !event) throw new Response("Evento não encontrado.", { status: 404 });
+    if ((event as any).therapist_id !== userId) throw new Response("Sem permissão.", { status: 403 });
+
+    const plan = {
+      objectives:        data.objectives ?? null,
+      activities:        data.activities ?? [],
+      materials:         data.materials ?? null,
+    };
+
+    const { error } = await (supabaseAdmin as any)
+      .from("agenda_events")
+      .update({
+        session_plan:            plan,
+        plan_visible_to_parents: data.visibleToParents,
+        updated_at:              new Date().toISOString(),
+      })
+      .eq("id", data.eventId);
+
+    if (error) throw new Response(error.message, { status: 500 });
+    return { ok: true as const };
+  });
+
+// ─── 16. confirmSessionServer — registra comparecimento e tempos reais ─────────
+
+export const confirmSessionServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => sessionConfirmSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+
+    const { data: event, error: fetchErr } = await (supabaseAdmin as any)
+      .from("agenda_events")
+      .select("therapist_id, start_at")
+      .eq("id", data.eventId)
+      .maybeSingle();
+
+    if (fetchErr || !event) throw new Response("Evento não encontrado.", { status: 404 });
+    if ((event as any).therapist_id !== userId) throw new Response("Sem permissão.", { status: 403 });
+
+    const happened = data.attendance === "happened";
+    const newStatus = happened ? "happened" : "missed";
+
+    const updatePayload: Record<string, unknown> = {
+      session_attendance: data.attendance,
+      status:             newStatus,
+      updated_at:         new Date().toISOString(),
+    };
+    if (happened) {
+      if (data.actualDurationMinutes) updatePayload.actual_duration_minutes = data.actualDurationMinutes;
+      if (data.actualStartAt)         updatePayload.actual_start_at = data.actualStartAt;
+    }
+
+    const { error } = await (supabaseAdmin as any)
+      .from("agenda_events")
+      .update(updatePayload)
+      .eq("id", data.eventId);
+
+    if (error) throw new Response(error.message, { status: 500 });
+    return { ok: true as const, happened };
+  });
+
+// ─── 17. saveSessionRecordServer — upsert do registro pós-sessão ──────────────
+
+export const saveSessionRecordServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => sessionRecordSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+
+    // Busca event para obter child_id e verificar ownership
+    const { data: event, error: fetchErr } = await (supabaseAdmin as any)
+      .from("agenda_events")
+      .select("therapist_id, child_id, session_plan")
+      .eq("id", data.eventId)
+      .maybeSingle();
+
+    if (fetchErr || !event) throw new Response("Evento não encontrado.", { status: 404 });
+    if ((event as any).therapist_id !== userId) throw new Response("Sem permissão.", { status: 403 });
+
+    const childId = (event as any).child_id as string;
+    const now = new Date().toISOString();
+    const publishing = !data.isDraft;
+
+    const recordPayload: Record<string, unknown> = {
+      event_id:             data.eventId,
+      therapist_id:         userId,
+      child_id:             childId,
+      goals_achieved:       data.goalsAchieved ?? [],
+      what_was_done:        data.whatWasDone ?? null,
+      engagement_level:     data.engagementLevel ?? null,
+      clinical_observations: data.clinicalObservations ?? null,
+      notable_behaviors:    data.notableBehaviors ?? [],
+      is_private:           data.isPrivate,
+      family_instruction:   data.familyInstruction ?? null,
+      frequency_suggestion: data.frequencySuggestion ?? null,
+      points_to_continue:   data.pointsToContinue ?? null,
+      approach_adjustment:  data.approachAdjustment ?? null,
+      is_draft:             data.isDraft,
+      updated_at:           now,
+    };
+
+    if (publishing) {
+      recordPayload.published_at = now;
+    }
+
+    const { data: record, error } = await (supabaseAdmin as any)
+      .from("session_records")
+      .upsert(recordPayload, { onConflict: "event_id" })
+      .select("id")
+      .single();
+
+    if (error) throw new Response(error.message, { status: 500 });
+
+    // Se publicando: propaga points_to_continue para o próximo evento agendado do mesmo paciente
+    if (publishing && data.pointsToContinue) {
+      const { data: nextEvent } = await (supabaseAdmin as any)
+        .from("agenda_events")
+        .select("id, session_plan")
+        .eq("child_id", childId)
+        .eq("therapist_id", userId)
+        .eq("status", "upcoming")
+        .gt("start_at", now)
+        .order("start_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (nextEvent) {
+        const existingPlan = (nextEvent as any).session_plan ?? {};
+        const updatedPlan = {
+          ...existingPlan,
+          // Pré-preenche objectives com os pontos a continuar (pode ser editado pelo terapeuta)
+          objectives_from_previous: data.pointsToContinue,
+        };
+        await (supabaseAdmin as any)
+          .from("agenda_events")
+          .update({ session_plan: updatedPlan, updated_at: now })
+          .eq("id", (nextEvent as any).id);
+      }
+    }
+
+    return { ok: true as const, recordId: (record as any).id as string };
+  });
+
+// ─── 18. getSessionRecordServer — busca registro de uma sessão ────────────────
+
+const _getSessionRecordInputSchema = z.object({ eventId: z.string().uuid() });
+
+export const getSessionRecordServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => _getSessionRecordInputSchema.parse(d))
+  .handler((async ({ data, context }: { data: { eventId: string }; context: { userId: string } }) => {
+    const { userId } = context as any;
+
+    // Busca o evento para validar ownership e pegar session_plan
+    const { data: event, error: evErr } = await (supabaseAdmin as any)
+      .from("agenda_events")
+      .select("id, therapist_id, child_id, session_plan, plan_visible_to_parents, start_at, actual_duration_minutes, actual_start_at, session_attendance, title")
+      .eq("id", data.eventId)
+      .maybeSingle();
+
+    if (evErr || !event) throw new Response("Evento não encontrado.", { status: 404 });
+    if ((event as any).therapist_id !== userId) throw new Response("Sem permissão.", { status: 403 });
+
+    // Busca registro existente (pode não existir — rascunho em andamento)
+    const { data: sessionRecord } = await (supabaseAdmin as any)
+      .from("session_records")
+      .select("*")
+      .eq("event_id", data.eventId)
+      .maybeSingle();
+
+    // Busca nome do paciente
+    const { data: child } = await (supabaseAdmin as any)
+      .from("children")
+      .select("name, birth_date")
+      .eq("id", (event as any).child_id)
+      .maybeSingle();
+
+    // Busca points_to_continue do registro anterior para pré-preenchimento
+    const { data: prevRecord } = await (supabaseAdmin as any)
+      .from("session_records")
+      .select("points_to_continue, published_at")
+      .eq("therapist_id", userId)
+      .eq("child_id", (event as any).child_id)
+      .eq("is_draft", false)
+      .lt("published_at", (event as any).start_at)
+      .order("published_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return {
+      event:          event as Record<string, unknown>,
+      sessionRecord:  sessionRecord ?? null,
+      child:          child ?? null,
+      previousPoints: (prevRecord as any)?.points_to_continue ?? null,
+    };
+  }) as any);

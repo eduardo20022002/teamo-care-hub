@@ -15,8 +15,23 @@ import {
   listTherapistInvitesServer,
   listMyTherapistAccessServer,
   revokeTherapistParentAccessServer,
+  saveTherapistProfileQuestionsServer,
+  createPatientWithGuardiansServer,
+  saveSessionPlanServer,
+  confirmSessionServer,
+  saveSessionRecordServer,
+  getSessionRecordServer,
 } from "@/lib/therapist.functions";
-import type { TherapistProfileInput, TherapistInviteInput, TherapistPatientInput } from "@/lib/validation";
+import type {
+  TherapistProfileInput,
+  TherapistInviteInput,
+  TherapistPatientInput,
+  TherapistProfileQuestionsInput,
+  TherapistPatientWithGuardiansInput,
+  SessionPlanInput,
+  SessionConfirmInput,
+  SessionRecordInput,
+} from "@/lib/validation";
 
 // ─── Query key factory ────────────────────────────────────────────────────────
 
@@ -191,5 +206,96 @@ export function useRevokeTherapistParentAccess(childId?: string) {
     onSuccess: () => {
       if (childId) qc.invalidateQueries({ queryKey: therapistKeys.invites(childId) });
     },
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MÓDULO AGENDA — Onboarding + Sessões
+// ════════════════════════════════════════════════════════════════════
+
+// ─── 12. useSaveTherapistProfileQuestions ────────────────────────────────────
+
+export function useSaveTherapistProfileQuestions() {
+  const fn = useServerFn(saveTherapistProfileQuestionsServer);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: TherapistProfileQuestionsInput) => {
+      const h = await authHeaders();
+      return fn({ data: input, headers: h });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: therapistKeys.profile() }),
+  });
+}
+
+// ─── 13. useCreatePatientWithGuardians ───────────────────────────────────────
+
+export function useCreatePatientWithGuardians() {
+  const fn = useServerFn(createPatientWithGuardiansServer);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: TherapistPatientWithGuardiansInput) => {
+      const h = await authHeaders();
+      return fn({ data: input, headers: h });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: therapistKeys.patients() }),
+  });
+}
+
+// ─── 14. useSaveSessionPlan ──────────────────────────────────────────────────
+
+export function useSaveSessionPlan() {
+  const fn = useServerFn(saveSessionPlanServer);
+  return useMutation({
+    mutationFn: async (input: SessionPlanInput) => {
+      const h = await authHeaders();
+      return fn({ data: input, headers: h });
+    },
+  });
+}
+
+// ─── 15. useConfirmSession ───────────────────────────────────────────────────
+
+export function useConfirmSession() {
+  const fn = useServerFn(confirmSessionServer);
+  return useMutation({
+    mutationFn: async (input: SessionConfirmInput) => {
+      const h = await authHeaders();
+      return fn({ data: input, headers: h });
+    },
+  });
+}
+
+// ─── 16. useSaveSessionRecord ────────────────────────────────────────────────
+
+export function useSaveSessionRecord() {
+  const fn = useServerFn(saveSessionRecordServer);
+  return useMutation({
+    mutationFn: async (input: SessionRecordInput) => {
+      const h = await authHeaders();
+      return fn({ data: input, headers: h });
+    },
+  });
+}
+
+// ─── 17. useGetSessionRecord ─────────────────────────────────────────────────
+
+/** Dados retornados por getSessionRecordServer */
+export interface SessionRecordQueryData {
+  event:         Record<string, unknown>;
+  sessionRecord: Record<string, unknown> | null;
+  child:         { name: string; birth_date: string } | null;
+  previousPoints: string | null;
+}
+
+export function useGetSessionRecord(eventId: string | undefined) {
+  const fn = useServerFn(getSessionRecordServer);
+  return useQuery<SessionRecordQueryData>({
+    queryKey: ["session-record", eventId],
+    queryFn: async () => {
+      const h = await authHeaders();
+      return fn({ data: { eventId: eventId! }, headers: h }) as Promise<SessionRecordQueryData>;
+    },
+    enabled: !!eventId,
+    staleTime: 30_000,
   });
 }
