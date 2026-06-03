@@ -571,11 +571,14 @@ export const guardianSchema = z.object({
 export type GuardianInput = z.infer<typeof guardianSchema>;
 
 export const therapistPatientWithGuardiansSchema = z.object({
-  name: z.string().trim().min(1, 'Informe o primeiro nome do paciente.').max(60),
+  name:      z.string().trim().min(1, 'Informe o primeiro nome do paciente.').max(60),
+  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida.').optional(),
+  diagnoses: z.array(z.string().max(80)).default([]),
+  /** Responsáveis agora são opcionais — máx 4 se fornecidos */
   guardians: z
     .array(guardianSchema)
-    .min(1, 'Informe ao menos um responsável.')
-    .max(4, 'Máximo de 4 responsáveis.'),
+    .max(4, 'Máximo de 4 responsáveis.')
+    .default([]),
 });
 export type TherapistPatientWithGuardiansInput = z.infer<typeof therapistPatientWithGuardiansSchema>;
 

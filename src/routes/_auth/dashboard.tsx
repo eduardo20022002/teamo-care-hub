@@ -683,7 +683,7 @@ function DashboardPage() {
               action={
                 <button
                   type="button"
-                  onClick={() => navigate({ to: "/onboarding/terapeuta" })}
+                  onClick={() => navigate({ to: "/pacientes/novo" as any })}
                   className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-bold transition-colors"
                   style={{ background: TEAL_SOFT, color: TEAL_CARE, border: `1px solid ${TEAL_BORDER}` }}
                 >

@@ -646,6 +646,7 @@ export type Database = {
           birth_date: string
           created_at: string
           created_by_type: string
+          diagnoses: Json
           diagnosis: string | null
           guardian_info: Json | null
           id: string
@@ -657,6 +658,7 @@ export type Database = {
           birth_date: string
           created_at?: string
           created_by_type?: string
+          diagnoses?: Json
           diagnosis?: string | null
           guardian_info?: Json | null
           id?: string
@@ -668,6 +670,7 @@ export type Database = {
           birth_date?: string
           created_at?: string
           created_by_type?: string
+          diagnoses?: Json
           diagnosis?: string | null
           guardian_info?: Json | null
           id?: string

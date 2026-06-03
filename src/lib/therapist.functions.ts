@@ -128,12 +128,14 @@ export const listPatientsServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, supabase } = context as any;
-    // RLS: children_select_own (user_id = auth.uid()) já funciona para terapeuta-owner
+    // Filtra explicitamente por user_id (defesa em profundidade além da RLS).
+    // NÃO filtra por created_by_type — pacientes criados antes da migration
+    // 20260601000000 têm o valor padrão 'parent' e também devem aparecer.
     const { data, error } = await supabase
       .from("children")
       .select("*")
-      .eq("created_by_type", "therapist")
-      .order("created_at", { ascending: true });
+      .eq("user_id", userId)
+      .order("name", { ascending: true });
     if (error) throw new Response(error.message, { status: 500 });
     return { patients: data ?? [] };
   });
@@ -571,15 +573,16 @@ export const createPatientWithGuardiansServer = createServerFn({ method: "POST" 
     const { userId } = context as any;
     await assertTherapist(userId);
 
-    // INSERT na tabela children com guardian_info
+    // INSERT na tabela children com guardian_info, birthDate e diagnoses
     const { data: child, error } = await (supabaseAdmin as any)
       .from("children")
       .insert({
         user_id:         userId,
         name:            data.name.trim(),
-        birth_date:      new Date().toISOString().split("T")[0], // placeholder — sem campo de data no onboarding novo
+        birth_date:      data.birthDate ?? new Date().toISOString().split("T")[0],
+        diagnoses:       data.diagnoses ?? [],
         created_by_type: "therapist",
-        guardian_info:   data.guardians,
+        guardian_info:   data.guardians ?? [],
       })
       .select("id, name")
       .single();
@@ -588,7 +591,7 @@ export const createPatientWithGuardiansServer = createServerFn({ method: "POST" 
 
     // Fire-and-forget: enviar convites para responsáveis com e-mail preenchido
     const guardianName = await getProfileName(userId);
-    for (const guardian of data.guardians) {
+    for (const guardian of data.guardians ?? []) {
       if (guardian.email && guardian.email.trim()) {
         void sendTherapistInviteEmail({
           to: guardian.email.trim(),
