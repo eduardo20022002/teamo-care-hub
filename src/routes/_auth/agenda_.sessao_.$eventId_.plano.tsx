@@ -24,6 +24,7 @@ function SessionPlanPage() {
   const { data, isLoading } = useGetSessionRecord(eventId);
 
   const [objectives, setObjectives] = useState("");
+  const [specificObjectives, setSpecificObjectives] = useState<string[]>([""]);
   const [activities, setActivities] = useState<string[]>([""]);
   const [materials, setMaterials] = useState("");
   const [visibleToParents, setVisibleToParents] = useState(true);
@@ -46,6 +47,10 @@ function SessionPlanPage() {
       setObjectives(fromPrevious);
     }
 
+    if (plan.specific_objectives?.length) {
+      setSpecificObjectives(plan.specific_objectives as string[]);
+    }
+
     if (plan.activities?.length) {
       setActivities(plan.activities as string[]);
     }
@@ -62,11 +67,20 @@ function SessionPlanPage() {
   const updateActivity = (i: number, val: string) =>
     setActivities((prev) => prev.map((a, idx) => (idx === i ? val : a)));
 
+  const addSpecificObjective = () => setSpecificObjectives((prev) => [...prev, ""]);
+  const removeSpecificObjective = (i: number) =>
+    setSpecificObjectives((prev) => prev.filter((_, idx) => idx !== i));
+  const updateSpecificObjective = (i: number, val: string) =>
+    setSpecificObjectives((prev) => prev.map((o, idx) => (idx === i ? val : o)));
+
   const handleSave = async () => {
     try {
       await savePlan.mutateAsync({
         eventId,
         objectives: objectives.trim() || undefined,
+        specificObjectives: specificObjectives.filter((o) => o.trim()).length > 0
+          ? specificObjectives.filter((o) => o.trim())
+          : undefined,
         activities: activities.filter((a) => a.trim()).length > 0
           ? activities.filter((a) => a.trim())
           : undefined,
@@ -123,7 +137,7 @@ function SessionPlanPage() {
           </p>
         </div>
 
-        {/* Bloco: Objetivos */}
+        {/* ═══ Seção 1 — Objetivos ═══ */}
         <div className="mb-6">
           <h2 className="text-[16px] font-bold text-[#0F172A] mb-4 flex items-center gap-2">
             <span
@@ -136,10 +150,10 @@ function SessionPlanPage() {
           </h2>
 
           <div className="flex flex-col gap-4">
-            {/* Objetivos da sessão */}
+            {/* Objetivo geral */}
             <div>
               <label className="block text-sm font-medium text-[#374151] mb-1.5">
-                O que você planeja trabalhar?
+                Objetivo geral
               </label>
               <textarea
                 rows={3}
@@ -151,6 +165,59 @@ function SessionPlanPage() {
               <p className="mt-1 text-right text-xs text-[#9CA3AF]">{objectives.length}/1000</p>
             </div>
 
+            {/* Objetivos específicos */}
+            <div>
+              <label className="block text-sm font-medium text-[#374151] mb-1.5">
+                Objetivos específicos
+              </label>
+              <div className="flex flex-col gap-2">
+                {specificObjectives.map((obj, i) => (
+                  <div key={i} className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder={`Objetivo específico ${i + 1}`}
+                      value={obj}
+                      onChange={(e) => updateSpecificObjective(i, e.target.value.slice(0, 200))}
+                      className="h-10 flex-1 rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm text-[#374151] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
+                    />
+                    {specificObjectives.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeSpecificObjective(i)}
+                        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] text-[#9CA3AF] hover:text-[#DC2626] hover:border-red-200 transition-colors"
+                      >
+                        <Trash2 size={14} strokeWidth={1.8} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addSpecificObjective}
+                  className="flex items-center gap-1.5 text-sm font-medium transition-colors self-start"
+                  style={{ color: TEAL }}
+                >
+                  <Plus size={14} strokeWidth={2.5} />
+                  Adicionar objetivo específico
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══ Seção 2 — Atividades ═══ */}
+        <div className="mb-6">
+          <h2 className="text-[16px] font-bold text-[#0F172A] mb-4 flex items-center gap-2">
+            <span
+              className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold text-white"
+              style={{ background: TEAL }}
+            >
+              2
+            </span>
+            Atividades
+          </h2>
+
+          <div className="flex flex-col gap-4">
             {/* Atividades planejadas */}
             <div>
               <label className="block text-sm font-medium text-[#374151] mb-1.5">

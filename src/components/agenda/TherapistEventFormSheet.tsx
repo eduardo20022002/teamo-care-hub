@@ -13,7 +13,8 @@ const TEAL_BORDER = "#CCFBF1";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type SessionType = "individual" | "grupo" | "familiar";
-type DurationOption = 30 | 45 | 60 | 90 | "custom";
+type DurationOption = 30 | 60 | 120 | 180 | 240 | "custom";
+type CustomUnit = "minutes" | "hours";
 type RecurrenceOption = "none" | "weekly" | "biweekly" | "monthly";
 
 interface PatientOption {
@@ -36,10 +37,11 @@ const SESSION_TYPE_OPTIONS: { value: SessionType; label: string }[] = [
 ];
 
 const DURATION_OPTIONS: { value: DurationOption; label: string }[] = [
-  { value: 30,       label: "30min" },
-  { value: 45,       label: "45min" },
-  { value: 60,       label: "60min" },
-  { value: 90,       label: "90min" },
+  { value: 30,       label: "30 min" },
+  { value: 60,       label: "1h" },
+  { value: 120,      label: "2h" },
+  { value: 180,      label: "3h" },
+  { value: 240,      label: "4h" },
   { value: "custom", label: "Personalizado" },
 ];
 
@@ -76,7 +78,8 @@ export function TherapistEventFormSheet({
   const [date, setDate]                     = useState<string>(todayISO());
   const [startTime, setStartTime]           = useState<string>(nowTimeStr());
   const [duration, setDuration]             = useState<DurationOption>(60);
-  const [customDuration, setCustomDuration] = useState<string>("60");
+  const [customDuration, setCustomDuration] = useState<string>("15");
+  const [customUnit, setCustomUnit]         = useState<CustomUnit>("minutes");
   const [recurrence, setRecurrence]         = useState<RecurrenceOption>("weekly");
   const [daysOfWeek, setDaysOfWeek]         = useState<number[]>([new Date().getDay()]);
   const [locale, setLocale]                 = useState<string>("");
@@ -89,7 +92,8 @@ export function TherapistEventFormSheet({
       setDate(todayISO());
       setStartTime(nowTimeStr());
       setDuration(60);
-      setCustomDuration("60");
+      setCustomDuration("15");
+      setCustomUnit("minutes");
       setRecurrence("weekly");
       setDaysOfWeek([new Date().getDay()]);
       setLocale("");
@@ -105,8 +109,13 @@ export function TherapistEventFormSheet({
   };
 
   const selectedPatient = patients.find((p) => p.id === patientId);
-  const durationMinutes =
-    duration === "custom" ? parseInt(customDuration, 10) || 60 : duration;
+  const durationMinutes = (() => {
+    if (duration !== "custom") return duration;
+    const n = parseInt(customDuration, 10) || 0;
+    const minutes = customUnit === "hours" ? n * 60 : n;
+    // Clamp entre 5 e 480 minutos
+    return Math.min(480, Math.max(5, minutes || 60));
+  })();
 
   const handleSubmit = async () => {
     if (!patientId) return;
@@ -273,13 +282,20 @@ export function TherapistEventFormSheet({
               <div className="mt-2 flex items-center gap-2">
                 <input
                   type="number"
-                  min={5}
-                  max={480}
+                  min={1}
+                  max={customUnit === "hours" ? 8 : 480}
                   value={customDuration}
                   onChange={(e) => setCustomDuration(e.target.value)}
                   className="h-10 w-24 rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm text-[#374151] focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
                 />
-                <span className="text-sm text-[#6B7280]">minutos</span>
+                <select
+                  value={customUnit}
+                  onChange={(e) => setCustomUnit(e.target.value as CustomUnit)}
+                  className="h-10 rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm font-semibold text-[#374151] focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
+                >
+                  <option value="minutes">minutos</option>
+                  <option value="hours">horas</option>
+                </select>
               </div>
             )}
           </div>

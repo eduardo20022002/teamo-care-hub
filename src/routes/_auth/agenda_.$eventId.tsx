@@ -475,7 +475,7 @@ function AgendaEventDetailPage() {
               </button>
             );
           } else if (attendance === "happened" || (isPast && !attendance)) {
-            // Sessão passada sem registro
+            // Sessão passada sem registro — Registrar em destaque, Planejar como secundário
             primaryCTA = (
               <button
                 type="button"
@@ -489,6 +489,20 @@ function AgendaEventDetailPage() {
               >
                 <ClipboardCheck size={16} strokeWidth={2} />
                 Registrar sessão
+              </button>
+            );
+            // Permite preencher o plano retroativamente (caso não tenha planejado antes)
+            secondaryCTA = (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate({ to: "/agenda/sessao/$eventId/plano" as any, params: { eventId } as any })
+                }
+                className="flex h-[46px] w-full items-center justify-center gap-2 rounded-xl border bg-white text-[14px] font-bold transition-colors hover:bg-[#F4F5FA]"
+                style={{ borderColor: "#E5E7EB", color: "#0F172A" }}
+              >
+                <ClipboardEdit size={16} strokeWidth={2} />
+                Planejar sessão
               </button>
             );
           } else if (!isPast) {

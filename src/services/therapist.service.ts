@@ -280,11 +280,18 @@ export function useSaveSessionRecord() {
 // ─── 17. useGetSessionRecord ─────────────────────────────────────────────────
 
 /** Dados retornados por getSessionRecordServer */
+export interface UpcomingSession {
+  id: string;
+  start_at: string;
+  title: string;
+}
+
 export interface SessionRecordQueryData {
   event:         Record<string, unknown>;
   sessionRecord: Record<string, unknown> | null;
   child:         { name: string; birth_date: string } | null;
   previousPoints: string | null;
+  upcomingSessions: UpcomingSession[];
 }
 
 export function useGetSessionRecord(eventId: string | undefined) {

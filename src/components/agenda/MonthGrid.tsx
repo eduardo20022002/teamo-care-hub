@@ -130,11 +130,13 @@ export function MonthGrid({
           const isSelected = isSameDay(d, selectedDate);
           const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 
-          // Modo terapeuta: 1 dot de status por dia
+          // Modo terapeuta: 1 marcador de status por dia
           const sessionStatus = therapistMode ? sessionStatusMap!.get(key) : undefined;
 
-          // Modo pai: até 3 dots de tipo
-          const dots = !therapistMode ? (typesByDay.get(key) ?? []).slice(0, 3) : [];
+          // Modo pai: quadradinhos por tipo (até 3 + overflow)
+          const allTypes = !therapistMode ? (typesByDay.get(key) ?? []) : [];
+          const types = allTypes.slice(0, 3);
+          const overflow = allTypes.length - types.length;
 
           return (
             <button
@@ -161,30 +163,42 @@ export function MonthGrid({
               >
                 {d.getDate()}
               </span>
-              {/* Dot de status (modo terapeuta) */}
+              {/* Quadradinho de status (modo terapeuta) */}
               {sessionStatus && (
                 <span
-                  className="mt-0.5 h-1 w-1 rounded-full"
+                  className="mt-0.5 h-1.5 w-1.5 rounded-[2px]"
                   style={{
                     background: isSelected ? "white" : SESSION_STATUS_COLORS[sessionStatus],
                   }}
                 />
               )}
-              {/* Dots de tipo (modo pai) */}
-              {dots.length > 0 && (
-                <div className="mt-0.5 flex h-1 gap-0.5">
-                  {dots.map((tType, j) => (
+              {/* Quadradinhos com inicial do tipo (modo pai) */}
+              {types.length > 0 && (
+                <div className="mt-0.5 flex items-center gap-0.5">
+                  {types.map((tType, j) => {
+                    const style = TYPE_STYLES[tType as keyof typeof TYPE_STYLES];
+                    const initial = (style?.label ?? tType).charAt(0).toUpperCase();
+                    return (
+                      <span
+                        key={j}
+                        className="flex h-[11px] w-[11px] items-center justify-center rounded-[3px] text-[7px] font-extrabold leading-none"
+                        style={{
+                          background: isSelected ? "rgba(255,255,255,0.9)" : style?.col ?? "#6B7280",
+                          color: isSelected ? (style?.col ?? "#6B7280") : "white",
+                        }}
+                      >
+                        {initial}
+                      </span>
+                    );
+                  })}
+                  {overflow > 0 && (
                     <span
-                      key={j}
-                      className="h-1 w-1 rounded-full"
-                      style={{
-                        background: isSelected
-                          ? "white"
-                          : TYPE_STYLES[tType as keyof typeof TYPE_STYLES]
-                            ?.col ?? "#6B7280",
-                      }}
-                    />
-                  ))}
+                      className="text-[7px] font-bold leading-none"
+                      style={{ color: isSelected ? "white" : "#9CA3AF" }}
+                    >
+                      +{overflow}
+                    </span>
+                  )}
                 </div>
               )}
             </button>
@@ -206,9 +220,11 @@ export function MonthLegend() {
             style={{ color: "#6B7280" }}
           >
             <span
-              className="h-[7px] w-[7px] rounded-full"
+              className="flex h-[12px] w-[12px] items-center justify-center rounded-[3px] text-[7px] font-extrabold text-white"
               style={{ background: TYPE_STYLES[k].col }}
-            />
+            >
+              {TYPE_STYLES[k].label.charAt(0).toUpperCase()}
+            </span>
             {TYPE_STYLES[k].label}
           </span>
         ),
@@ -234,7 +250,7 @@ export function TherapistMonthLegend() {
           style={{ color: "#6B7280" }}
         >
           <span
-            className="h-[7px] w-[7px] rounded-full"
+            className="h-[10px] w-[10px] rounded-[2px]"
             style={{ background: SESSION_STATUS_COLORS[status] }}
           />
           {label}

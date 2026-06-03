@@ -626,9 +626,10 @@ export const saveSessionPlanServer = createServerFn({ method: "POST" })
     if ((event as any).therapist_id !== userId) throw new Response("Sem permissão.", { status: 403 });
 
     const plan = {
-      objectives:        data.objectives ?? null,
-      activities:        data.activities ?? [],
-      materials:         data.materials ?? null,
+      objectives:          data.objectives ?? null,
+      specific_objectives: data.specificObjectives ?? [],
+      activities:          data.activities ?? [],
+      materials:           data.materials ?? null,
     };
 
     const { error } = await (supabaseAdmin as any)
@@ -711,14 +712,16 @@ export const saveSessionRecordServer = createServerFn({ method: "POST" })
       child_id:             childId,
       goals_achieved:       data.goalsAchieved ?? [],
       what_was_done:        data.whatWasDone ?? null,
-      engagement_level:     data.engagementLevel ?? null,
+      engagement_level:     null,
       clinical_observations: data.clinicalObservations ?? null,
       notable_behaviors:    data.notableBehaviors ?? [],
+      professional_observations: data.professionalObservations ?? [],
       is_private:           data.isPrivate,
       family_instruction:   data.familyInstruction ?? null,
       frequency_suggestion: data.frequencySuggestion ?? null,
       points_to_continue:   data.pointsToContinue ?? null,
       approach_adjustment:  data.approachAdjustment ?? null,
+      next_session_event_id: data.nextSessionEventId ?? null,
       is_draft:             data.isDraft,
       updated_at:           now,
     };
@@ -735,21 +738,39 @@ export const saveSessionRecordServer = createServerFn({ method: "POST" })
 
     if (error) throw new Response(error.message, { status: 500 });
 
-    // Se publicando: propaga points_to_continue para o próximo evento agendado do mesmo paciente
+    // Se publicando: propaga points_to_continue para a sessão escolhida pelo terapeuta
+    // (next_session_event_id) ou, na ausência de escolha, para o próximo evento cronológico.
     if (publishing && data.pointsToContinue) {
-      const { data: nextEvent } = await (supabaseAdmin as any)
-        .from("agenda_events")
-        .select("id, session_plan")
-        .eq("child_id", childId)
-        .eq("therapist_id", userId)
-        .eq("status", "upcoming")
-        .gt("start_at", now)
-        .order("start_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
+      let targetEvent: { id: string; session_plan: unknown } | null = null;
 
-      if (nextEvent) {
-        const existingPlan = (nextEvent as any).session_plan ?? {};
+      if (data.nextSessionEventId) {
+        const { data: chosen } = await (supabaseAdmin as any)
+          .from("agenda_events")
+          .select("id, session_plan, therapist_id")
+          .eq("id", data.nextSessionEventId)
+          .maybeSingle();
+        // Só aceita se for sessão do próprio terapeuta (defesa em profundidade)
+        if (chosen && (chosen as any).therapist_id === userId) {
+          targetEvent = chosen as any;
+        }
+      }
+
+      if (!targetEvent) {
+        const { data: nextEvent } = await (supabaseAdmin as any)
+          .from("agenda_events")
+          .select("id, session_plan")
+          .eq("child_id", childId)
+          .eq("therapist_id", userId)
+          .eq("status", "upcoming")
+          .gt("start_at", now)
+          .order("start_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        targetEvent = (nextEvent as any) ?? null;
+      }
+
+      if (targetEvent) {
+        const existingPlan = (targetEvent as any).session_plan ?? {};
         const updatedPlan = {
           ...existingPlan,
           // Pré-preenche objectives com os pontos a continuar (pode ser editado pelo terapeuta)
@@ -758,7 +779,7 @@ export const saveSessionRecordServer = createServerFn({ method: "POST" })
         await (supabaseAdmin as any)
           .from("agenda_events")
           .update({ session_plan: updatedPlan, updated_at: now })
-          .eq("id", (nextEvent as any).id);
+          .eq("id", (targetEvent as any).id);
       }
     }
 
@@ -811,10 +832,23 @@ export const getSessionRecordServer = createServerFn({ method: "POST" })
       .limit(1)
       .maybeSingle();
 
+    // Próximas sessões deste paciente (para o seletor de "próxima sessão")
+    const nowIso = new Date().toISOString();
+    const { data: upcoming } = await (supabaseAdmin as any)
+      .from("agenda_events")
+      .select("id, start_at, title")
+      .eq("child_id", (event as any).child_id)
+      .eq("therapist_id", userId)
+      .neq("id", data.eventId)
+      .gt("start_at", nowIso)
+      .order("start_at", { ascending: true })
+      .limit(20);
+
     return {
-      event:          event as Record<string, unknown>,
-      sessionRecord:  sessionRecord ?? null,
-      child:          child ?? null,
-      previousPoints: (prevRecord as any)?.points_to_continue ?? null,
+      event:           event as Record<string, unknown>,
+      sessionRecord:   sessionRecord ?? null,
+      child:           child ?? null,
+      previousPoints:  (prevRecord as any)?.points_to_continue ?? null,
+      upcomingSessions: (upcoming ?? []) as Array<{ id: string; start_at: string; title: string }>,
     };
   }) as any);

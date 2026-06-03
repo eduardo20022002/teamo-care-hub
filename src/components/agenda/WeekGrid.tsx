@@ -145,7 +145,7 @@ export function WeekGrid({
         {HOURS.map((h) => (
           <Fragment key={h}>
             <div
-              className="pt-0.5 text-[10px] font-semibold"
+              className="flex h-12 items-center text-[10px] font-semibold"
               style={{ color: "#9CA3AF" }}
             >
               {h}h
@@ -162,7 +162,7 @@ export function WeekGrid({
                   key={`cell-${h}-${i}`}
                   type="button"
                   onClick={cellEv ? () => onSelectEvent(cellEv.id) : undefined}
-                  className="h-7 rounded-[6px] relative overflow-hidden"
+                  className="h-12 rounded-[8px] relative overflow-hidden transition-transform active:scale-95"
                   style={{
                     background: evColor ? evColor.col : "#FAFBFD",
                     border: cellEv ? "none" : "1px solid #F1F2F6",
@@ -172,7 +172,7 @@ export function WeekGrid({
                 >
                   {evColor?.label && (
                     <span
-                      className="absolute inset-0 flex items-center justify-center text-[9px] font-extrabold text-white"
+                      className="absolute inset-0 flex items-center justify-center text-[11px] font-extrabold text-white"
                       style={{ textShadow: "0 1px 2px rgba(0,0,0,0.2)" }}
                     >
                       {evColor.label}

@@ -2,17 +2,22 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import {
   Loader2, Plus, Trash2, Eye, EyeOff, Lock,
-  CheckSquare, Square, Home, ChevronRight, X,
+  Home, ChevronRight, X, CheckCircle2, MinusCircle, XCircle,
+  Calendar, Stethoscope,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
-import { useSaveSessionRecord, useGetSessionRecord } from "@/services/therapist.service";
 import {
-  ENGAGEMENT_LEVELS,
-  ENGAGEMENT_LEVEL_LABELS,
+  useSaveSessionRecord,
+  useGetSessionRecord,
+  type UpcomingSession,
+} from "@/services/therapist.service";
+import {
   NOTABLE_BEHAVIOR_TYPES,
   NOTABLE_BEHAVIOR_TYPE_LABELS,
-  type EngagementLevel,
+  GOAL_STATUSES,
+  GOAL_STATUS_LABELS,
+  type GoalStatus,
   type NotableBehaviorType,
   type SessionRecordInput,
 } from "@/lib/validation";
@@ -36,7 +41,83 @@ interface NotableBehavior {
 
 interface GoalItem {
   goal: string;
-  achieved: boolean;
+  status: GoalStatus | null;
+  notes: string;
+}
+
+interface ProfObservation {
+  id: string;
+  professionalName: string;
+  notes: string;
+}
+
+// Estilos por status de objetivo
+const GOAL_STATUS_STYLE: Record<GoalStatus, { color: string; bg: string; border: string }> = {
+  achieved:     { color: "#16A34A", bg: "#F0FDF4", border: "#BBF7D0" },
+  partial:      { color: "#D97706", bg: "#FEF3C7", border: "#FDE68A" },
+  not_achieved: { color: "#DC2626", bg: "#FEF2F2", border: "#FECACA" },
+};
+
+const GOAL_STATUS_ICON: Record<GoalStatus, typeof CheckCircle2> = {
+  achieved:     CheckCircle2,
+  partial:      MinusCircle,
+  not_achieved: XCircle,
+};
+
+function formatSessionLabel(s: UpcomingSession): string {
+  const d = new Date(s.start_at);
+  const date = d.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" });
+  const time = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  return `${date} · ${time}`;
+}
+
+// ─── Sheet de seleção de próxima sessão ───────────────────────────────────────
+
+function SessionPickerSheet({
+  open,
+  onClose,
+  sessions,
+  selectedId,
+  onSelect,
+}: {
+  open: boolean;
+  onClose: () => void;
+  sessions: UpcomingSession[];
+  selectedId?: string;
+  onSelect: (id: string) => void;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-[#0F172A]/50" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-[500px] bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[80vh] overflow-y-auto">
+        <div className="sticky top-0 flex items-center justify-between px-5 py-4 border-b border-[#F1F5F9] bg-white rounded-t-3xl sm:rounded-t-2xl">
+          <h2 className="text-[16px] font-bold text-[#0F172A]">Escolha a sessão</h2>
+          <button type="button" onClick={onClose} className="p-2 rounded-xl hover:bg-[#F1F5F9] transition-colors">
+            <X size={18} color="#6B7280" />
+          </button>
+        </div>
+        <div className="px-4 py-4 flex flex-col gap-2">
+          {sessions.map((s) => {
+            const sel = s.id === selectedId;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => { onSelect(s.id); onClose(); }}
+                className="flex items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors hover:bg-[#F8FAFC]"
+                style={sel ? { borderColor: TEAL, background: TEAL_SOFT } : { borderColor: "#E5E7EB" }}
+              >
+                <Calendar size={16} color={sel ? TEAL : "#9CA3AF"} />
+                <span className="flex-1 text-sm font-medium text-[#0F172A]">{formatSessionLabel(s)}</span>
+                {sel && <CheckCircle2 size={16} color={TEAL} />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── Preview sheet para os pais ───────────────────────────────────────────────
@@ -204,10 +285,10 @@ function SessionRecordPage() {
   // Bloco 1
   const [goalsChecklist, setGoalsChecklist] = useState<GoalItem[]>([]);
   const [whatWasDone, setWhatWasDone] = useState("");
-  const [engagementLevel, setEngagementLevel] = useState<EngagementLevel | undefined>();
   // Bloco 2
   const [clinicalObservations, setClinicalObservations] = useState("");
   const [notableBehaviors, setNotableBehaviors] = useState<NotableBehavior[]>([]);
+  const [profObservations, setProfObservations] = useState<ProfObservation[]>([]);
   const [isPrivate, setIsPrivate] = useState(false);
   // Bloco 3
   const [familyInstruction, setFamilyInstruction] = useState("");
@@ -215,6 +296,8 @@ function SessionRecordPage() {
   // Bloco 4
   const [pointsToContinue, setPointsToContinue] = useState("");
   const [approachAdjustment, setApproachAdjustment] = useState("");
+  const [nextSessionEventId, setNextSessionEventId] = useState<string | undefined>();
+  const [sessionPickerOpen, setSessionPickerOpen] = useState(false);
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -223,39 +306,72 @@ function SessionRecordPage() {
   const event = data?.event as any;
   const child = data?.child as any;
   const existing = data?.sessionRecord as any;
+  const upcomingSessions: UpcomingSession[] = data?.upcomingSessions ?? [];
+  const selectedNextSession = upcomingSessions.find((s) => s.id === nextSessionEventId);
 
   // Pré-preenche dados existentes (rascunho)
   useEffect(() => {
     if (!data || initialized) return;
     setInitialized(true);
 
-    // Gera checklist a partir dos objetivos do plano
+    // Objetivos específicos do plano (fallback: objetivo geral quebrado por linhas)
     const plan = event?.session_plan ?? {};
+    const planSpecific: string[] = Array.isArray(plan.specific_objectives)
+      ? plan.specific_objectives.filter((s: string) => s && s.trim())
+      : [];
     const planObjectives: string = plan.objectives ?? "";
     const prevPoints: string = data.previousPoints as string ?? plan.objectives_from_previous ?? "";
 
+    // Normaliza um item de goals_achieved (suporta shape antigo {goal, achieved} e novo {goal, status, notes})
+    const normalizeGoal = (g: any): GoalItem => {
+      if (g && typeof g.status === "string") {
+        return { goal: g.goal ?? "", status: g.status as GoalStatus, notes: g.notes ?? "" };
+      }
+      // Shape antigo booleano
+      return {
+        goal: g?.goal ?? "",
+        status: g?.achieved ? "achieved" : null,
+        notes: "",
+      };
+    };
+
     if (existing) {
       // Carrega rascunho existente
-      setGoalsChecklist(existing.goals_achieved ?? []);
+      const savedGoals: GoalItem[] = (existing.goals_achieved ?? []).map(normalizeGoal);
+      // Se o plano ganhou objetivos específicos novos que não estão no rascunho, anexa
+      const savedTexts = new Set(savedGoals.map((g) => g.goal));
+      const extra = planSpecific
+        .filter((s) => !savedTexts.has(s))
+        .map((goal): GoalItem => ({ goal, status: null, notes: "" }));
+      setGoalsChecklist([...savedGoals, ...extra]);
+
       setWhatWasDone(existing.what_was_done ?? "");
-      setEngagementLevel(existing.engagement_level ?? undefined);
       setClinicalObservations(existing.clinical_observations ?? "");
       setNotableBehaviors(
         (existing.notable_behaviors ?? []).map((b: any) => ({ id: crypto.randomUUID(), ...b }))
+      );
+      setProfObservations(
+        (existing.professional_observations ?? []).map((p: any) => ({
+          id: crypto.randomUUID(),
+          professionalName: p.professional_name ?? p.professionalName ?? "",
+          notes: p.notes ?? "",
+        }))
       );
       setIsPrivate(existing.is_private ?? false);
       setFamilyInstruction(existing.family_instruction ?? "");
       setFrequencySuggestion(existing.frequency_suggestion ?? "");
       setPointsToContinue(existing.points_to_continue ?? "");
       setApproachAdjustment(existing.approach_adjustment ?? "");
-    } else if (planObjectives) {
-      // Cria checklist inicial a partir dos objetivos do plano
-      const items = planObjectives
-        .split("\n")
-        .map((line: string) => line.trim())
-        .filter(Boolean)
-        .map((goal: string) => ({ goal, achieved: false }));
-      setGoalsChecklist(items.length > 0 ? items : []);
+      setNextSessionEventId(existing.next_session_event_id ?? undefined);
+    } else {
+      // Cria checklist inicial a partir dos objetivos específicos do plano
+      // (fallback: objetivo geral quebrado em linhas, comportamento legado)
+      const sourceGoals = planSpecific.length > 0
+        ? planSpecific
+        : planObjectives.split("\n").map((l: string) => l.trim()).filter(Boolean);
+      setGoalsChecklist(
+        sourceGoals.map((goal: string): GoalItem => ({ goal, status: null, notes: "" }))
+      );
 
       // Pré-preenche pontos a continuar se houver sessão anterior
       if (prevPoints) setPointsToContinue(prevPoints);
@@ -276,16 +392,48 @@ function SessionRecordPage() {
       prev.map((b) => (b.id === id ? { ...b, [field]: value } : b))
     );
 
-  const toggleGoal = (i: number) =>
+  const setGoalStatus = (i: number, status: GoalStatus) =>
     setGoalsChecklist((prev) =>
-      prev.map((g, idx) => (idx === i ? { ...g, achieved: !g.achieved } : g))
+      prev.map((g, idx) =>
+        idx === i ? { ...g, status: g.status === status ? null : status } : g
+      )
+    );
+
+  const updateGoalNotes = (i: number, notes: string) =>
+    setGoalsChecklist((prev) =>
+      prev.map((g, idx) => (idx === i ? { ...g, notes: notes.slice(0, 500) } : g))
+    );
+
+  const addProfObservation = () =>
+    setProfObservations((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), professionalName: "", notes: "" },
+    ]);
+
+  const removeProfObservation = (id: string) =>
+    setProfObservations((prev) => prev.filter((p) => p.id !== id));
+
+  const updateProfObservation = (
+    id: string,
+    field: "professionalName" | "notes",
+    value: string,
+  ) =>
+    setProfObservations((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
     );
 
   const buildPayload = (isDraft: boolean): SessionRecordInput => ({
     eventId,
-    goalsAchieved: goalsChecklist.length > 0 ? goalsChecklist : undefined,
+    goalsAchieved:
+      goalsChecklist.length > 0
+        ? goalsChecklist.map((g) => ({
+            goal: g.goal,
+            // Objetivo não avaliado é registrado como "não alcançado"
+            status: g.status ?? "not_achieved",
+            notes: g.notes.trim() || undefined,
+          }))
+        : undefined,
     whatWasDone: whatWasDone.trim() || undefined,
-    engagementLevel,
     clinicalObservations: clinicalObservations.trim() || undefined,
     notableBehaviors:
       notableBehaviors.filter((b) => b.description.trim()).length > 0
@@ -293,11 +441,18 @@ function SessionRecordPage() {
             .filter((b) => b.description.trim())
             .map(({ description, type }) => ({ description, type }))
         : undefined,
+    professionalObservations:
+      profObservations.filter((p) => p.professionalName.trim() && p.notes.trim()).length > 0
+        ? profObservations
+            .filter((p) => p.professionalName.trim() && p.notes.trim())
+            .map((p) => ({ professionalName: p.professionalName.trim(), notes: p.notes.trim() }))
+        : undefined,
     isPrivate,
     familyInstruction: familyInstruction.trim() || undefined,
     frequencySuggestion: frequencySuggestion.trim() || undefined,
     pointsToContinue: pointsToContinue.trim() || undefined,
     approachAdjustment: approachAdjustment.trim() || undefined,
+    nextSessionEventId,
     isDraft,
   });
 
@@ -363,39 +518,57 @@ function SessionRecordPage() {
 
           {/* ═══ Bloco 1 — O que foi trabalhado ═══ */}
           <SectionBlock number={1} title="O que foi trabalhado">
-            {/* Checklist de objetivos */}
+            {/* Checklist de objetivos específicos com status */}
             {goalsChecklist.length > 0 && (
-              <div className="mb-4 rounded-[14px] border border-[#E5E7EB] divide-y divide-[#F1F5F9] overflow-hidden">
+              <div className="mb-4 flex flex-col gap-2.5">
                 {goalsChecklist.map((item, i) => (
-                  <button
+                  <div
                     key={i}
-                    type="button"
-                    onClick={() => toggleGoal(i)}
-                    className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-[#FAFAFA] transition-colors"
+                    className="rounded-[14px] border border-[#E5E7EB] p-3.5"
                   >
-                    {item.achieved ? (
-                      <CheckSquare size={18} color={TEAL} strokeWidth={1.8} className="flex-shrink-0" />
-                    ) : (
-                      <Square size={18} color="#D1D5DB" strokeWidth={1.8} className="flex-shrink-0" />
+                    <p className="text-sm font-medium text-[#374151] mb-2.5">{item.goal}</p>
+                    <div className="flex gap-2">
+                      {GOAL_STATUSES.map((status) => {
+                        const sel = item.status === status;
+                        const st = GOAL_STATUS_STYLE[status];
+                        const Icon = GOAL_STATUS_ICON[status];
+                        return (
+                          <button
+                            key={status}
+                            type="button"
+                            onClick={() => setGoalStatus(i, status)}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 py-2 text-[12px] font-semibold transition-all"
+                            style={
+                              sel
+                                ? { borderColor: st.color, background: st.bg, color: st.color }
+                                : { borderColor: "#E5E7EB", background: "white", color: "#9CA3AF" }
+                            }
+                          >
+                            <Icon size={14} strokeWidth={2} />
+                            {GOAL_STATUS_LABELS[status]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* Observação opcional por objetivo */}
+                    {item.status && (
+                      <input
+                        type="text"
+                        placeholder="Observação (opcional) — explique o motivo…"
+                        value={item.notes}
+                        onChange={(e) => updateGoalNotes(i, e.target.value)}
+                        className="mt-2.5 h-10 w-full rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm text-[#374151] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
+                      />
                     )}
-                    <span
-                      className="text-sm"
-                      style={{
-                        color: item.achieved ? TEAL : "#374151",
-                        textDecoration: item.achieved ? "line-through" : "none",
-                      }}
-                    >
-                      {item.goal}
-                    </span>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
 
-            {/* O que foi feito */}
-            <div className="mb-4">
+            {/* Observações gerais */}
+            <div>
               <label className="block text-sm font-medium text-[#374151] mb-1.5">
-                O que foi efetivamente feito
+                Observações gerais
               </label>
               <textarea
                 rows={3}
@@ -406,61 +579,50 @@ function SessionRecordPage() {
               />
               <p className="mt-1 text-right text-xs text-[#9CA3AF]">{whatWasDone.length}/2000</p>
             </div>
-
-            {/* Engajamento */}
-            <div>
-              <label className="block text-sm font-medium text-[#374151] mb-2">
-                Nível de engajamento
-              </label>
-              <div className="flex gap-2">
-                {ENGAGEMENT_LEVELS.map((level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() => setEngagementLevel(engagementLevel === level ? undefined : level)}
-                    className="flex-1 rounded-xl border-2 py-2 text-sm font-medium transition-all"
-                    style={
-                      engagementLevel === level
-                        ? {
-                            borderColor: level === "alto" ? "#16A34A" : level === "medio" ? "#D97706" : "#DC2626",
-                            background: level === "alto" ? "#F0FDF4" : level === "medio" ? "#FEF3C7" : "#FEF2F2",
-                            color: level === "alto" ? "#16A34A" : level === "medio" ? "#D97706" : "#DC2626",
-                          }
-                        : { borderColor: "#E5E7EB", background: "white", color: "#374151" }
-                    }
-                  >
-                    {ENGAGEMENT_LEVEL_LABELS[level]}
-                  </button>
-                ))}
-              </div>
-            </div>
           </SectionBlock>
 
           {/* ═══ Bloco 2 — Observações clínicas ═══ */}
-          <SectionBlock
-            number={2}
-            title="Observações clínicas"
-            badge={
-              <button
-                type="button"
-                onClick={() => setIsPrivate((v) => !v)}
-                className="ml-auto flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold border transition-colors"
-                style={
-                  isPrivate
-                    ? { background: "#F1F5F9", borderColor: "#CBD5E1", color: "#475569" }
-                    : { background: TEAL_SOFT, borderColor: TEAL_BORDER, color: TEAL }
-                }
+          <SectionBlock number={2} title="Observações clínicas">
+            {/* Controle de visibilidade — bloco clicável e explícito */}
+            <button
+              type="button"
+              onClick={() => setIsPrivate((v) => !v)}
+              className="mb-4 flex w-full items-center gap-3 rounded-[14px] border-2 px-4 py-3 text-left transition-colors"
+              style={
+                isPrivate
+                  ? { borderColor: "#CBD5E1", background: "#F8FAFC" }
+                  : { borderColor: TEAL_BORDER, background: TEAL_SOFT }
+              }
+            >
+              <div
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full"
+                style={{ background: isPrivate ? "#E2E8F0" : "white" }}
               >
-                {isPrivate ? <Lock size={11} /> : <Eye size={11} />}
-                {isPrivate ? "Privado" : "Compartilhado"}
-              </button>
-            }
-            subtitle={isPrivate ? "Só você verá estas observações" : "Visível para os responsáveis"}
-          >
+                {isPrivate ? <Lock size={16} color="#475569" /> : <Eye size={16} color={TEAL} />}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold" style={{ color: isPrivate ? "#475569" : TEAL }}>
+                  {isPrivate ? "Privado — só você vê" : "Compartilhado com a família"}
+                </p>
+                <p className="text-xs text-[#6B7280] mt-0.5">
+                  Toque para {isPrivate ? "compartilhar com os responsáveis" : "tornar privado"}
+                </p>
+              </div>
+              <div
+                className="flex h-6 w-11 flex-shrink-0 items-center rounded-full px-0.5 transition-colors"
+                style={{ background: isPrivate ? "#CBD5E1" : TEAL }}
+              >
+                <div
+                  className="h-5 w-5 rounded-full bg-white shadow-sm transition-transform"
+                  style={{ transform: isPrivate ? "translateX(0)" : "translateX(20px)" }}
+                />
+              </div>
+            </button>
+
             <div className="mb-4">
               <textarea
                 rows={4}
-                placeholder="Observações gerais da sessão…"
+                placeholder="Observações clínicas da sessão…"
                 value={clinicalObservations}
                 onChange={(e) => setClinicalObservations(e.target.value.slice(0, 3000))}
                 className="w-full rounded-xl border border-[#E5E7EB] bg-white px-3 py-2.5 text-sm text-[#374151] placeholder:text-[#9CA3AF] resize-none focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
@@ -519,6 +681,58 @@ function SessionRecordPage() {
               <Plus size={14} strokeWidth={2.5} />
               Adicionar comportamento notável
             </button>
+
+            {/* ── Observação para outro profissional ── */}
+            <div className="mt-5 pt-5 border-t border-[#F1F5F9]">
+              <div className="flex items-center gap-2 mb-1">
+                <Stethoscope size={15} color={TEAL} />
+                <p className="text-sm font-bold text-[#0F172A]">Observação para outro profissional</p>
+              </div>
+              <p className="text-xs text-[#9CA3AF] mb-3">
+                Direcione uma observação a outro profissional do paciente. Por ora, visível apenas para você.
+              </p>
+
+              {profObservations.length > 0 && (
+                <div className="flex flex-col gap-3 mb-3">
+                  {profObservations.map((p) => (
+                    <div key={p.id} className="rounded-xl border border-[#E5E7EB] p-3">
+                      <div className="flex gap-2 mb-2">
+                        <input
+                          type="text"
+                          placeholder="Nome do profissional / especialidade"
+                          value={p.professionalName}
+                          onChange={(e) => updateProfObservation(p.id, "professionalName", e.target.value.slice(0, 120))}
+                          className="h-9 flex-1 rounded-lg border border-[#E5E7EB] bg-white px-2.5 text-sm text-[#374151] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeProfObservation(p.id)}
+                          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[#E5E7EB] text-[#9CA3AF] hover:text-[#DC2626] transition-colors"
+                        >
+                          <Trash2 size={13} strokeWidth={1.8} />
+                        </button>
+                      </div>
+                      <textarea
+                        rows={2}
+                        placeholder="O que deseja comunicar a esse profissional…"
+                        value={p.notes}
+                        onChange={(e) => updateProfObservation(p.id, "notes", e.target.value.slice(0, 2000))}
+                        className="w-full rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-2 text-sm text-[#374151] placeholder:text-[#9CA3AF] resize-none focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={addProfObservation}
+                className="flex items-center gap-1.5 text-sm font-medium transition-colors"
+                style={{ color: TEAL }}
+              >
+                <Plus size={14} strokeWidth={2.5} />
+                Adicionar observação para profissional
+              </button>
+            </div>
           </SectionBlock>
 
           {/* ═══ Bloco 3 — Instrução para família ═══ */}
@@ -574,6 +788,43 @@ function SessionRecordPage() {
                 className="w-full rounded-xl border border-[#E5E7EB] bg-white px-3 py-2.5 text-sm text-[#374151] placeholder:text-[#9CA3AF] resize-none focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
               />
             </div>
+
+            {/* Vincular a uma sessão específica */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-[#374151] mb-1.5">
+                Vincular a uma sessão
+              </label>
+              {selectedNextSession ? (
+                <div
+                  className="flex items-center gap-2 rounded-xl border px-3 py-2.5"
+                  style={{ borderColor: TEAL_BORDER, background: TEAL_SOFT }}
+                >
+                  <Calendar size={15} color={TEAL} />
+                  <span className="flex-1 text-sm font-medium text-[#0F172A]">
+                    {formatSessionLabel(selectedNextSession)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setNextSessionEventId(undefined)}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-[#9CA3AF] hover:text-[#DC2626] transition-colors"
+                    aria-label="Desvincular sessão"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => upcomingSessions.length > 0 ? setSessionPickerOpen(true) : toast.message("Nenhuma sessão futura agendada para este paciente.")}
+                  className="flex w-full items-center gap-2 rounded-xl border border-dashed px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[#F8FAFC]"
+                  style={{ borderColor: "#CBD5E1", color: "#6B7280" }}
+                >
+                  <Calendar size={15} color="#9CA3AF" />
+                  Escolher sessão (opcional)
+                </button>
+              )}
+            </div>
+
             <div className="mb-3">
               <label className="block text-sm font-medium text-[#374151] mb-1 flex items-center gap-1.5">
                 Ajuste de abordagem
@@ -594,7 +845,9 @@ function SessionRecordPage() {
               style={{ borderColor: TEAL_BORDER, background: TEAL_SOFT }}
             >
               <ChevronRight size={13} color={TEAL} />
-              Estes pontos serão sugeridos automaticamente no plano da próxima sessão com este paciente.
+              {selectedNextSession
+                ? "Estes pontos serão sugeridos no plano da sessão escolhida acima."
+                : "Estes pontos serão sugeridos automaticamente no plano da próxima sessão com este paciente."}
             </div>
           </SectionBlock>
         </div>
@@ -622,6 +875,15 @@ function SessionRecordPage() {
           </button>
         </div>
       </div>
+
+      {/* Seletor de próxima sessão */}
+      <SessionPickerSheet
+        open={sessionPickerOpen}
+        onClose={() => setSessionPickerOpen(false)}
+        sessions={upcomingSessions}
+        selectedId={nextSessionEventId}
+        onSelect={(id) => setNextSessionEventId(id)}
+      />
 
       {/* Preview sheet */}
       <ParentPreviewSheet

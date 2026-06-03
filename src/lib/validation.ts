@@ -585,11 +585,14 @@ export type TherapistPatientWithGuardiansInput = z.infer<typeof therapistPatient
 // ─── Sessão — plano pré-sessão ────────────────────────────────────────────────
 
 export const sessionPlanSchema = z.object({
-  eventId:          z.string().uuid(),
-  objectives:       z.string().max(1000).optional(),
-  activities:       z.array(z.string().trim().max(200)).optional(),
-  materials:        z.string().max(500).optional(),
-  visibleToParents: z.boolean().default(true),
+  eventId:            z.string().uuid(),
+  /** Objetivo geral — texto livre */
+  objectives:         z.string().max(1000).optional(),
+  /** Objetivos específicos — lista (cada item até 200 chars) */
+  specificObjectives: z.array(z.string().trim().max(200)).optional(),
+  activities:         z.array(z.string().trim().max(200)).optional(),
+  materials:          z.string().max(500).optional(),
+  visibleToParents:   z.boolean().default(true),
 });
 export type SessionPlanInput = z.infer<typeof sessionPlanSchema>;
 
@@ -633,9 +636,20 @@ export const NOTABLE_BEHAVIOR_TYPE_LABELS: Record<NotableBehaviorType, string> =
   outro: 'Outro',
 };
 
+// Status de alcance de um objetivo específico no registro pós-sessão
+export const GOAL_STATUSES = ['achieved', 'partial', 'not_achieved'] as const;
+export type GoalStatus = typeof GOAL_STATUSES[number];
+
+export const GOAL_STATUS_LABELS: Record<GoalStatus, string> = {
+  achieved:     'Alcançado',
+  partial:      'Parcialmente',
+  not_achieved: 'Não alcançado',
+};
+
 export const goalAchievedSchema = z.object({
-  goal:     z.string().max(200),
-  achieved: z.boolean(),
+  goal:   z.string().max(200),
+  status: z.enum(GOAL_STATUSES),
+  notes:  z.string().max(500).optional(),
 });
 
 export const notableBehaviorSchema = z.object({
@@ -643,15 +657,23 @@ export const notableBehaviorSchema = z.object({
   type:        z.enum(NOTABLE_BEHAVIOR_TYPES),
 });
 
+// Observação direcionada a outro profissional
+export const professionalObservationSchema = z.object({
+  professionalId:   z.string().uuid().optional(),
+  professionalName: z.string().trim().min(1).max(120),
+  notes:            z.string().trim().max(2000),
+});
+export type ProfessionalObservationInput = z.infer<typeof professionalObservationSchema>;
+
 export const sessionRecordSchema = z.object({
   eventId: z.string().uuid(),
   // Bloco 1
   goalsAchieved:       z.array(goalAchievedSchema).optional(),
   whatWasDone:         z.string().max(2000).optional(),
-  engagementLevel:     z.enum(ENGAGEMENT_LEVELS).optional(),
   // Bloco 2
   clinicalObservations: z.string().max(3000).optional(),
   notableBehaviors:    z.array(notableBehaviorSchema).optional(),
+  professionalObservations: z.array(professionalObservationSchema).optional(),
   isPrivate:           z.boolean().default(false),
   // Bloco 3
   familyInstruction:   z.string().max(2000).optional(),
@@ -659,6 +681,7 @@ export const sessionRecordSchema = z.object({
   // Bloco 4
   pointsToContinue:    z.string().max(1000).optional(),
   approachAdjustment:  z.string().max(1000).optional(),
+  nextSessionEventId:  z.string().uuid().optional(),
   // Controle
   isDraft:             z.boolean().default(true),
 });
