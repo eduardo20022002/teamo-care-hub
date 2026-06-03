@@ -119,11 +119,13 @@ function AgendaPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [view, setView] = useState<ViewMode>("hoje");
+  const [viewInitialized, setViewInitialized] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   useEffect(() => {
     track("module.open", { module: "agenda", route: "/agenda" });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   // Detecta papel do usuário
   const profileQuery = useQuery({
@@ -135,6 +137,15 @@ function AgendaPage() {
   const isTherapist = profileQuery.data
     ? getRole(profileQuery.data) === "therapist"
     : false;
+
+  // Define view padrão conforme o papel do usuário, apenas na montagem
+  useEffect(() => {
+    if (viewInitialized || !profileQuery.data) return;
+    if (getRole(profileQuery.data) === "therapist") {
+      setView("semana");
+    }
+    setViewInitialized(true);
+  }, [profileQuery.data, viewInitialized]);
 
   const eventsQuery = useQuery({
     queryKey: ["agenda-events"],
