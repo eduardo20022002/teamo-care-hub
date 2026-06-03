@@ -833,14 +833,15 @@ export const getSessionRecordServer = createServerFn({ method: "POST" })
       .maybeSingle();
 
     // Próximas sessões deste paciente (para o seletor de "próxima sessão")
-    const nowIso = new Date().toISOString();
+    // Filtra por start_at da sessão sendo registrada, não pelo momento atual —
+    // para que sessões recentes também apareçam no picker ao registrar sessões passadas.
     const { data: upcoming } = await (supabaseAdmin as any)
       .from("agenda_events")
       .select("id, start_at, title")
       .eq("child_id", (event as any).child_id)
       .eq("therapist_id", userId)
       .neq("id", data.eventId)
-      .gt("start_at", nowIso)
+      .gt("start_at", (event as any).start_at)
       .order("start_at", { ascending: true })
       .limit(20);
 

@@ -431,6 +431,19 @@ function AgendaEventDetailPage() {
           </>
         )}
 
+        {/* Lembrete da sessão anterior — propagado via pointsToContinue do registro anterior */}
+        {isOwnSession && (event as any).session_plan?.objectives_from_previous && (
+          <div className="mt-4 rounded-xl bg-amber-50 border border-amber-100 px-4 py-3">
+            <div className="flex items-center gap-2 mb-1.5">
+              <Bell size={14} color="#D97706" />
+              <span className="text-xs font-semibold text-amber-700">Lembrete da sessão anterior</span>
+            </div>
+            <p className="text-sm text-amber-800 whitespace-pre-wrap leading-relaxed">
+              {(event as any).session_plan.objectives_from_previous}
+            </p>
+          </div>
+        )}
+
         {/* ── Ações de sessão para TERAPEUTA ──────────────────────────── */}
         {isTherapist && (() => {
           if (!isOwnSession) return null;

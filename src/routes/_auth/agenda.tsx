@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Calendar, Plus, Search } from "lucide-react";
+import { ArrowLeft, Calendar, Plus, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
@@ -38,6 +38,27 @@ import {
 import type { AgendaEventInput } from "@/lib/agenda/validation";
 import type { AgendaEventWithRelations } from "@/types/agenda";
 import { track } from "@/lib/analytics";
+
+// ─── Tipos de filtro ─────────────────────────────────────────────────────────
+
+type AgendaFilters = {
+  patientIds: string[];
+  shifts: ("morning" | "afternoon" | "evening")[];
+  hasReminder: boolean | null;
+};
+
+const SHIFT_LABELS: Record<"morning" | "afternoon" | "evening", string> = {
+  morning: "Manhã (6h–12h)",
+  afternoon: "Tarde (12h–18h)",
+  evening: "Noite (18h+)",
+};
+
+function getShift(startAt: string): "morning" | "afternoon" | "evening" {
+  const h = new Date(startAt).getHours();
+  if (h < 12) return "morning";
+  if (h < 18) return "afternoon";
+  return "evening";
+}
 
 // ─── Helpers de status de sessão (terapeuta) ─────────────────────────────────
 
@@ -121,6 +142,8 @@ function AgendaPage() {
   const [view, setView] = useState<ViewMode>("hoje");
   const [viewInitialized, setViewInitialized] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [filters, setFilters] = useState<AgendaFilters>({ patientIds: [], shifts: [], hasReminder: null });
 
   useEffect(() => {
     track("module.open", { module: "agenda", route: "/agenda" });
@@ -239,6 +262,33 @@ function AgendaPage() {
 
   const events = eventsQuery.data ?? [];
 
+  const filtersActive =
+    filters.patientIds.length > 0 ||
+    filters.shifts.length > 0 ||
+    filters.hasReminder !== null;
+
+  const filteredEvents = filtersActive
+    ? events.filter((e) => {
+        if (
+          filters.patientIds.length > 0 &&
+          e.child_id &&
+          !filters.patientIds.includes(e.child_id)
+        )
+          return false;
+        if (
+          filters.shifts.length > 0 &&
+          !filters.shifts.includes(getShift(e.start_at))
+        )
+          return false;
+        if (filters.hasReminder === true) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const r = (e as any).reminders;
+          if (!r?.oneDayBefore && !r?.oneHourBefore) return false;
+        }
+        return true;
+      })
+    : events;
+
   // ── TEAL brand para terapeuta ────────────────────────────────────────────────
   const TEAL = "#0D9488";
   const TEAL_TINT = "#F0FDFA";
@@ -273,12 +323,19 @@ function AgendaPage() {
         <div className="flex gap-1">
           <button
             type="button"
-            aria-label="Buscar"
-            onClick={() => navigate({ to: "/agenda/busca" })}
-            className="flex h-[38px] w-[38px] items-center justify-center rounded-xl transition-colors hover:bg-[#E5E7EB]"
+            aria-label="Filtrar"
+            onClick={() => setFilterSheetOpen(true)}
+            className="relative flex h-[38px] w-[38px] items-center justify-center rounded-xl transition-colors hover:bg-[#E5E7EB]"
             style={{ background: "#F4F5FA" }}
           >
-            <Search size={18} strokeWidth={1.7} color="#6B7280" />
+            <SlidersHorizontal
+              size={18}
+              strokeWidth={1.7}
+              color={filtersActive ? TEAL : "#6B7280"}
+            />
+            {filtersActive && (
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
+            )}
           </button>
           <button
             type="button"
@@ -301,14 +358,14 @@ function AgendaPage() {
 
   // ── Visão do TERAPEUTA ───────────────────────────────────────────────────────
   if (isTherapist) {
-    const sessionStatusMap = buildSessionStatusMap(events);
+    const sessionStatusMap = buildSessionStatusMap(filteredEvents);
 
     return (
       <AppShell>
         <div className="mx-auto max-w-2xl">
           {headerSection}
           <TherapistAgendaView
-            events={events}
+            events={filteredEvents}
             patients={patients}
             view={view}
             onChangeView={setView}
@@ -320,17 +377,6 @@ function AgendaPage() {
           <div className="h-24" />
         </div>
 
-        {/* FAB flutuante */}
-        <button
-          type="button"
-          onClick={() => setSheetOpen(true)}
-          className="fixed bottom-20 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full shadow-xl transition-transform hover:-translate-y-1 active:scale-95"
-          style={{ background: TEAL }}
-          aria-label="Nova sessão"
-        >
-          <Plus size={22} strokeWidth={2.3} color="white" />
-        </button>
-
         <TherapistEventFormSheet
           open={sheetOpen}
           onOpenChange={setSheetOpen}
@@ -340,6 +386,16 @@ function AgendaPage() {
           }}
           submitting={createSessionMutation.isPending}
           patients={patients}
+        />
+        <AgendaFilterSheet
+          open={filterSheetOpen}
+          onClose={() => setFilterSheetOpen(false)}
+          filters={filters}
+          onChange={setFilters}
+          patients={patients}
+          isTherapist
+          viewMode={view}
+          onViewMode={setView}
         />
       </AppShell>
     );
@@ -356,7 +412,7 @@ function AgendaPage() {
 
         {hasEvents ? (
           <AgendaTodayView
-            events={events}
+            events={filteredEvents}
             view={view}
             onChangeView={setView}
           />
@@ -369,6 +425,17 @@ function AgendaPage() {
 
         <div className="h-8" />
       </div>
+
+      <AgendaFilterSheet
+        open={filterSheetOpen}
+        onClose={() => setFilterSheetOpen(false)}
+        filters={filters}
+        onChange={setFilters}
+        patients={[]}
+        isTherapist={false}
+        viewMode={view}
+        onViewMode={setView}
+      />
 
       <EventFormSheet
         open={sheetOpen}
@@ -1082,5 +1149,212 @@ function AgendaEmptyState({
         </div>
       </section>
     </div>
+  );
+}
+
+// ─── AgendaFilterSheet ────────────────────────────────────────────────────────
+
+function AgendaFilterSheet({
+  open,
+  onClose,
+  filters,
+  onChange,
+  patients,
+  isTherapist,
+  viewMode,
+  onViewMode,
+}: {
+  open: boolean;
+  onClose: () => void;
+  filters: AgendaFilters;
+  onChange: (f: AgendaFilters) => void;
+  patients: { id: string; name: string }[];
+  isTherapist: boolean;
+  viewMode: ViewMode;
+  onViewMode: (v: ViewMode) => void;
+}) {
+  const TEAL = "#0D9488";
+
+  const toggleShift = (s: "morning" | "afternoon" | "evening") => {
+    const next = filters.shifts.includes(s)
+      ? filters.shifts.filter((x) => x !== s)
+      : [...filters.shifts, s];
+    onChange({ ...filters, shifts: next });
+  };
+
+  const togglePatient = (id: string) => {
+    const next = filters.patientIds.includes(id)
+      ? filters.patientIds.filter((x) => x !== id)
+      : [...filters.patientIds, id];
+    onChange({ ...filters, patientIds: next });
+  };
+
+  if (!open) return null;
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
+      {/* Sheet */}
+      <div
+        className="fixed inset-x-0 bottom-0 z-50 rounded-t-[24px] bg-white px-5 pt-4 shadow-2xl"
+        style={{ maxHeight: "85vh", overflowY: "auto", paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}
+      >
+        {/* Handle */}
+        <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-[#E5E7EB]" />
+
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-[17px] font-extrabold" style={{ color: "#0F172A", letterSpacing: "-0.02em" }}>
+            Filtros
+          </h2>
+          <button
+            type="button"
+            onClick={() => onChange({ patientIds: [], shifts: [], hasReminder: null })}
+            className="text-[13px] font-semibold"
+            style={{ color: "#9CA3AF" }}
+          >
+            Limpar tudo
+          </button>
+        </div>
+
+        {/* Visualização rápida */}
+        <div className="mb-5">
+          <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>
+            Visualização
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                { key: "hoje", label: "Hoje" },
+                { key: "semana", label: "Semana" },
+                { key: "mes", label: "Mês" },
+              ] as { key: ViewMode; label: string }[]
+            ).map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => {
+                  onViewMode(key);
+                  onClose();
+                }}
+                className="rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition-colors"
+                style={
+                  viewMode === key
+                    ? { background: TEAL, borderColor: TEAL, color: "white" }
+                    : { background: "white", borderColor: "#E5E7EB", color: "#374151" }
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Turno */}
+        <div className="mb-5">
+          <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>
+            Turno
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {(["morning", "afternoon", "evening"] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => toggleShift(s)}
+                className="rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition-colors"
+                style={
+                  filters.shifts.includes(s)
+                    ? { background: TEAL, borderColor: TEAL, color: "white" }
+                    : { background: "white", borderColor: "#E5E7EB", color: "#374151" }
+                }
+              >
+                {SHIFT_LABELS[s]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Lembrete */}
+        <div className="mb-5">
+          <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>
+            Lembrete
+          </p>
+          <button
+            type="button"
+            onClick={() =>
+              onChange({
+                ...filters,
+                hasReminder: filters.hasReminder === true ? null : true,
+              })
+            }
+            className="flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors"
+            style={
+              filters.hasReminder === true
+                ? { borderColor: TEAL, background: "#F0FDFA" }
+                : { borderColor: "#E5E7EB", background: "white" }
+            }
+          >
+            <span
+              className="text-[14px] font-semibold"
+              style={{ color: filters.hasReminder === true ? TEAL : "#374151" }}
+            >
+              Apenas com lembrete ativo
+            </span>
+            <span
+              className="ml-auto flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors"
+              style={{ background: filters.hasReminder === true ? TEAL : "#D1D5DB" }}
+            >
+              <span
+                className="h-4 w-4 rounded-full bg-white shadow transition-transform"
+                style={{
+                  transform:
+                    filters.hasReminder === true ? "translateX(18px)" : "translateX(2px)",
+                }}
+              />
+            </span>
+          </button>
+        </div>
+
+        {/* Pacientes — só terapeuta */}
+        {isTherapist && patients.length > 0 && (
+          <div className="mb-5">
+            <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>
+              Paciente
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {patients.map((p) => {
+                const { col } = getPatientColor(p.id);
+                const active = filters.patientIds.includes(p.id);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => togglePatient(p.id)}
+                    className="rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition-colors"
+                    style={
+                      active
+                        ? { background: col, borderColor: col, color: "white" }
+                        : { background: "white", borderColor: "#E5E7EB", color: "#374151" }
+                    }
+                  >
+                    {p.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Fechar */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-2 flex h-12 w-full items-center justify-center rounded-xl text-[15px] font-bold text-white"
+          style={{ background: TEAL }}
+        >
+          Aplicar
+        </button>
+      </div>
+    </>
   );
 }

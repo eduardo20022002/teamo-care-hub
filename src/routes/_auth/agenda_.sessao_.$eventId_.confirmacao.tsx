@@ -1,6 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Loader2, Bell } from "lucide-react";
+import { Loader2, Bell, Pencil } from "lucide-react";
+
+function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}min`;
+}
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { useConfirmSession, useGetSessionRecord } from "@/services/therapist.service";
@@ -26,7 +34,7 @@ function SessionConfirmPage() {
   const event = data?.event as any;
   const child = data?.child as any;
 
-  const defaultDuration = event?.actual_duration_minutes ?? 60;
+  const defaultDuration = event?.duration_minutes ?? 60;
   const defaultStartTime = event?.start_at
     ? new Date(event.start_at).toTimeString().slice(0, 5)
     : "";
@@ -37,6 +45,9 @@ function SessionConfirmPage() {
   const [absenceReason, setAbsenceReason] = useState("");
   const [notifyFamily, setNotifyFamily] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [editingDuration, setEditingDuration] = useState(false);
+  const [durationUnit, setDurationUnit] = useState<"minutes" | "hours">("minutes");
+  const [durationInput, setDurationInput] = useState("");
 
   const sessionDate = event?.start_at
     ? new Date(event.start_at).toLocaleDateString("pt-BR", {
@@ -165,16 +176,84 @@ function SessionConfirmPage() {
           <div className="flex flex-col gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-[#374151] mb-1.5">
-                Duração real (minutos)
+                Duração
               </label>
-              <input
-                type="number"
-                min={1}
-                max={480}
-                value={actualDuration}
-                onChange={(e) => setActualDuration(e.target.value)}
-                className="h-11 w-full rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm text-[#374151] focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
-              />
+              {!editingDuration ? (
+                <div
+                  className="flex h-11 items-center justify-between rounded-xl border border-[#E5E7EB] bg-white px-3"
+                >
+                  <span className="text-sm text-[#374151]">
+                    {formatDuration(parseInt(actualDuration, 10) || defaultDuration)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const mins = parseInt(actualDuration, 10) || defaultDuration;
+                      if (mins % 60 === 0) {
+                        setDurationUnit("hours");
+                        setDurationInput(String(mins / 60));
+                      } else {
+                        setDurationUnit("minutes");
+                        setDurationInput(String(mins));
+                      }
+                      setEditingDuration(true);
+                    }}
+                    className="inline-flex items-center gap-1 text-[12.5px] font-semibold"
+                    style={{ color: TEAL }}
+                  >
+                    <Pencil size={12} strokeWidth={2} />
+                    Editar
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={durationUnit === "hours" ? 8 : 480}
+                    value={durationInput}
+                    onChange={(e) => setDurationInput(e.target.value)}
+                    className="h-11 flex-1 min-w-0 rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm text-[#374151] focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
+                    autoFocus
+                  />
+                  <select
+                    value={durationUnit}
+                    onChange={(e) => {
+                      const newUnit = e.target.value as "minutes" | "hours";
+                      const currentMins =
+                        durationUnit === "hours"
+                          ? Math.round((parseFloat(durationInput) || 1) * 60)
+                          : parseFloat(durationInput) || 60;
+                      setDurationUnit(newUnit);
+                      setDurationInput(
+                        newUnit === "hours"
+                          ? String(Math.round((currentMins / 60) * 10) / 10)
+                          : String(currentMins),
+                      );
+                    }}
+                    className="h-11 rounded-xl border border-[#E5E7EB] bg-white px-2 text-sm text-[#374151] focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
+                  >
+                    <option value="minutes">min</option>
+                    <option value="hours">horas</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const val = parseFloat(durationInput) || 1;
+                      const mins =
+                        durationUnit === "hours"
+                          ? Math.round(val * 60)
+                          : Math.round(val);
+                      setActualDuration(String(Math.max(1, Math.min(480, mins))));
+                      setEditingDuration(false);
+                    }}
+                    className="h-11 flex-shrink-0 rounded-xl px-3 text-sm font-bold text-white"
+                    style={{ background: TEAL }}
+                  >
+                    OK
+                  </button>
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-[#374151] mb-1.5">
