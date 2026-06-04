@@ -409,6 +409,8 @@ function PortalPage() {
   // ── UI state ────────────────────────────────────────────────────────────────
   const [sessionView, setSessionView] = useState<"lista" | "semana">("lista");
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  const HISTORY_LIMIT = 4;
 
   // Inicializa na semana da próxima sessão (ou hoje)
   const [weekStart, setWeekStart] = useState<Date>(() =>
@@ -635,9 +637,26 @@ function PortalPage() {
                       )
                     ) : (
                       <div className="flex flex-col gap-3">
-                        {sessionsWithContent.map((s: any) => (
+                        {(showAllHistory
+                          ? sessionsWithContent
+                          : sessionsWithContent.slice(0, HISTORY_LIMIT)
+                        ).map((s: any) => (
                           <SessionCard key={s.event_id} session={s} />
                         ))}
+                        {sessionsWithContent.length > HISTORY_LIMIT && (
+                          <button
+                            type="button"
+                            onClick={() => setShowAllHistory((v) => !v)}
+                            className="flex items-center justify-center gap-1 text-[12px] font-semibold py-2"
+                            style={{ color: TEAL }}
+                          >
+                            {showAllHistory ? (
+                              <><ChevronUp size={13} strokeWidth={2.5} /> Mostrar menos</>
+                            ) : (
+                              <><ChevronDown size={13} strokeWidth={2.5} /> Ver sessões anteriores ({sessionsWithContent.length - HISTORY_LIMIT})</>
+                            )}
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
