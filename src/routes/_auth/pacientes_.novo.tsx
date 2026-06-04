@@ -16,7 +16,7 @@ const TEAL_SOFT   = "#F0FDFA";
 const TEAL_BORDER = "#CCFBF1";
 
 // ─── Rota ─────────────────────────────────────────────────────────────────────
-export const Route = createFileRoute("/_auth/pacientes/novo")({
+export const Route = createFileRoute("/_auth/pacientes_/novo")({
   head: () => ({ meta: [{ title: "Novo paciente — TEAmo" }] }),
   component: NovoPackientePage,
 });

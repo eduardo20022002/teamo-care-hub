@@ -22,7 +22,7 @@ import {
 } from "@/services/milestones.service";
 
 export const Route = createFileRoute(
-  "/_auth/paciente/$childId/marcos/$marcoId/meta/$goalId",
+  "/_auth/paciente_/$childId_/marcos_/$marcoId_/meta_/$goalId",
 )({
   head: () => ({
     meta: [{ title: "Detalhe da meta — TEAmo" }],

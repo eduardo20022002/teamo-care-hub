@@ -53,7 +53,7 @@ import {
 } from "@/lib/validation";
 import type { Child } from "@/types/database";
 
-export const Route = createFileRoute("/_auth/paciente/$childId/marcos/$marcoId")({
+export const Route = createFileRoute("/_auth/paciente_/$childId_/marcos_/$marcoId")({
   head: () => ({
     meta: [{ title: "Marco de desenvolvimento — TEAmo" }],
   }),

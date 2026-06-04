@@ -10,7 +10,7 @@ const TEAL = "#0D9488";
 const TEAL_SOFT = "#F0FDFA";
 const TEAL_BORDER = "#CCFBF1";
 
-export const Route = createFileRoute("/_auth/onboarding/terapeuta/pacientes")({
+export const Route = createFileRoute("/_auth/onboarding_/terapeuta_/pacientes")({
   head: () => ({
     meta: [{ title: "Adicione seus pacientes — TEAmo" }],
   }),

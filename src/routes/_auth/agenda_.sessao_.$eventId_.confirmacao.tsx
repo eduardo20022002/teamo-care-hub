@@ -18,7 +18,7 @@ const TEAL = "#0D9488";
 const TEAL_SOFT = "#F0FDFA";
 const TEAL_BORDER = "#CCFBF1";
 
-export const Route = createFileRoute("/_auth/agenda/sessao/$eventId/confirmacao")({
+export const Route = createFileRoute("/_auth/agenda_/sessao_/$eventId_/confirmacao")({
   head: () => ({
     meta: [{ title: "Confirmar sessão — TEAmo" }],
   }),
