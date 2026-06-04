@@ -1089,3 +1089,206 @@ export const listParentMilestonesServer = createServerFn({ method: "POST" })
       })),
     };
   });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MÓDULO PAIS E RESPONSÁVEIS — Lado do terapeuta
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Helper: valida que o terapeuta é dono da criança ─────────────────────────
+async function assertTherapistOwnsChild(therapistId: string, childId: string): Promise<void> {
+  const { data: child } = await (supabaseAdmin as any)
+    .from("children")
+    .select("id, user_id")
+    .eq("id", childId)
+    .maybeSingle();
+  if (!child || (child as any).user_id !== therapistId) {
+    throw new Response("Paciente não encontrado.", { status: 404 });
+  }
+}
+
+// ─── listParentCommunicationsServer — recados do terapeuta (visão do terapeuta)
+export const listParentCommunicationsServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ childId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+    await assertTherapistOwnsChild(userId, data.childId);
+
+    const { data: comms, error } = await (supabaseAdmin as any)
+      .from("parent_communications")
+      .select("id, content, created_at")
+      .eq("therapist_id", userId)
+      .eq("child_id", data.childId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Response(error.message, { status: 500 });
+    return { communications: (comms ?? []) as Array<{ id: string; content: string; created_at: string }> };
+  });
+
+// ─── createParentCommunicationServer — cria novo recado ───────────────────────
+export const createParentCommunicationServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      childId: z.string().uuid(),
+      content: z.string().min(1).max(3000),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+    await assertTherapistOwnsChild(userId, data.childId);
+
+    const { data: comm, error } = await (supabaseAdmin as any)
+      .from("parent_communications")
+      .insert({ therapist_id: userId, child_id: data.childId, content: data.content })
+      .select("id, content, created_at")
+      .single();
+
+    if (error) throw new Response(error.message, { status: 500 });
+    return { communication: comm as { id: string; content: string; created_at: string } };
+  });
+
+// ─── deleteParentCommunicationServer — exclui recado ──────────────────────────
+export const deleteParentCommunicationServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ communicationId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+
+    // Verifica ownership antes de deletar
+    const { data: existing } = await (supabaseAdmin as any)
+      .from("parent_communications")
+      .select("id, therapist_id")
+      .eq("id", data.communicationId)
+      .maybeSingle();
+    if (!existing || (existing as any).therapist_id !== userId) {
+      throw new Response("Recado não encontrado.", { status: 404 });
+    }
+
+    const { error } = await (supabaseAdmin as any)
+      .from("parent_communications")
+      .delete()
+      .eq("id", data.communicationId)
+      .eq("therapist_id", userId);
+
+    if (error) throw new Response(error.message, { status: 500 });
+    return { ok: true as const };
+  });
+
+// ─── listMyParentCommunicationsServer — recados para o responsável ────────────
+export const listMyParentCommunicationsServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ accessId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+    const acc = await assertParentAccess(data.accessId, userId);
+
+    const { data: comms, error } = await (supabaseAdmin as any)
+      .from("parent_communications")
+      .select("id, content, created_at")
+      .eq("therapist_id", acc.therapistId)
+      .eq("child_id", acc.childId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Response(error.message, { status: 500 });
+    return { communications: (comms ?? []) as Array<{ id: string; content: string; created_at: string }> };
+  });
+
+// ─── listPatientParentSummariesServer — hub: pacientes + contadores de vínculos
+export const listPatientParentSummariesServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId } = context as any;
+
+    const { data: patients, error } = await (supabaseAdmin as any)
+      .from("children")
+      .select("id, name, birth_date")
+      .eq("user_id", userId)
+      .order("name", { ascending: true });
+
+    if (error) throw new Response(error.message, { status: 500 });
+    if (!patients || (patients as any[]).length === 0) return { patients: [] };
+
+    const patientIds = (patients as any[]).map((p: any) => p.id);
+
+    const [{ data: invites }, { data: accesses }] = await Promise.all([
+      (supabaseAdmin as any)
+        .from("therapist_invites")
+        .select("child_id, status")
+        .eq("therapist_id", userId)
+        .in("child_id", patientIds),
+      (supabaseAdmin as any)
+        .from("therapist_parent_access")
+        .select("child_id")
+        .eq("therapist_id", userId)
+        .eq("status", "active")
+        .in("child_id", patientIds),
+    ]);
+
+    const pendingByChild: Record<string, number> = {};
+    for (const inv of invites ?? []) {
+      if ((inv as any).status === "pending") {
+        pendingByChild[(inv as any).child_id] = (pendingByChild[(inv as any).child_id] ?? 0) + 1;
+      }
+    }
+    const activeByChild: Record<string, number> = {};
+    for (const acc of accesses ?? []) {
+      activeByChild[(acc as any).child_id] = (activeByChild[(acc as any).child_id] ?? 0) + 1;
+    }
+
+    return {
+      patients: (patients as any[]).map((p: any) => ({
+        id:                p.id as string,
+        name:              p.name as string,
+        birth_date:        p.birth_date as string,
+        activeAccessCount: activeByChild[p.id] ?? 0,
+        pendingInviteCount: pendingByChild[p.id] ?? 0,
+      })),
+    };
+  });
+
+// ─── listSharedContentServer — conteúdo compartilhado com pais (visão terapeuta)
+export const listSharedContentServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ childId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+    await assertTherapistOwnsChild(userId, data.childId);
+
+    const [{ data: milestones }, { data: records }, { data: comms }] = await Promise.all([
+      (supabaseAdmin as any)
+        .from("therapeutic_milestones")
+        .select("id, title, area, status, is_shared_with_parents")
+        .eq("child_id", data.childId)
+        .eq("therapist_id", userId)
+        .order("created_at", { ascending: true }),
+      (supabaseAdmin as any)
+        .from("session_records")
+        .select(`
+          event_id,
+          published_at,
+          is_draft,
+          is_private,
+          family_instruction,
+          agenda_events!inner(id, start_at, title, plan_visible_to_parents)
+        `)
+        .eq("child_id", data.childId)
+        .eq("therapist_id", userId)
+        .eq("is_draft", false)
+        .order("published_at", { ascending: false })
+        .limit(20),
+      (supabaseAdmin as any)
+        .from("parent_communications")
+        .select("id, content, created_at")
+        .eq("child_id", data.childId)
+        .eq("therapist_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(3),
+    ]);
+
+    return {
+      milestones:      (milestones ?? []) as any[],
+      records:         (records ?? []) as any[],
+      recentComms:     (comms ?? []) as Array<{ id: string; content: string; created_at: string }>,
+    };
+  });

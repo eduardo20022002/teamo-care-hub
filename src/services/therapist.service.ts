@@ -26,6 +26,12 @@ import {
   getParentPortalSummaryServer,
   listParentSessionRecordsServer,
   listParentMilestonesServer,
+  listParentCommunicationsServer,
+  createParentCommunicationServer,
+  deleteParentCommunicationServer,
+  listMyParentCommunicationsServer,
+  listSharedContentServer,
+  listPatientParentSummariesServer,
 } from "@/lib/therapist.functions";
 import type {
   TherapistProfileInput,
@@ -49,6 +55,9 @@ export const therapistKeys = {
   portalSummary:     (id: string)     => ["parent-portal-summary", id] as const,
   portalSessions:    (id: string)     => ["parent-portal-sessions", id] as const,
   portalMilestones:  (id: string)     => ["parent-portal-milestones", id] as const,
+  parentComms:       (childId: string) => ["parent-comms", childId] as const,
+  myParentComms:     (accessId: string) => ["my-parent-comms", accessId] as const,
+  sharedContent:     (childId: string) => ["shared-content", childId] as const,
 };
 
 // ─── Auth headers helper ──────────────────────────────────────────────────────
@@ -382,6 +391,85 @@ export function useParentMilestones(accessId: string | undefined) {
       return fn({ data: { accessId: accessId! }, headers: h });
     },
     enabled: !!accessId,
+    staleTime: 30_000,
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MÓDULO PAIS E RESPONSÁVEIS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export function useParentCommunications(childId: string | undefined) {
+  const fn = useServerFn(listParentCommunicationsServer);
+  return useQuery({
+    queryKey: therapistKeys.parentComms(childId ?? ""),
+    queryFn:  async () => {
+      const h = await authHeaders();
+      return fn({ data: { childId: childId! }, headers: h });
+    },
+    enabled: !!childId,
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateParentCommunication(childId: string) {
+  const fn = useServerFn(createParentCommunicationServer);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (content: string) => {
+      const h = await authHeaders();
+      return fn({ data: { childId, content }, headers: h });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: therapistKeys.parentComms(childId) }),
+  });
+}
+
+export function useDeleteParentCommunication(childId: string) {
+  const fn = useServerFn(deleteParentCommunicationServer);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (communicationId: string) => {
+      const h = await authHeaders();
+      return fn({ data: { communicationId }, headers: h });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: therapistKeys.parentComms(childId) }),
+  });
+}
+
+export function useMyParentCommunications(accessId: string | undefined) {
+  const fn = useServerFn(listMyParentCommunicationsServer);
+  return useQuery({
+    queryKey: therapistKeys.myParentComms(accessId ?? ""),
+    queryFn:  async () => {
+      const h = await authHeaders();
+      return fn({ data: { accessId: accessId! }, headers: h });
+    },
+    enabled: !!accessId,
+    staleTime: 30_000,
+  });
+}
+
+export function useSharedContent(childId: string | undefined) {
+  const fn = useServerFn(listSharedContentServer);
+  return useQuery({
+    queryKey: therapistKeys.sharedContent(childId ?? ""),
+    queryFn:  async () => {
+      const h = await authHeaders();
+      return fn({ data: { childId: childId! }, headers: h });
+    },
+    enabled: !!childId,
+    staleTime: 30_000,
+  });
+}
+
+export function usePatientParentSummaries() {
+  const fn = useServerFn(listPatientParentSummariesServer);
+  return useQuery({
+    queryKey: ["patient-parent-summaries"],
+    queryFn:  async () => {
+      const h = await authHeaders();
+      return fn({ headers: h });
+    },
     staleTime: 30_000,
   });
 }

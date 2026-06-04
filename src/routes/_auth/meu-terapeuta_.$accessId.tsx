@@ -2,13 +2,14 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   Stethoscope, Loader2, CalendarDays, ChevronDown, ChevronUp,
-  Target, Trophy, Clock, CheckCircle2, MinusCircle, XCircle,
+  Target, Trophy, Clock, CheckCircle2, MinusCircle, XCircle, MessageSquare,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import {
   useParentPortalSummary,
   useParentSessionRecords,
   useParentMilestones,
+  useMyParentCommunications,
 } from "@/services/therapist.service";
 import { MILESTONE_AREA_COLORS } from "@/lib/validation";
 
@@ -313,14 +314,16 @@ function PortalPage() {
   const navigate = useNavigate();
   const { accessId } = (Route as any).useParams();
 
-  const summaryQ  = useParentPortalSummary(accessId);
-  const sessionsQ = useParentSessionRecords(accessId);
+  const summaryQ    = useParentPortalSummary(accessId);
+  const sessionsQ   = useParentSessionRecords(accessId);
   const milestonesQ = useParentMilestones(accessId);
+  const commsQ      = useMyParentCommunications(accessId);
 
-  const summary   = summaryQ.data;
-  const sessions  = sessionsQ.data?.records ?? [];
-  const milestones = milestonesQ.data?.milestones ?? [];
-  const isLoading = summaryQ.isLoading || sessionsQ.isLoading || milestonesQ.isLoading;
+  const summary      = summaryQ.data;
+  const sessions     = sessionsQ.data?.records ?? [];
+  const milestones   = milestonesQ.data?.milestones ?? [];
+  const comms        = (commsQ.data?.communications ?? []) as Array<{ id: string; content: string; created_at: string }>;
+  const isLoading    = summaryQ.isLoading || sessionsQ.isLoading || milestonesQ.isLoading;
 
   const milestonesByArea = milestones.reduce((acc: Record<string, any[]>, m: any) => {
     if (!acc[m.area]) acc[m.area] = [];
@@ -396,6 +399,58 @@ function PortalPage() {
                 <div className="flex flex-col gap-3">
                   {sessions.map((r: any) => (
                     <SessionCard key={r.event_id} record={r} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ═══ Recados do terapeuta ═══ */}
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-4">
+                <MessageSquare size={18} strokeWidth={1.8} color="#D97706" />
+                <h2 className="text-[16px] font-extrabold text-[#0F172A]">
+                  Recados do terapeuta
+                </h2>
+                {comms.length > 0 && (
+                  <span
+                    className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+                    style={{ background: AMBER_SOFT, color: AMBER, border: `1px solid ${AMBER_BORDER}` }}
+                  >
+                    {comms.length}
+                  </span>
+                )}
+              </div>
+
+              {commsQ.isLoading ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 size={20} className="animate-spin" color={AMBER} />
+                </div>
+              ) : comms.length === 0 ? (
+                <div
+                  className="rounded-[14px] border px-4 py-6 text-center"
+                  style={{ borderColor: "#E5E7EB", background: "#FAFAFA" }}
+                >
+                  <p className="text-[13px] text-[#9CA3AF]">
+                    Nenhum recado enviado ainda.
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {comms.map((c) => (
+                    <div
+                      key={c.id}
+                      className="rounded-[14px] border px-4 py-3.5"
+                      style={{ borderColor: AMBER_BORDER, background: AMBER_SOFT }}
+                    >
+                      <p className="text-[13px] text-[#92400E] leading-relaxed whitespace-pre-line">
+                        {c.content}
+                      </p>
+                      <p className="mt-2 text-[11px]" style={{ color: AMBER }}>
+                        {new Date(c.created_at).toLocaleDateString("pt-BR", {
+                          day: "numeric", month: "long", year: "numeric",
+                        })}
+                      </p>
+                    </div>
                   ))}
                 </div>
               )}
