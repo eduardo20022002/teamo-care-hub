@@ -75,8 +75,9 @@ export async function signUp(
   options?: { userType?: "parent" | "therapist" },
 ): Promise<AuthResult> {
   const userType = options?.userType ?? "parent";
+  // Aponta para /verificar-conta para que magic links (fallback ao OTP) redirecionem corretamente
   const redirectTo =
-    typeof window !== "undefined" ? `${window.location.origin}/onboarding` : undefined;
+    typeof window !== "undefined" ? `${window.location.origin}/verificar-conta` : undefined;
   const trimmedName = displayName?.trim();
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -113,7 +114,7 @@ export async function signUp(
 
 export async function resendVerification(email: string): Promise<AuthResult> {
   const redirectTo =
-    typeof window !== "undefined" ? `${window.location.origin}/onboarding` : undefined;
+    typeof window !== "undefined" ? `${window.location.origin}/verificar-conta` : undefined;
   const { error } = await supabase.auth.resend({
     type: "signup",
     email,

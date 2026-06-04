@@ -31,6 +31,15 @@ function AuthLayout() {
     if (loading) return;
     if (!user) {
       navigate({ to: "/login" });
+      return;
+    }
+    // Defesa em profundidade: bloqueia usuários sem e-mail confirmado.
+    // Após habilitar "Confirm email" no Supabase Dashboard, novos cadastros
+    // só chegam aqui após confirmar. Esta guarda cobre edge-cases.
+    if (!user.email_confirmed_at) {
+      try { sessionStorage.setItem("teamo:pendingEmail", user.email ?? ""); } catch { /* ok */ }
+      navigate({ to: "/verificar-conta" });
+      return;
     }
   }, [loading, user, navigate]);
 
@@ -57,7 +66,7 @@ function AuthLayout() {
     window.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   };
 
-  if (loading || !user) return <LoadingSpinner label="Carregando..." />;
+  if (loading || !user || !user.email_confirmed_at) return <LoadingSpinner label="Carregando..." />;
 
   return (
     <>
