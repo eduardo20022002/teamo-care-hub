@@ -22,18 +22,26 @@ export const Route = createFileRoute("/_auth/agenda/sessao/$eventId/plano")({
 
 function GoalPickerSheet({
   goals,
-  onSelect,
-  onClear,
-  currentGoalId,
+  onToggle,
+  onClearAll,
+  currentGoalIds,
   onClose,
 }: {
   goals: GoalPickerItem[];
-  onSelect: (goal: GoalPickerItem) => void;
-  onClear: () => void;
-  currentGoalId: string | null;
+  onToggle: (goal: GoalPickerItem) => void;
+  onClearAll: () => void;
+  currentGoalIds: string[];
   onClose: () => void;
 }) {
-  // Group by milestone
+  const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(() => {
+    // Auto-expand marcos que já têm metas selecionadas, e o primeiro marco
+    const expanded = new Set<string>();
+    for (const g of goals) {
+      if (currentGoalIds.includes(g.goalId)) expanded.add(g.milestoneId);
+    }
+    return expanded;
+  });
+
   const byMilestone = useMemo(() => {
     const map = new Map<string, { milestoneId: string; milestoneTitle: string; milestoneArea: string; goals: GoalPickerItem[] }>();
     for (const g of goals) {
@@ -50,76 +58,126 @@ function GoalPickerSheet({
     return Array.from(map.values());
   }, [goals]);
 
+  const toggleMilestone = (milestoneId: string) => {
+    setExpandedMilestones((prev) => {
+      const next = new Set(prev);
+      if (next.has(milestoneId)) next.delete(milestoneId);
+      else next.add(milestoneId);
+      return next;
+    });
+  };
+
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
       <div
-        className="fixed inset-x-0 bottom-0 z-50 rounded-t-[24px] bg-white px-5 pt-4 shadow-2xl"
-        style={{ maxHeight: "75vh", overflowY: "auto", paddingBottom: "calc(env(safe-area-inset-bottom) + 24px)" }}
+        className="fixed inset-x-0 bottom-0 z-50 rounded-t-[24px] bg-white px-5 pt-4 shadow-2xl flex flex-col"
+        style={{ maxHeight: "78vh", paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)" }}
       >
-        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#E5E7EB]" />
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[17px] font-extrabold" style={{ color: "#0F172A" }}>Vincular a uma meta</h2>
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#E5E7EB] flex-shrink-0" />
+        <div className="flex items-center justify-between mb-1 flex-shrink-0">
+          <h2 className="text-[17px] font-extrabold" style={{ color: "#0F172A" }}>Vincular a metas</h2>
           <button type="button" onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-xl hover:bg-[#F3F4F6]">
             <X size={18} color="#6B7280" />
           </button>
         </div>
+        <p className="text-[12px] mb-3 flex-shrink-0" style={{ color: "#6B7280" }}>
+          Selecione uma ou mais metas. Toque no marco para expandir.
+        </p>
 
-        {goals.length === 0 ? (
-          <p className="text-[13px] text-center py-6" style={{ color: "#9CA3AF" }}>
-            Nenhuma meta criada. Crie metas nos marcos do paciente primeiro.
-          </p>
-        ) : (
-          <>
-            {currentGoalId && (
-              <button
-                type="button"
-                onClick={() => { onClear(); onClose(); }}
-                className="mb-3 flex w-full items-center gap-2 rounded-xl border px-4 py-2.5 text-[13px] font-semibold text-[#DC2626]"
-                style={{ borderColor: "#FEE2E2", background: "#FFF5F5" }}
-              >
-                <X size={14} strokeWidth={2.5} />
-                Remover vínculo
-              </button>
-            )}
-            {byMilestone.map((ms) => {
-              const color = MILESTONE_AREA_COLORS[ms.milestoneArea as keyof typeof MILESTONE_AREA_COLORS] ?? TEAL;
-              return (
-                <div key={ms.milestoneId} className="mb-4">
-                  <p className="text-[11.5px] font-bold mb-1.5 uppercase tracking-wide" style={{ color }}>
-                    {ms.milestoneTitle}
-                  </p>
-                  <div className="flex flex-col gap-1.5">
-                    {ms.goals.map((g) => {
-                      const sel = g.goalId === currentGoalId;
-                      return (
-                        <button
-                          key={g.goalId}
-                          type="button"
-                          onClick={() => { onSelect(g); onClose(); }}
-                          className="flex items-center gap-3 rounded-xl border px-4 py-2.5 text-left transition-colors"
-                          style={
-                            sel
-                              ? { borderColor: color, background: color + "11" }
-                              : { borderColor: "#E5E7EB", background: "white" }
-                          }
+        <div className="overflow-y-auto flex-1 pb-2">
+          {goals.length === 0 ? (
+            <p className="text-[13px] text-center py-6" style={{ color: "#9CA3AF" }}>
+              Nenhuma meta criada. Crie metas nos marcos do paciente primeiro.
+            </p>
+          ) : (
+            <>
+              {currentGoalIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={onClearAll}
+                  className="mb-3 flex w-full items-center gap-2 rounded-xl border px-4 py-2.5 text-[13px] font-semibold text-[#DC2626]"
+                  style={{ borderColor: "#FEE2E2", background: "#FFF5F5" }}
+                >
+                  <X size={14} strokeWidth={2.5} />
+                  Remover todos os vínculos
+                </button>
+              )}
+              {byMilestone.map((ms) => {
+                const color = MILESTONE_AREA_COLORS[ms.milestoneArea as keyof typeof MILESTONE_AREA_COLORS] ?? TEAL;
+                const expanded = expandedMilestones.has(ms.milestoneId);
+                const selectedInMs = ms.goals.filter((g) => currentGoalIds.includes(g.goalId)).length;
+                return (
+                  <div key={ms.milestoneId} className="mb-2 rounded-xl border overflow-hidden" style={{ borderColor: expanded ? color + "55" : "#E5E7EB" }}>
+                    {/* Cabeçalho do marco */}
+                    <button
+                      type="button"
+                      onClick={() => toggleMilestone(ms.milestoneId)}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left"
+                      style={{ background: expanded ? color + "11" : "#FAFAFA" }}
+                    >
+                      <div className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                      <span className="text-[13.5px] font-bold flex-1" style={{ color: expanded ? color : "#374151" }}>
+                        {ms.milestoneTitle}
+                      </span>
+                      {selectedInMs > 0 && (
+                        <span
+                          className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+                          style={{ background: color, color: "white" }}
                         >
-                          <div className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: color }} />
-                          <span className="text-[13.5px] font-semibold flex-1" style={{ color: sel ? color : "#0F172A" }}>
-                            {g.goalTitle}
-                          </span>
-                          {sel && (
-                            <span className="text-[11px] font-bold" style={{ color }}>✓</span>
-                          )}
-                        </button>
-                      );
-                    })}
+                          {selectedInMs}
+                        </span>
+                      )}
+                      <span className="text-[12px] font-medium" style={{ color: "#9CA3AF" }}>
+                        {expanded ? "▲" : "▼"}
+                      </span>
+                    </button>
+
+                    {/* Metas do marco */}
+                    {expanded && (
+                      <div className="flex flex-col divide-y divide-[#F3F4F6]">
+                        {ms.goals.map((g) => {
+                          const sel = currentGoalIds.includes(g.goalId);
+                          return (
+                            <button
+                              key={g.goalId}
+                              type="button"
+                              onClick={() => onToggle(g)}
+                              className="flex items-center gap-3 px-4 py-3 text-left transition-colors"
+                              style={{ background: sel ? color + "0D" : "white" }}
+                            >
+                              {/* Checkbox visual */}
+                              <div
+                                className="h-5 w-5 flex-shrink-0 rounded-md border-2 flex items-center justify-center"
+                                style={sel ? { borderColor: color, background: color } : { borderColor: "#D1D5DB", background: "white" }}
+                              >
+                                {sel && <span className="text-white text-[10px] font-bold">✓</span>}
+                              </div>
+                              <span className="text-[13.5px] font-semibold flex-1" style={{ color: sel ? color : "#374151" }}>
+                                {g.goalTitle}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                </div>
-              );
-            })}
-          </>
-        )}
+                );
+              })}
+            </>
+          )}
+        </div>
+
+        {/* Botão Concluir */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex-shrink-0 mt-3 h-11 w-full rounded-xl text-white text-[14px] font-bold"
+          style={{ background: TEAL }}
+        >
+          Concluir
+          {currentGoalIds.length > 0 ? ` (${currentGoalIds.length} selecionada${currentGoalIds.length > 1 ? "s" : ""})` : ""}
+        </button>
       </div>
     </>
   );
@@ -135,8 +193,8 @@ function SessionPlanPage() {
 
   const [objectives, setObjectives] = useState("");
   const [specificObjectives, setSpecificObjectives] = useState<string[]>([""]);
-  // Parallel array: null = no linked goal
-  const [objectiveGoalIds, setObjectiveGoalIds] = useState<(string | null)[]>([null]);
+  // Parallel array: each entry is a list of linked goal IDs (empty = no links)
+  const [objectiveGoalIds, setObjectiveGoalIds] = useState<string[][]>([[]]);
   const [activities, setActivities] = useState<string[]>([""]);
   const [materials, setMaterials] = useState("");
   const [visibleToParents, setVisibleToParents] = useState(true);
@@ -174,9 +232,14 @@ function SessionPlanPage() {
     if (plan.specific_objectives?.length) {
       const saved = plan.specific_objectives as string[];
       setSpecificObjectives(saved);
-      // Restore linked goal IDs
-      const savedGoalIds: (string | null)[] = plan.objective_goal_ids ?? saved.map(() => null);
-      setObjectiveGoalIds(savedGoalIds);
+      // Restore linked goal IDs — support old shape (string|null)[] and new shape string[][]
+      const raw: any[] = plan.objective_goal_ids ?? saved.map(() => []);
+      const normalized: string[][] = raw.map((v) => {
+        if (Array.isArray(v)) return v.filter(Boolean);
+        if (typeof v === "string" && v) return [v];
+        return [];
+      });
+      setObjectiveGoalIds(normalized);
     }
 
     if (plan.activities?.length) {
@@ -194,7 +257,7 @@ function SessionPlanPage() {
   const syncGoalIds = (newObjs: string[]) => {
     setObjectiveGoalIds((prev) => {
       const next = [...prev];
-      while (next.length < newObjs.length) next.push(null);
+      while (next.length < newObjs.length) next.push([]);
       return next.slice(0, newObjs.length);
     });
   };
@@ -218,30 +281,33 @@ function SessionPlanPage() {
   const updateActivity = (i: number, val: string) =>
     setActivities((prev) => prev.map((a, idx) => (idx === i ? val : a)));
 
-  const linkGoal = (index: number, goal: GoalPickerItem) => {
+  const toggleGoal = (index: number, goal: GoalPickerItem) => {
     setObjectiveGoalIds((prev) => {
-      const next = [...prev];
-      next[index] = goal.goalId;
+      const next = prev.map((arr) => [...arr]);
+      const arr = next[index] ?? [];
+      const pos = arr.indexOf(goal.goalId);
+      if (pos >= 0) arr.splice(pos, 1);
+      else arr.push(goal.goalId);
+      next[index] = arr;
       return next;
     });
   };
-  const unlinkGoal = (index: number) => {
+  const clearGoals = (index: number) => {
     setObjectiveGoalIds((prev) => {
-      const next = [...prev];
-      next[index] = null;
+      const next = prev.map((arr) => [...arr]);
+      next[index] = [];
       return next;
     });
   };
 
   const handleSave = async () => {
-    const filtered = specificObjectives.filter((o) => o.trim());
-    const filteredGoalIds = filtered.map((_, i) => {
-      const origIdx = specificObjectives.findIndex((o, idx) => {
-        let count = 0;
-        for (let j = 0; j <= idx; j++) if (specificObjectives[j].trim()) count++;
-        return count === i + 1;
-      });
-      return origIdx >= 0 ? (objectiveGoalIds[origIdx] ?? null) : null;
+    const filtered: string[] = [];
+    const filteredGoalIds: string[][] = [];
+    specificObjectives.forEach((o, i) => {
+      if (o.trim()) {
+        filtered.push(o);
+        filteredGoalIds.push(objectiveGoalIds[i] ?? []);
+      }
     });
 
     try {
@@ -249,7 +315,7 @@ function SessionPlanPage() {
         eventId,
         objectives: objectives.trim() || undefined,
         specificObjectives: filtered.length > 0 ? filtered : undefined,
-        objectiveGoalIds: filteredGoalIds.some((id) => id !== null) ? filteredGoalIds : undefined,
+        objectiveGoalIds: filteredGoalIds.some((arr) => arr.length > 0) ? filteredGoalIds : undefined,
         activities: activities.filter((a) => a.trim()).length > 0
           ? activities.filter((a) => a.trim())
           : undefined,
@@ -339,11 +405,8 @@ function SessionPlanPage() {
               </label>
               <div className="flex flex-col gap-3">
                 {specificObjectives.map((obj, i) => {
-                  const linkedGoalId = objectiveGoalIds[i] ?? null;
-                  const linkedGoal = linkedGoalId ? goalMap[linkedGoalId] : null;
-                  const goalColor = linkedGoal
-                    ? (MILESTONE_AREA_COLORS[linkedGoal.milestoneArea as keyof typeof MILESTONE_AREA_COLORS] ?? TEAL)
-                    : TEAL;
+                  const linkedIds = objectiveGoalIds[i] ?? [];
+                  const hasLinks = linkedIds.length > 0;
 
                   return (
                     <div key={i} className="flex flex-col gap-1.5">
@@ -359,15 +422,23 @@ function SessionPlanPage() {
                         <button
                           type="button"
                           onClick={() => setPickerForIndex(i)}
-                          title="Vincular a uma meta"
-                          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border transition-colors"
+                          title="Vincular a metas"
+                          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border transition-colors relative"
                           style={
-                            linkedGoal
-                              ? { borderColor: goalColor, background: goalColor + "11" }
-                              : { borderColor: "#E5E7EB", color: "#9CA3AF" }
+                            hasLinks
+                              ? { borderColor: TEAL, background: TEAL + "11" }
+                              : { borderColor: "#E5E7EB" }
                           }
                         >
-                          <Link2 size={14} strokeWidth={1.8} color={linkedGoal ? goalColor : "#9CA3AF"} />
+                          <Link2 size={14} strokeWidth={1.8} color={hasLinks ? TEAL : "#9CA3AF"} />
+                          {linkedIds.length > 1 && (
+                            <span
+                              className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full text-[9px] font-bold text-white flex items-center justify-center"
+                              style={{ background: TEAL }}
+                            >
+                              {linkedIds.length}
+                            </span>
+                          )}
                         </button>
                         {specificObjectives.length > 1 && (
                           <button
@@ -379,20 +450,25 @@ function SessionPlanPage() {
                           </button>
                         )}
                       </div>
-                      {/* Chip da meta vinculada */}
-                      {linkedGoal && (
-                        <div className="flex items-center gap-1.5 pl-1">
-                          <div className="h-1.5 w-1.5 rounded-full" style={{ background: goalColor }} />
-                          <span className="text-[11.5px] font-semibold" style={{ color: goalColor }}>
-                            {linkedGoal.milestoneTitle} · {linkedGoal.goalTitle}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => unlinkGoal(i)}
-                            className="ml-0.5"
-                          >
-                            <X size={11} color={goalColor} strokeWidth={2.5} />
-                          </button>
+                      {/* Chips das metas vinculadas */}
+                      {hasLinks && (
+                        <div className="flex flex-wrap gap-1.5 pl-1">
+                          {linkedIds.map((gid) => {
+                            const g = goalMap[gid];
+                            if (!g) return null;
+                            const c = MILESTONE_AREA_COLORS[g.milestoneArea as keyof typeof MILESTONE_AREA_COLORS] ?? TEAL;
+                            return (
+                              <div key={gid} className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: c + "15", border: `1px solid ${c}44` }}>
+                                <div className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ background: c }} />
+                                <span className="text-[11px] font-semibold" style={{ color: c }}>
+                                  {g.milestoneTitle} · {g.goalTitle}
+                                </span>
+                                <button type="button" onClick={() => toggleGoal(i, g)} className="ml-0.5">
+                                  <X size={10} color={c} strokeWidth={2.5} />
+                                </button>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -529,9 +605,9 @@ function SessionPlanPage() {
       {pickerForIndex !== null && (
         <GoalPickerSheet
           goals={allGoals}
-          currentGoalId={objectiveGoalIds[pickerForIndex] ?? null}
-          onSelect={(goal) => linkGoal(pickerForIndex, goal)}
-          onClear={() => unlinkGoal(pickerForIndex)}
+          currentGoalIds={objectiveGoalIds[pickerForIndex] ?? []}
+          onToggle={(goal) => toggleGoal(pickerForIndex, goal)}
+          onClearAll={() => clearGoals(pickerForIndex)}
           onClose={() => setPickerForIndex(null)}
         />
       )}

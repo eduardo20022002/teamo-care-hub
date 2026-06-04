@@ -427,7 +427,10 @@ export const getMilestoneGoalProgressServer = createServerFn({ method: "POST" })
       const goalsAchieved: any[] = (record as any).goals_achieved ?? [];
       const ev = (record as any).agenda_events;
       for (const g of goalsAchieved) {
-        if (g?.milestoneGoalId === data.goalId && g?.status) {
+        const linked =
+          g?.milestoneGoalId === data.goalId ||
+          (Array.isArray(g?.milestoneGoalIds) && g.milestoneGoalIds.includes(data.goalId));
+        if (linked && g?.status) {
           attempts.push({
             sessionId:    (record as any).event_id,
             sessionDate:  ev?.start_at ?? "",
@@ -495,16 +498,24 @@ export const getMilestoneProgressServer = createServerFn({ method: "POST" })
       const goalsAchieved: any[] = (record as any).goals_achieved ?? [];
       const ev = (record as any).agenda_events;
       for (const g of goalsAchieved) {
-        if (g?.milestoneGoalId && goalIds.has(g.milestoneGoalId) && g?.status) {
-          entries.push({
-            sessionId:    (record as any).event_id,
-            sessionDate:  ev?.start_at ?? "",
-            sessionTitle: ev?.title ?? "Sessão",
-            goalId:       g.milestoneGoalId,
-            goalTitle:    goalTitles[g.milestoneGoalId] ?? "",
-            status:       g.status,
-            notes:        g.notes ?? null,
-          });
+        if (!g?.status) continue;
+        // Coleta todos os IDs linkados neste item (novo shape: array; antigo: string única)
+        const linkedIds: string[] = [];
+        if (Array.isArray(g.milestoneGoalIds)) linkedIds.push(...g.milestoneGoalIds.filter(Boolean));
+        else if (typeof g.milestoneGoalId === "string" && g.milestoneGoalId) linkedIds.push(g.milestoneGoalId);
+
+        for (const gid of linkedIds) {
+          if (goalIds.has(gid)) {
+            entries.push({
+              sessionId:    (record as any).event_id,
+              sessionDate:  ev?.start_at ?? "",
+              sessionTitle: ev?.title ?? "Sessão",
+              goalId:       gid,
+              goalTitle:    goalTitles[gid] ?? "",
+              status:       g.status,
+              notes:        g.notes ?? null,
+            });
+          }
         }
       }
     }

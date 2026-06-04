@@ -1017,21 +1017,22 @@ function MilestoneDetailPage() {
           );
         })()}
 
-        <div className="h-28" />
-      </div>
+        {isInProgress && (
+          <div className="px-4 pt-4 pb-8">
+            <button
+              type="button"
+              onClick={() => setShowAchieveModal(true)}
+              className="w-full inline-flex items-center justify-center gap-2.5 rounded-full px-6 py-3.5 text-[14px] font-bold text-white shadow-xl transition-transform hover:-translate-y-px active:scale-95"
+              style={{ background: "#16A34A", boxShadow: "0 8px 20px rgba(22,163,74,0.35)" }}
+            >
+              <Trophy size={17} strokeWidth={2} />
+              Marcar como atingido
+            </button>
+          </div>
+        )}
 
-      {/* FAB — Marcar como atingido */}
-      {isInProgress && (
-        <button
-          type="button"
-          onClick={() => setShowAchieveModal(true)}
-          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-30 inline-flex items-center gap-2.5 rounded-full px-6 py-3.5 text-[14px] font-bold text-white shadow-xl transition-transform hover:-translate-y-px active:scale-95"
-          style={{ background: "#16A34A", boxShadow: "0 8px 20px rgba(22,163,74,0.35)" }}
-        >
-          <Trophy size={17} strokeWidth={2} />
-          Marcar como atingido
-        </button>
-      )}
+        <div className="h-6" />
+      </div>
 
       {/* Modal de confirmação */}
       {showAchieveModal && (

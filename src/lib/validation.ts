@@ -590,8 +590,8 @@ export const sessionPlanSchema = z.object({
   objectives:         z.string().max(1000).optional(),
   /** Objetivos específicos — lista (cada item até 200 chars) */
   specificObjectives: z.array(z.string().trim().max(200)).optional(),
-  /** IDs das metas vinculadas por índice (paralelo a specificObjectives; null = sem vínculo) */
-  objectiveGoalIds:   z.array(z.string().uuid().nullable()).optional(),
+  /** IDs das metas vinculadas por índice — cada objetivo pode ter múltiplas metas */
+  objectiveGoalIds:   z.array(z.array(z.string().uuid())).optional(),
   activities:         z.array(z.string().trim().max(200)).optional(),
   materials:          z.string().max(500).optional(),
   visibleToParents:   z.boolean().default(true),

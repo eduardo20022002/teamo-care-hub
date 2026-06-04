@@ -45,7 +45,7 @@ interface GoalItem {
   goal: string;
   status: GoalStatus | null;
   notes: string;
-  milestoneGoalId?: string | null;
+  milestoneGoalIds: string[];
 }
 
 interface ProfObservation {
@@ -334,23 +334,16 @@ function SessionRecordPage() {
     const planObjectives: string = plan.objectives ?? "";
     const prevPoints: string = data.previousPoints as string ?? plan.objectives_from_previous ?? "";
 
-    // Normaliza um item de goals_achieved (suporta shape antigo {goal, achieved} e novo {goal, status, notes, milestoneGoalId})
+    // Normaliza um item de goals_achieved para o shape atual
     const normalizeGoal = (g: any): GoalItem => {
+      let ids: string[] = [];
+      if (Array.isArray(g?.milestoneGoalIds)) ids = g.milestoneGoalIds.filter(Boolean);
+      else if (typeof g?.milestoneGoalId === "string" && g.milestoneGoalId) ids = [g.milestoneGoalId];
+
       if (g && typeof g.status === "string") {
-        return {
-          goal: g.goal ?? "",
-          status: g.status as GoalStatus,
-          notes: g.notes ?? "",
-          milestoneGoalId: g.milestoneGoalId ?? null,
-        };
+        return { goal: g.goal ?? "", status: g.status as GoalStatus, notes: g.notes ?? "", milestoneGoalIds: ids };
       }
-      // Shape antigo booleano
-      return {
-        goal: g?.goal ?? "",
-        status: g?.achieved ? "achieved" : null,
-        notes: "",
-        milestoneGoalId: null,
-      };
+      return { goal: g?.goal ?? "", status: g?.achieved ? "achieved" : null, notes: "", milestoneGoalIds: ids };
     };
 
     if (existing) {
@@ -360,7 +353,7 @@ function SessionRecordPage() {
       const savedTexts = new Set(savedGoals.map((g) => g.goal));
       const extra = planSpecific
         .filter((s) => !savedTexts.has(s))
-        .map((goal): GoalItem => ({ goal, status: null, notes: "" }));
+        .map((goal): GoalItem => ({ goal, status: null, notes: "", milestoneGoalIds: [] }));
       setGoalsChecklist([...savedGoals, ...extra]);
 
       setWhatWasDone(existing.what_was_done ?? "");
@@ -383,19 +376,22 @@ function SessionRecordPage() {
       setNextSessionEventId(existing.next_session_event_id ?? undefined);
     } else {
       // Cria checklist inicial a partir dos objetivos específicos do plano
-      // (fallback: objetivo geral quebrado em linhas, comportamento legado)
       const sourceGoals = planSpecific.length > 0
         ? planSpecific
         : planObjectives.split("\n").map((l: string) => l.trim()).filter(Boolean);
-      const planGoalIds: (string | null)[] = Array.isArray(plan.objective_goal_ids)
-        ? plan.objective_goal_ids
-        : [];
+      // Suporta novo shape (string[][]) e antigo (string|null)[]
+      const rawIds: any[] = Array.isArray(plan.objective_goal_ids) ? plan.objective_goal_ids : [];
+      const planGoalIds: string[][] = rawIds.map((v) => {
+        if (Array.isArray(v)) return v.filter(Boolean);
+        if (typeof v === "string" && v) return [v];
+        return [];
+      });
       setGoalsChecklist(
         sourceGoals.map((goal: string, i: number): GoalItem => ({
           goal,
           status: null,
           notes: "",
-          milestoneGoalId: planGoalIds[i] ?? null,
+          milestoneGoalIds: planGoalIds[i] ?? [],
         }))
       );
 
@@ -454,10 +450,11 @@ function SessionRecordPage() {
       goalsChecklist.length > 0
         ? goalsChecklist.map((g) => ({
             goal: g.goal,
-            // Objetivo não avaliado é registrado como "não alcançado"
             status: g.status ?? "not_achieved",
             notes: g.notes.trim() || undefined,
-            milestoneGoalId: g.milestoneGoalId ?? undefined,
+            // Novo shape: array de IDs; mantém milestoneGoalId (primeiro) para compat
+            milestoneGoalIds: g.milestoneGoalIds.length > 0 ? g.milestoneGoalIds : undefined,
+            milestoneGoalId: g.milestoneGoalIds[0] ?? undefined,
           }))
         : undefined,
     whatWasDone: whatWasDone.trim() || undefined,
@@ -553,19 +550,24 @@ function SessionRecordPage() {
                     key={i}
                     className="rounded-[14px] border border-[#E5E7EB] p-3.5"
                   >
-                    {/* Chip de meta vinculada */}
-                    {item.milestoneGoalId && goalMap[item.milestoneGoalId] && (() => {
-                      const gInfo = goalMap[item.milestoneGoalId!]!;
-                      const goalColor = MILESTONE_AREA_COLORS[gInfo.milestoneArea as keyof typeof MILESTONE_AREA_COLORS] ?? "#0D9488";
-                      return (
-                        <div className="flex items-center gap-1.5 mb-1.5">
-                          <Link2 size={11} strokeWidth={2} color={goalColor} />
-                          <span className="text-[11px] font-semibold" style={{ color: goalColor }}>
-                            {gInfo.milestoneTitle} · {gInfo.goalTitle}
-                          </span>
-                        </div>
-                      );
-                    })()}
+                    {/* Chips de metas vinculadas */}
+                    {item.milestoneGoalIds.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {item.milestoneGoalIds.map((gid) => {
+                          const gInfo = goalMap[gid];
+                          if (!gInfo) return null;
+                          const goalColor = MILESTONE_AREA_COLORS[gInfo.milestoneArea as keyof typeof MILESTONE_AREA_COLORS] ?? "#0D9488";
+                          return (
+                            <div key={gid} className="flex items-center gap-1 rounded-full px-2 py-0.5" style={{ background: goalColor + "15", border: `1px solid ${goalColor}44` }}>
+                              <Link2 size={10} strokeWidth={2} color={goalColor} />
+                              <span className="text-[10.5px] font-semibold" style={{ color: goalColor }}>
+                                {gInfo.milestoneTitle} · {gInfo.goalTitle}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                     <p className="text-sm font-medium text-[#374151] mb-2.5">{item.goal}</p>
                     <div className="flex gap-2">
                       {GOAL_STATUSES.map((status) => {

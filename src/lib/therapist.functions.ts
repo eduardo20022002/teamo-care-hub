@@ -628,6 +628,7 @@ export const saveSessionPlanServer = createServerFn({ method: "POST" })
     const plan = {
       objectives:          data.objectives ?? null,
       specific_objectives: data.specificObjectives ?? [],
+      objective_goal_ids:  data.objectiveGoalIds ?? [],
       activities:          data.activities ?? [],
       materials:           data.materials ?? null,
     };
