@@ -12,7 +12,7 @@ import {
 } from "@/services/therapist.service";
 import { MILESTONE_AREA_COLORS } from "@/lib/validation";
 
-export const Route = createFileRoute("/_auth/meu-terapeuta/$accessId" as any)({
+export const Route = createFileRoute("/_auth/meu-terapeuta_/$accessId")({
   head: () => ({ meta: [{ title: "Acompanhamento — TEAmo" }] }),
   component: PortalPage,
 });
@@ -57,8 +57,10 @@ function formatDate(iso: string) {
   });
 }
 
-function formatDuration(min: number | null) {
-  if (!min) return null;
+function formatDuration(startAt?: string, endAt?: string | null) {
+  if (!startAt || !endAt) return null;
+  const min = Math.round((new Date(endAt).getTime() - new Date(startAt).getTime()) / 60000);
+  if (min <= 0) return null;
   if (min < 60) return `${min} min`;
   const h = Math.floor(min / 60);
   const m = min % 60;
@@ -71,7 +73,7 @@ function SessionCard({ record }: { record: any }) {
   const [expanded, setExpanded] = useState(false);
   const event = record.agenda_events ?? record["agenda_events!inner"] ?? {};
   const date = event.start_at ? formatDate(event.start_at) : "";
-  const duration = formatDuration(event.duration_minutes ?? null);
+  const duration = formatDuration(event.start_at, event.end_at);
   const plan = event.session_plan ?? {};
   const showPlan = event.plan_visible_to_parents && (plan.objectives || (plan.specific_objectives?.length ?? 0) > 0);
   const notableBehaviors: any[] = record.notable_behaviors ?? [];

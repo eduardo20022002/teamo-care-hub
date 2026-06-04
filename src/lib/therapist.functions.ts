@@ -1034,7 +1034,7 @@ export const listParentSessionRecordsServer = createServerFn({ method: "POST" })
         clinical_observations,
         published_at,
         agenda_events!inner(
-          id, start_at, title, duration_minutes, session_attendance,
+          id, start_at, end_at, title, session_attendance,
           session_plan, plan_visible_to_parents
         )
       `)

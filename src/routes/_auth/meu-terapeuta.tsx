@@ -3,7 +3,7 @@ import { Stethoscope, ChevronRight, Loader2, Calendar } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { useMyTherapistAccesses } from "@/services/therapist.service";
 
-export const Route = createFileRoute("/_auth/meu-terapeuta" as any)({
+export const Route = createFileRoute("/_auth/meu-terapeuta")({
   head: () => ({ meta: [{ title: "Meu Terapeuta — TEAmo" }] }),
   component: MeuTerapeutaPage,
 });
