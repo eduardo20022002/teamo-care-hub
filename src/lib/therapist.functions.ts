@@ -1015,7 +1015,11 @@ export const getParentPortalSummaryServer = createServerFn({ method: "POST" })
     };
   });
 
-// ─── listParentSessionRecordsServer — registros de sessão publicados para o pai
+// ─── listParentSessionRecordsServer — sessões do terapeuta para o pai ──────────
+// Retorna TODAS as sessões agendadas pelo terapeuta para a criança (agendadas e
+// realizadas), anexando o registro publicado quando existir (is_draft=false e
+// is_private=false). Assim a agenda do terapeuta aparece no portal, e não só os
+// registros já publicados.
 export const listParentSessionRecordsServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ accessId: z.string().uuid() }).parse(d))
@@ -1023,30 +1027,49 @@ export const listParentSessionRecordsServer = createServerFn({ method: "POST" })
     const { userId } = context as any;
     const acc = await assertParentAccess(data.accessId, userId);
 
-    const { data: records, error } = await (supabaseAdmin as any)
-      .from("session_records")
+    // 1. Sessões do terapeuta para a criança (eventos de agenda com therapist_id)
+    const { data: events, error: evErr } = await (supabaseAdmin as any)
+      .from("agenda_events")
       .select(`
-        event_id,
-        what_was_done,
-        family_instruction,
-        notable_behaviors,
-        goals_achieved,
-        clinical_observations,
-        published_at,
-        agenda_events!inner(
-          id, start_at, end_at, title, session_attendance,
-          session_plan, plan_visible_to_parents
-        )
+        id, start_at, end_at, title, session_attendance,
+        session_plan, plan_visible_to_parents, status
       `)
       .eq("child_id", acc.childId)
       .eq("therapist_id", acc.therapistId)
+      .order("start_at", { ascending: false });
+
+    if (evErr) throw new Response(evErr.message, { status: 500 });
+    const eventList = (events ?? []) as any[];
+    if (eventList.length === 0) return { sessions: [] };
+
+    // 2. Registros publicados (visíveis) para esses eventos
+    const eventIds = eventList.map((e) => e.id);
+    const { data: records } = await (supabaseAdmin as any)
+      .from("session_records")
+      .select(`
+        event_id, what_was_done, family_instruction,
+        notable_behaviors, goals_achieved, published_at
+      `)
+      .in("event_id", eventIds)
       .eq("is_draft", false)
-      .eq("is_private", false)
-      .order("published_at", { ascending: false });
+      .eq("is_private", false);
 
-    if (error) throw new Response(error.message, { status: 500 });
+    const recordByEvent: Record<string, any> = {};
+    for (const r of records ?? []) recordByEvent[(r as any).event_id] = r;
 
-    return { records: (records ?? []) as any[] };
+    // 3. Monta sessões: evento + registro publicado (se houver)
+    const sessions = eventList.map((e) => ({
+      event_id:                e.id as string,
+      title:                   e.title as string,
+      start_at:                e.start_at as string,
+      end_at:                  (e.end_at ?? null) as string | null,
+      session_attendance:      (e.session_attendance ?? null) as string | null,
+      session_plan:            e.session_plan ?? null,
+      plan_visible_to_parents: !!e.plan_visible_to_parents,
+      record:                  recordByEvent[e.id] ?? null,
+    }));
+
+    return { sessions };
   });
 
 // ─── listParentMilestonesServer — marcos compartilhados com pais ──────────────

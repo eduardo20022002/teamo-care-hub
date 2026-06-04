@@ -25,6 +25,8 @@ import { ObservationFormSheet } from "@/components/agenda/ObservationFormSheet";
 import {
   listAgendaEvents,
   updateAgendaEventStatus,
+  getParentEventReminder,
+  upsertParentEventReminder,
 } from "@/services/agenda/events.service";
 import { getProfile } from "@/services/profile.service";
 import { getRole } from "@/lib/roles";
@@ -182,6 +184,28 @@ function AgendaEventDetailPage() {
     () => eventsQuery.data?.find((e) => e.id === eventId),
     [eventsQuery.data, eventId],
   );
+
+  // Evento é uma sessão criada por um terapeuta (tem therapist_id)
+  const isTherapistEvent = !!(event as any)?.therapist_id;
+  // Pai visualizando sessão do terapeuta → pode ativar lembrete próprio
+  const canSetParentReminder = !isTherapist && isTherapistEvent;
+
+  const reminderQuery = useQuery({
+    queryKey: ["parent-event-reminder", eventId],
+    queryFn: () => getParentEventReminder(eventId),
+    enabled: !!user && canSetParentReminder,
+    staleTime: 30_000,
+  });
+
+  const reminderMutation = useMutation({
+    mutationFn: (next: { oneDayBefore: boolean; oneHourBefore: boolean }) =>
+      upsertParentEventReminder(user!.id, eventId, next),
+    onSuccess: (_data, next) => {
+      qc.setQueryData(["parent-event-reminder", eventId], next);
+      qc.invalidateQueries({ queryKey: ["parent-event-reminder", eventId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const statusMutation = useMutation({
     mutationFn: ({ status }: { status: AgendaEventStatus }) =>
@@ -365,6 +389,16 @@ function AgendaEventDetailPage() {
             isLast
           />
         </div>
+
+        {/* Módulo de lembrete do RESPONSÁVEL (sessões do terapeuta, futuras) */}
+        {canSetParentReminder && !isPast && (
+          <ParentReminderCard
+            value={reminderQuery.data ?? { oneDayBefore: false, oneHourBefore: false }}
+            loading={reminderQuery.isLoading}
+            saving={reminderMutation.isPending}
+            onChange={(next) => reminderMutation.mutate(next)}
+          />
+        )}
 
         {/* Observações — apenas para pais/responsáveis (não para sessões do terapeuta) */}
         {!isOwnSession && (
@@ -558,13 +592,28 @@ function AgendaEventDetailPage() {
           );
         })()}
 
-        {/* Após o compromisso (só para PAIS) */}
-        {!isTherapist && isPast && (
+        {/* Após o compromisso (só para PAIS — e NÃO em sessões do terapeuta:
+            quem confirma o comparecimento de uma sessão é o próprio terapeuta) */}
+        {!isTherapist && isPast && !isTherapistEvent && (
           <div className="mt-6">
             <AfterAppointmentActions
               currentStatus={event.status}
               onChoose={handleStatus}
             />
+          </div>
+        )}
+
+        {/* Aviso: sessão do terapeuta — confirmação é do profissional */}
+        {!isTherapist && isTherapistEvent && isPast && (
+          <div
+            className="mt-6 rounded-xl border px-4 py-3 flex items-start gap-2"
+            style={{ borderColor: "#CCFBF1", background: "#F0FDFA" }}
+          >
+            <ClipboardCheck size={16} strokeWidth={1.8} color={TEAL} className="flex-shrink-0 mt-0.5" />
+            <p className="text-[12.5px] leading-relaxed" style={{ color: "#0F766E" }}>
+              O comparecimento desta sessão é confirmado pelo terapeuta. Você pode
+              registrar suas observações abaixo.
+            </p>
           </div>
         )}
 
@@ -623,6 +672,76 @@ function AgendaEventDetailPage() {
         />
       )}
     </AppShell>
+  );
+}
+
+function ParentReminderCard({
+  value,
+  loading,
+  saving,
+  onChange,
+}: {
+  value: { oneDayBefore: boolean; oneHourBefore: boolean };
+  loading: boolean;
+  saving: boolean;
+  onChange: (next: { oneDayBefore: boolean; oneHourBefore: boolean }) => void;
+}) {
+  const TEAL = "#0D9488";
+  const rows: { key: "oneDayBefore" | "oneHourBefore"; label: string }[] = [
+    { key: "oneDayBefore", label: "1 dia antes" },
+    { key: "oneHourBefore", label: "1 hora antes" },
+  ];
+  return (
+    <div
+      className="mt-4 rounded-2xl border bg-white px-4 py-3.5"
+      style={{ borderColor: "#CCFBF1" }}
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <Bell size={16} strokeWidth={1.8} color={TEAL} />
+        <span className="text-[14px] font-bold" style={{ color: "#0F172A" }}>
+          Meu lembrete
+        </span>
+        {saving && <span className="text-[11px] text-[#9CA3AF]">salvando…</span>}
+      </div>
+      <p className="text-[12px] text-[#6B7280] mb-2 leading-relaxed">
+        Receba um aviso antes desta sessão. O lembrete é só seu.
+      </p>
+      <div className="flex flex-col gap-1.5">
+        {rows.map(({ key, label }) => {
+          const active = value[key];
+          return (
+            <button
+              key={key}
+              type="button"
+              disabled={loading || saving}
+              onClick={() => onChange({ ...value, [key]: !active })}
+              className="flex w-full items-center justify-between rounded-xl border px-3.5 py-2.5 text-left transition-colors disabled:opacity-60"
+              style={
+                active
+                  ? { borderColor: TEAL, background: "#F0FDFA" }
+                  : { borderColor: "#E5E7EB", background: "white" }
+              }
+            >
+              <span
+                className="text-[13.5px] font-semibold"
+                style={{ color: active ? TEAL : "#374151" }}
+              >
+                {label}
+              </span>
+              <span
+                className="ml-auto flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors"
+                style={{ background: active ? TEAL : "#D1D5DB" }}
+              >
+                <span
+                  className="h-4 w-4 rounded-full bg-white shadow transition-transform"
+                  style={{ transform: active ? "translateX(18px)" : "translateX(2px)" }}
+                />
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

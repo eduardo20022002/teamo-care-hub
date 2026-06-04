@@ -70,9 +70,11 @@ function formatDuration(startAt?: string, endAt?: string | null) {
 
 // ─── Seção de sessões ─────────────────────────────────────────────────────────
 
-function SessionCard({ record }: { record: any }) {
+function SessionCard({ session }: { session: any }) {
   const [expanded, setExpanded] = useState(false);
-  const event = record.agenda_events ?? record["agenda_events!inner"] ?? {};
+  const event = session;
+  const record = session.record ?? {};
+  const hasRecord = !!session.record;
   const date = event.start_at ? formatDate(event.start_at) : "";
   const duration = formatDuration(event.start_at, event.end_at);
   const plan = event.session_plan ?? {};
@@ -81,6 +83,20 @@ function SessionCard({ record }: { record: any }) {
   const conquistas = notableBehaviors.filter((b: any) => b.type === "conquista" || b.type === "regulacao");
   const goalsAchieved: any[] = record.goals_achieved ?? [];
   const hasContent = record.what_was_done || record.family_instruction || conquistas.length > 0 || showPlan || goalsAchieved.length > 0;
+
+  // Status da sessão: agendada / realizada / aguardando registro / falta
+  const isPast = new Date(event.start_at) < new Date();
+  const attendance = event.session_attendance as string | null;
+  let statusLabel = "Agendada", statusColor = "#6B7280", statusBg = "#F4F5FA";
+  if (attendance === "missed_justified" || attendance === "missed_no_show") {
+    statusLabel = "Falta"; statusColor = "#DC2626"; statusBg = "#FEF2F2";
+  } else if (hasRecord) {
+    statusLabel = "Registrada"; statusColor = "#16A34A"; statusBg = "#ECFDF5";
+  } else if (attendance === "happened") {
+    statusLabel = "Realizada"; statusColor = TEAL; statusBg = TEAL_SOFT;
+  } else if (isPast) {
+    statusLabel = "Aguardando registro"; statusColor = "#D97706"; statusBg = "#FEF3C7";
+  }
 
   return (
     <div
@@ -116,10 +132,17 @@ function SessionCard({ record }: { record: any }) {
             )}
           </div>
         </div>
-        {expanded
-          ? <ChevronUp size={16} strokeWidth={2} color="#9CA3AF" />
-          : <ChevronDown size={16} strokeWidth={2} color="#9CA3AF" />
-        }
+        <span
+          className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold"
+          style={{ background: statusBg, color: statusColor }}
+        >
+          {statusLabel}
+        </span>
+        {hasContent && (
+          expanded
+            ? <ChevronUp size={16} strokeWidth={2} color="#9CA3AF" className="flex-shrink-0" />
+            : <ChevronDown size={16} strokeWidth={2} color="#9CA3AF" className="flex-shrink-0" />
+        )}
       </button>
 
       {/* Instrução à família — sempre visível se existir */}
@@ -320,7 +343,7 @@ function PortalPage() {
   const commsQ      = useMyParentCommunications(accessId);
 
   const summary      = summaryQ.data;
-  const sessions     = sessionsQ.data?.records ?? [];
+  const sessions     = sessionsQ.data?.sessions ?? [];
   const milestones   = milestonesQ.data?.milestones ?? [];
   const comms        = (commsQ.data?.communications ?? []) as Array<{ id: string; content: string; created_at: string }>;
   const isLoading    = summaryQ.isLoading || sessionsQ.isLoading || milestonesQ.isLoading;
@@ -392,13 +415,13 @@ function PortalPage() {
                   style={{ borderColor: "#E5E7EB", background: "#FAFAFA" }}
                 >
                   <p className="text-[13px] text-[#9CA3AF]">
-                    Nenhum registro publicado ainda.
+                    Nenhuma sessão agendada ainda.
                   </p>
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
-                  {sessions.map((r: any) => (
-                    <SessionCard key={r.event_id} record={r} />
+                  {sessions.map((s: any) => (
+                    <SessionCard key={s.event_id} session={s} />
                   ))}
                 </div>
               )}

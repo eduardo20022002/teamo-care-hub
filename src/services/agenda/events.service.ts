@@ -447,3 +447,50 @@ export async function updateAgendaEventStatus(
     .eq("id", id);
   if (error) throw new Error(mapError(error.message));
 }
+
+// ─── Lembretes do responsável em sessões do terapeuta ─────────────────────────
+// O pai não é dono do evento do terapeuta (não pode editar o campo `reminders`),
+// então mantém a própria preferência de lembrete em parent_event_reminders.
+// RLS garante que cada um só lê/escreve as próprias linhas (parent_id = auth.uid()).
+
+export interface ParentEventReminder {
+  oneDayBefore: boolean;
+  oneHourBefore: boolean;
+}
+
+export async function getParentEventReminder(
+  eventId: string,
+): Promise<ParentEventReminder> {
+  if (DEV_BYPASS) return { oneDayBefore: false, oneHourBefore: false };
+  const { data, error } = await (supabase as any)
+    .from("parent_event_reminders")
+    .select("one_day_before, one_hour_before")
+    .eq("event_id", eventId)
+    .maybeSingle();
+  if (error) throw new Error(mapError(error.message));
+  return {
+    oneDayBefore: (data as any)?.one_day_before ?? false,
+    oneHourBefore: (data as any)?.one_hour_before ?? false,
+  };
+}
+
+export async function upsertParentEventReminder(
+  userId: string,
+  eventId: string,
+  reminder: ParentEventReminder,
+): Promise<void> {
+  if (DEV_BYPASS) return;
+  const { error } = await (supabase as any)
+    .from("parent_event_reminders")
+    .upsert(
+      {
+        parent_id: userId,
+        event_id: eventId,
+        one_day_before: reminder.oneDayBefore,
+        one_hour_before: reminder.oneHourBefore,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "parent_id,event_id" },
+    );
+  if (error) throw new Error(mapError(error.message));
+}
