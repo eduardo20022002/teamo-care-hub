@@ -14,6 +14,7 @@ import {
   listMilestoneGoalsServer,
   createMilestoneGoalServer,
   updateMilestoneGoalServer,
+  achieveMilestoneGoalServer,
   deleteMilestoneGoalServer,
   getMilestoneGoalProgressServer,
   getMilestoneProgressServer,
@@ -55,6 +56,8 @@ export interface MilestoneGoal {
   therapist_id: string;
   title: string;
   description: string | null;
+  status: "em_progresso" | "atingido";
+  achieved_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -294,7 +297,25 @@ export function useDeleteMilestoneGoal(milestoneId: string) {
   });
 }
 
-// ─── 11. useGoalProgress ──────────────────────────────────────────────────────
+// ─── 11. useAchieveMilestoneGoal ─────────────────────────────────────────────
+
+export function useAchieveMilestoneGoal(milestoneId: string, childId: string) {
+  const fn = useServerFn(achieveMilestoneGoalServer);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (goalId: string) => {
+      const h = await authHeaders();
+      return fn({ data: { goalId }, headers: h });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: milestoneGoalKeys.list(milestoneId) });
+      qc.invalidateQueries({ queryKey: milestoneGoalKeys.counts(childId) });
+      qc.invalidateQueries({ queryKey: milestoneGoalKeys.allForChild(childId) });
+    },
+  });
+}
+
+// ─── 12. useGoalProgress ──────────────────────────────────────────────────────
 
 export function useGoalProgress(goalId: string, childId: string) {
   const fn = useServerFn(getMilestoneGoalProgressServer);

@@ -345,7 +345,34 @@ export const updateMilestoneGoalServer = createServerFn({ method: "POST" })
     return { goal: updated };
   });
 
-// ─── 10. deleteMilestoneGoalServer ────────────────────────────────────────────
+// ─── 10. achieveMilestoneGoalServer ───────────────────────────────────────────
+
+export const achieveMilestoneGoalServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ goalId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+    await assertTherapist(userId);
+    const existing = await assertGoalOwner(data.goalId, userId);
+
+    if ((existing as any).status === "atingido") {
+      throw new Response("Meta já foi marcada como atingida.", { status: 409 });
+    }
+
+    const now = new Date().toISOString();
+    const { data: updated, error } = await supabaseAdmin
+      .from("milestone_goals" as any)
+      .update({ status: "atingido", achieved_at: now, updated_at: now })
+      .eq("id", data.goalId)
+      .eq("therapist_id", userId)
+      .select("*")
+      .single();
+
+    if (error) throw new Response(error.message, { status: 500 });
+    return { goal: updated };
+  });
+
+// ─── 11. deleteMilestoneGoalServer ────────────────────────────────────────────
 
 export const deleteMilestoneGoalServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

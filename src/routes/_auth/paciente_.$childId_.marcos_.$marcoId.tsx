@@ -870,7 +870,16 @@ function MilestoneDetailPage() {
                       <p className="text-[14px] font-semibold" style={{ color: "#0F172A" }}>
                         {goal.title}
                       </p>
-                      <GoalProgressDots entries={dots} />
+                      {goal.status === "atingido" ? (
+                        <span className="inline-flex items-center gap-1 mt-1 rounded-full px-2 py-0.5 text-[11px] font-bold"
+                          style={{ background: "#ECFDF5", color: "#16A34A" }}>
+                          <CheckCircle2 size={10} strokeWidth={2.5} />
+                          Atingida
+                          {goal.achieved_at ? ` · ${new Date(goal.achieved_at).toLocaleDateString("pt-BR", { day: "numeric", month: "short" })}` : ""}
+                        </span>
+                      ) : (
+                        <GoalProgressDots entries={dots} />
+                      )}
                     </button>
 
                     <div className="flex items-center gap-1 flex-shrink-0">
@@ -974,6 +983,39 @@ function MilestoneDetailPage() {
             </div>
           )}
         </div>
+
+        {/* Progresso de metas — guia para decisão de atingir o marco */}
+        {goals.length > 0 && (() => {
+          const achieved = goals.filter((g) => g.status === "atingido").length;
+          const pct = goals.length > 0 ? Math.round((achieved / goals.length) * 100) : 0;
+          const allDone = achieved === goals.length;
+          return (
+            <div
+              className="rounded-[16px] px-5 py-4 mb-4"
+              style={{ background: allDone ? "#F0FDF4" : "#F8FAFC", border: `1.5px solid ${allDone ? "#BBF7D0" : "#E5E7EB"}` }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[13px] font-bold" style={{ color: allDone ? "#16A34A" : "#374151" }}>
+                  {achieved} de {goals.length} metas atingidas
+                </p>
+                <span className="text-[12px] font-semibold" style={{ color: allDone ? "#16A34A" : "#6B7280" }}>
+                  {pct}%
+                </span>
+              </div>
+              <div className="h-2 w-full rounded-full overflow-hidden" style={{ background: "#E5E7EB" }}>
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{ width: `${pct}%`, background: allDone ? "#16A34A" : "#0D9488" }}
+                />
+              </div>
+              {allDone && isInProgress && (
+                <p className="mt-2 text-[12px] font-semibold" style={{ color: "#16A34A" }}>
+                  Todas as metas foram atingidas — considere marcar este marco como conquistado!
+                </p>
+              )}
+            </div>
+          );
+        })()}
 
         <div className="h-28" />
       </div>
