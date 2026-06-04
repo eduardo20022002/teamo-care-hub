@@ -558,21 +558,21 @@ function PortalPage() {
   const nextSession = upcomingSessions[0] ?? null;
 
   // ── Celebração de marcos atingidos ─────────────────────────────────────────
+  // Sempre usa [0]: quando o pai fecha, a mutation invalida a query e o próximo
+  // marco não-celebrado passa a ser o novo [0] automaticamente.
   const unseenAchievements = useMemo(
     () => (milestones as any[]).filter(
-      (m) => m.status === "atingido" && m.is_shared_with_parents && !m.parent_celebrated_at,
+      (m) => m.status === "atingido" && !m.parent_celebrated_at,
     ),
     [milestones],
   );
-  const [celebratingIdx, setCelebratingIdx] = useState(0);
-  const currentCelebration = unseenAchievements[celebratingIdx] ?? null;
+  const currentCelebration = unseenAchievements[0] ?? null;
   const markCelebrated = useMarkMilestoneCelebrated(accessId);
 
   function handleCloseCelebration() {
     if (currentCelebration) {
       markCelebrated.mutate(currentCelebration.id);
     }
-    setCelebratingIdx((i) => i + 1);
   }
 
   // ── UI state ────────────────────────────────────────────────────────────────
