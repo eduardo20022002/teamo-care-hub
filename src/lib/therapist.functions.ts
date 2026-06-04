@@ -1082,7 +1082,7 @@ export const listParentMilestonesServer = createServerFn({ method: "POST" })
 
     const { data: milestones, error } = await (supabaseAdmin as any)
       .from("therapeutic_milestones")
-      .select("*")
+      .select("id, title, description, area, status, achieved_at, is_shared_with_parents, parent_celebrated_at, created_at, updated_at")
       .eq("child_id", acc.childId)
       .eq("therapist_id", acc.therapistId)
       .eq("is_shared_with_parents", true)
@@ -1111,6 +1111,27 @@ export const listParentMilestonesServer = createServerFn({ method: "POST" })
         goals: goalsByMilestone[m.id] ?? [],
       })),
     };
+  });
+
+// ─── markMilestoneCelebratedServer — pai marca que viu o overlay de celebração ─
+export const markMilestoneCelebratedServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ accessId: z.string().uuid(), milestoneId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+    const acc = await assertParentAccess(data.accessId, userId);
+
+    const { error } = await (supabaseAdmin as any)
+      .from("therapeutic_milestones")
+      .update({ parent_celebrated_at: new Date().toISOString() })
+      .eq("id", data.milestoneId)
+      .eq("child_id", acc.childId)
+      .eq("therapist_id", acc.therapistId);
+
+    if (error) throw new Response(error.message, { status: 500 });
+    return { ok: true };
   });
 
 // ═══════════════════════════════════════════════════════════════════════════════

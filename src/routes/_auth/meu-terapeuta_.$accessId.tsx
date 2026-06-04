@@ -3,14 +3,16 @@ import { useState, useMemo } from "react";
 import {
   Stethoscope, Loader2, CalendarDays, ChevronDown, ChevronUp,
   Target, Trophy, Clock, CheckCircle2, MinusCircle, XCircle, MessageSquare,
-  List,
+  List, Share2, MessageCircle, Users2, Star, Heart, Lightbulb, PersonStanding, Flag,
 } from "lucide-react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import {
   useParentPortalSummary,
   useParentSessionRecords,
   useParentMilestones,
   useMyParentCommunications,
+  useMarkMilestoneCelebrated,
 } from "@/services/therapist.service";
 import { MILESTONE_AREA_COLORS } from "@/lib/validation";
 import { WeekGrid } from "@/components/agenda/WeekGrid";
@@ -334,6 +336,155 @@ function MilestoneCard({ milestone }: { milestone: any }) {
   );
 }
 
+// ─── Overlay de celebração de marco ──────────────────────────────────────────
+
+const CONFETTI_COLORS = [
+  "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#06B6D4", "#EF4444", "#F97316",
+];
+
+const AREA_ICONS: Record<string, typeof Flag> = {
+  comunicacao:   MessageCircle,
+  socializacao:  Users2,
+  autonomia:     Star,
+  comportamento: Heart,
+  cognicao:      Lightbulb,
+  motricidade:   PersonStanding,
+};
+
+function MilestoneCelebrationOverlay({
+  milestone,
+  childName,
+  onClose,
+}: {
+  milestone: any;
+  childName: string;
+  onClose: () => void;
+}) {
+  const achievedDate = milestone.achieved_at
+    ? new Date(milestone.achieved_at).toLocaleDateString("pt-BR", {
+        day: "numeric", month: "long", year: "numeric",
+      })
+    : new Date().toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" });
+
+  const areaColor: string = (MILESTONE_AREA_COLORS as any)[milestone.area] ?? TEAL;
+  const AreaIcon = AREA_ICONS[milestone.area] ?? Flag;
+
+  // Deterministic confetti (sem mismatch de hidratação)
+  const confettiDots = useMemo(() => {
+    const seed = [12, 35, 55, 8, 72, 90, 25, 60, 45, 80, 18, 66];
+    return seed.map((s, i) => ({
+      left:   `${(s * 7 + i * 23) % 95}%`,
+      top:    `${(s * 3 + i * 17) % 80}%`,
+      size:   6 + (i % 4) * 2,
+      color:  CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      rotate: (s * 11 + i * 37) % 360,
+    }));
+  }, []);
+
+  async function handleShare() {
+    const text = `🎉 ${childName} conquistou: ${milestone.title}! Atingido em ${achievedDate}. #TEAmo`;
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title: `Conquista: ${milestone.title}`, text });
+      } catch {
+        // usuário cancelou ou não suportado — silencioso
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(text);
+        toast.success("Texto copiado para a área de transferência!");
+      } catch {
+        toast.error("Não foi possível copiar.");
+      }
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-white px-6 overflow-hidden"
+      style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 24px)" }}
+    >
+      {/* Confetes */}
+      {confettiDots.map((d, i) => (
+        <span
+          key={i}
+          className="pointer-events-none absolute rounded-sm"
+          style={{
+            left: d.left, top: d.top,
+            width: d.size, height: d.size,
+            background: d.color,
+            transform: `rotate(${d.rotate}deg)`,
+            opacity: 0.75,
+          }}
+        />
+      ))}
+
+      {/* Ícone da área + troféu */}
+      <div className="relative mb-6">
+        <div
+          className="flex h-20 w-20 items-center justify-center rounded-full"
+          style={{ background: areaColor + "22", border: `2px solid ${areaColor}44` }}
+        >
+          <AreaIcon size={34} strokeWidth={1.7} color={areaColor} />
+        </div>
+        <div
+          className="absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full"
+          style={{ background: "#FEFCE8", border: "2px solid #FDE68A" }}
+        >
+          <Trophy size={15} strokeWidth={2} color="#D97706" />
+        </div>
+      </div>
+
+      <p className="text-[13px] font-semibold mb-2" style={{ color: TEAL }}>
+        🎉 {childName} conquistou!
+      </p>
+
+      <h1
+        className="text-center text-[24px] font-extrabold leading-tight mb-4"
+        style={{ color: "#0F172A", letterSpacing: "-0.025em", maxWidth: 320 }}
+      >
+        {milestone.title}
+      </h1>
+
+      <span
+        className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] font-semibold mb-5"
+        style={{ background: "#F0FDF4", color: "#16A34A" }}
+      >
+        <CheckCircle2 size={14} strokeWidth={2.5} />
+        Atingido em {achievedDate}
+      </span>
+
+      {milestone.description && (
+        <p
+          className="text-center text-[14px] leading-relaxed mb-6"
+          style={{ color: "#4B5563", maxWidth: 320 }}
+        >
+          {milestone.description}
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={handleShare}
+        className="flex w-full max-w-xs items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-bold text-white mb-3"
+        style={{ background: "#3B82F6" }}
+      >
+        <Share2 size={16} strokeWidth={2} />
+        Compartilhar esta conquista
+      </button>
+
+      <button
+        type="button"
+        onClick={onClose}
+        className="text-[14px] font-semibold"
+        style={{ color: "#6B7280" }}
+      >
+        Ver todos os marcos
+      </button>
+    </div>
+  );
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 // Converte sessão do portal para o shape mínimo que o WeekGrid aceita
@@ -406,6 +557,24 @@ function PortalPage() {
 
   const nextSession = upcomingSessions[0] ?? null;
 
+  // ── Celebração de marcos atingidos ─────────────────────────────────────────
+  const unseenAchievements = useMemo(
+    () => (milestones as any[]).filter(
+      (m) => m.status === "atingido" && m.is_shared_with_parents && !m.parent_celebrated_at,
+    ),
+    [milestones],
+  );
+  const [celebratingIdx, setCelebratingIdx] = useState(0);
+  const currentCelebration = unseenAchievements[celebratingIdx] ?? null;
+  const markCelebrated = useMarkMilestoneCelebrated(accessId);
+
+  function handleCloseCelebration() {
+    if (currentCelebration) {
+      markCelebrated.mutate(currentCelebration.id);
+    }
+    setCelebratingIdx((i) => i + 1);
+  }
+
   // ── UI state ────────────────────────────────────────────────────────────────
   const [sessionView, setSessionView] = useState<"lista" | "semana">("lista");
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
@@ -428,7 +597,20 @@ function PortalPage() {
     return acc;
   }, {});
 
+  // Nome para o overlay: usa o nome da criança ou o alias do vínculo
+  const childDisplayName: string =
+    (summary as any)?.child?.name ?? (summary as any)?.alias ?? "Seu filho";
+
   return (
+    <>
+      {/* Overlay de celebração — aparece sobre tudo */}
+      {!isLoading && currentCelebration && (
+        <MilestoneCelebrationOverlay
+          milestone={currentCelebration}
+          childName={childDisplayName}
+          onClose={handleCloseCelebration}
+        />
+      )}
     <AppShell
       onBack={() => navigate({ to: "/meu-terapeuta" as any })}
     >
@@ -769,5 +951,6 @@ function PortalPage() {
         )}
       </div>
     </AppShell>
+    </>
   );
 }

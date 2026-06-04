@@ -32,6 +32,7 @@ import {
   listMyParentCommunicationsServer,
   listSharedContentServer,
   listPatientParentSummariesServer,
+  markMilestoneCelebratedServer,
 } from "@/lib/therapist.functions";
 import type {
   TherapistProfileInput,
@@ -392,6 +393,20 @@ export function useParentMilestones(accessId: string | undefined) {
     },
     enabled: !!accessId,
     staleTime: 30_000,
+  });
+}
+
+export function useMarkMilestoneCelebrated(accessId: string) {
+  const fn = useServerFn(markMilestoneCelebratedServer);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (milestoneId: string) => {
+      const h = await authHeaders();
+      return fn({ data: { accessId, milestoneId }, headers: h });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: therapistKeys.portalMilestones(accessId) });
+    },
   });
 }
 
