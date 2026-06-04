@@ -14,6 +14,8 @@ import {
   XCircle,
   UserPlus,
   X,
+  Flag,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
@@ -402,6 +404,32 @@ function PatientDetailPage() {
                 Responsáveis
               </button>
             </div>
+
+            {/* Card — Marcos de desenvolvimento */}
+            <button
+              type="button"
+              onClick={() =>
+                void navigate({ to: "/paciente/$childId/marcos" as any, params: { childId } as any })
+              }
+              className="mt-3 flex w-full items-center gap-3 rounded-[14px] border px-4 py-3.5 text-left transition-shadow hover:shadow-sm"
+              style={{ borderColor: TEAL_BORDER, background: TEAL_SOFT }}
+            >
+              <div
+                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
+                style={{ background: TEAL_BORDER }}
+              >
+                <Flag size={18} strokeWidth={1.8} color={TEAL} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[14px] font-bold" style={{ color: "#0F172A" }}>
+                  Marcos de desenvolvimento
+                </p>
+                <p className="text-[12px]" style={{ color: "#6B7280" }}>
+                  Conquistas e objetivos do paciente
+                </p>
+              </div>
+              <ChevronRight size={16} strokeWidth={1.8} color="#9CA3AF" className="flex-shrink-0" />
+            </button>
           </div>
         )}
 

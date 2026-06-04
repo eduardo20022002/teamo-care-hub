@@ -686,3 +686,54 @@ export const sessionRecordSchema = z.object({
   isDraft:             z.boolean().default(true),
 });
 export type SessionRecordInput = z.infer<typeof sessionRecordSchema>;
+
+// ─── Módulo de Evolução — Marcos de Desenvolvimento ──────────────────────────
+
+export const MILESTONE_AREAS = [
+  "comunicacao",
+  "socializacao",
+  "autonomia",
+  "comportamento",
+  "cognicao",
+  "motricidade",
+] as const;
+export type MilestoneArea = (typeof MILESTONE_AREAS)[number];
+
+export const MILESTONE_AREA_LABELS: Record<MilestoneArea, string> = {
+  comunicacao:   "Comunicação",
+  socializacao:  "Socialização",
+  autonomia:     "Autonomia",
+  comportamento: "Comportamento",
+  cognicao:      "Cognição",
+  motricidade:   "Motricidade",
+};
+
+export const MILESTONE_AREA_COLORS: Record<MilestoneArea, string> = {
+  comunicacao:   "#3B82F6",
+  socializacao:  "#10B981",
+  autonomia:     "#F59E0B",
+  comportamento: "#8B5CF6",
+  cognicao:      "#06B6D4",
+  motricidade:   "#EC4899",
+};
+
+export const MILESTONE_AREA_BG: Record<MilestoneArea, string> = {
+  comunicacao:   "#EFF6FF",
+  socializacao:  "#ECFDF5",
+  autonomia:     "#FFFBEB",
+  comportamento: "#F5F3FF",
+  cognicao:      "#ECFEFF",
+  motricidade:   "#FDF2F8",
+};
+
+export const MILESTONE_STATUSES = ["em_progresso", "atingido", "pausado"] as const;
+export type MilestoneStatus = (typeof MILESTONE_STATUSES)[number];
+
+export const milestoneSchema = z.object({
+  childId:             z.string().uuid(),
+  title:               z.string().trim().min(3, "Mínimo 3 caracteres").max(120),
+  area:                z.enum(MILESTONE_AREAS),
+  description:         z.string().trim().max(500).optional(),
+  isSharedWithParents: z.boolean().default(true),
+});
+export type MilestoneInput = z.infer<typeof milestoneSchema>;

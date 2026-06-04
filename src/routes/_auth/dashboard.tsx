@@ -13,6 +13,7 @@ import {
   Share2,
   Stethoscope,
   TimerReset,
+  TrendingUp,
   Users,
   HandHeart,
   ShieldAlert,
@@ -741,7 +742,7 @@ function DashboardPage() {
             <div className="grid grid-cols-2 gap-3">
               {[
                 { to: "/agenda" as const, tint: "#F3E8FF", color: "#7C3AED", icon: Calendar, title: "Agenda", desc: "Sessões e compromissos." },
-                { to: "/registros" as const, tint: "#FDF2F8", color: "#EC4899", icon: ClipboardList, title: "Registros", desc: "Histórico de sessões e evoluções." },
+                { to: "/evolucao" as any, tint: "#F0FDF4", color: "#10B981", icon: TrendingUp, title: "Evolução", desc: "Marcos de desenvolvimento e metas." },
               ].map(({ to, tint, color, icon: Icon, title, desc }) => (
                 <button
                   key={title}
