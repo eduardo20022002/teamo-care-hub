@@ -590,6 +590,8 @@ export const sessionPlanSchema = z.object({
   objectives:         z.string().max(1000).optional(),
   /** Objetivos específicos — lista (cada item até 200 chars) */
   specificObjectives: z.array(z.string().trim().max(200)).optional(),
+  /** IDs das metas vinculadas por índice (paralelo a specificObjectives; null = sem vínculo) */
+  objectiveGoalIds:   z.array(z.string().uuid().nullable()).optional(),
   activities:         z.array(z.string().trim().max(200)).optional(),
   materials:          z.string().max(500).optional(),
   visibleToParents:   z.boolean().default(true),
@@ -647,9 +649,10 @@ export const GOAL_STATUS_LABELS: Record<GoalStatus, string> = {
 };
 
 export const goalAchievedSchema = z.object({
-  goal:   z.string().max(200),
-  status: z.enum(GOAL_STATUSES),
-  notes:  z.string().max(500).optional(),
+  goal:            z.string().max(200),
+  status:          z.enum(GOAL_STATUSES),
+  notes:           z.string().max(500).optional(),
+  milestoneGoalId: z.string().uuid().nullable().optional(),
 });
 
 export const notableBehaviorSchema = z.object({
@@ -737,3 +740,13 @@ export const milestoneSchema = z.object({
   isSharedWithParents: z.boolean().default(true),
 });
 export type MilestoneInput = z.infer<typeof milestoneSchema>;
+
+// ─── Metas terapêuticas (sub-objetivos de um marco) ──────────────────────────
+
+export const milestoneGoalSchema = z.object({
+  milestoneId: z.string().uuid(),
+  childId:     z.string().uuid(),
+  title:       z.string().trim().min(3, "Mínimo 3 caracteres").max(200),
+  description: z.string().trim().max(500).optional(),
+});
+export type MilestoneGoalInput = z.infer<typeof milestoneGoalSchema>;

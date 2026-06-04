@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
-import { Plus, Trash2, Eye, EyeOff, Loader2 } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Plus, Trash2, Eye, EyeOff, Loader2, Link2, X } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { useSaveSessionPlan, useGetSessionRecord } from "@/services/therapist.service";
-import { formatBirthDate } from "@/lib/formatters";
+import { useAllGoalsForChild, type GoalPickerItem } from "@/services/milestones.service";
+import { MILESTONE_AREA_COLORS } from "@/lib/validation";
 
 const TEAL = "#0D9488";
 const TEAL_SOFT = "#F0FDFA";
@@ -17,6 +18,115 @@ export const Route = createFileRoute("/_auth/agenda/sessao/$eventId/plano")({
   component: SessionPlanPage,
 });
 
+// ─── Sheet picker de meta ─────────────────────────────────────────────────────
+
+function GoalPickerSheet({
+  goals,
+  onSelect,
+  onClear,
+  currentGoalId,
+  onClose,
+}: {
+  goals: GoalPickerItem[];
+  onSelect: (goal: GoalPickerItem) => void;
+  onClear: () => void;
+  currentGoalId: string | null;
+  onClose: () => void;
+}) {
+  // Group by milestone
+  const byMilestone = useMemo(() => {
+    const map = new Map<string, { milestoneId: string; milestoneTitle: string; milestoneArea: string; goals: GoalPickerItem[] }>();
+    for (const g of goals) {
+      if (!map.has(g.milestoneId)) {
+        map.set(g.milestoneId, {
+          milestoneId: g.milestoneId,
+          milestoneTitle: g.milestoneTitle,
+          milestoneArea: g.milestoneArea,
+          goals: [],
+        });
+      }
+      map.get(g.milestoneId)!.goals.push(g);
+    }
+    return Array.from(map.values());
+  }, [goals]);
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
+      <div
+        className="fixed inset-x-0 bottom-0 z-50 rounded-t-[24px] bg-white px-5 pt-4 shadow-2xl"
+        style={{ maxHeight: "75vh", overflowY: "auto", paddingBottom: "calc(env(safe-area-inset-bottom) + 24px)" }}
+      >
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#E5E7EB]" />
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[17px] font-extrabold" style={{ color: "#0F172A" }}>Vincular a uma meta</h2>
+          <button type="button" onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-xl hover:bg-[#F3F4F6]">
+            <X size={18} color="#6B7280" />
+          </button>
+        </div>
+
+        {goals.length === 0 ? (
+          <p className="text-[13px] text-center py-6" style={{ color: "#9CA3AF" }}>
+            Nenhuma meta criada. Crie metas nos marcos do paciente primeiro.
+          </p>
+        ) : (
+          <>
+            {currentGoalId && (
+              <button
+                type="button"
+                onClick={() => { onClear(); onClose(); }}
+                className="mb-3 flex w-full items-center gap-2 rounded-xl border px-4 py-2.5 text-[13px] font-semibold text-[#DC2626]"
+                style={{ borderColor: "#FEE2E2", background: "#FFF5F5" }}
+              >
+                <X size={14} strokeWidth={2.5} />
+                Remover vínculo
+              </button>
+            )}
+            {byMilestone.map((ms) => {
+              const color = MILESTONE_AREA_COLORS[ms.milestoneArea as keyof typeof MILESTONE_AREA_COLORS] ?? TEAL;
+              return (
+                <div key={ms.milestoneId} className="mb-4">
+                  <p className="text-[11.5px] font-bold mb-1.5 uppercase tracking-wide" style={{ color }}>
+                    {ms.milestoneTitle}
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    {ms.goals.map((g) => {
+                      const sel = g.goalId === currentGoalId;
+                      return (
+                        <button
+                          key={g.goalId}
+                          type="button"
+                          onClick={() => { onSelect(g); onClose(); }}
+                          className="flex items-center gap-3 rounded-xl border px-4 py-2.5 text-left transition-colors"
+                          style={
+                            sel
+                              ? { borderColor: color, background: color + "11" }
+                              : { borderColor: "#E5E7EB", background: "white" }
+                          }
+                        >
+                          <div className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: color }} />
+                          <span className="text-[13.5px] font-semibold flex-1" style={{ color: sel ? color : "#0F172A" }}>
+                            {g.goalTitle}
+                          </span>
+                          {sel && (
+                            <span className="text-[11px] font-bold" style={{ color }}>✓</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─── Página ───────────────────────────────────────────────────────────────────
+
 function SessionPlanPage() {
   const navigate = useNavigate();
   const { eventId } = Route.useParams();
@@ -25,10 +135,26 @@ function SessionPlanPage() {
 
   const [objectives, setObjectives] = useState("");
   const [specificObjectives, setSpecificObjectives] = useState<string[]>([""]);
+  // Parallel array: null = no linked goal
+  const [objectiveGoalIds, setObjectiveGoalIds] = useState<(string | null)[]>([null]);
   const [activities, setActivities] = useState<string[]>([""]);
   const [materials, setMaterials] = useState("");
   const [visibleToParents, setVisibleToParents] = useState(true);
   const [initialized, setInitialized] = useState(false);
+
+  // Picker state: index of objective being linked, or null
+  const [pickerForIndex, setPickerForIndex] = useState<number | null>(null);
+
+  const childId = (data?.child as any)?.id as string | undefined;
+  const allGoalsQuery = useAllGoalsForChild(childId);
+  const allGoals = allGoalsQuery.data ?? [];
+
+  // Build a lookup map goalId → GoalPickerItem for display
+  const goalMap = useMemo(() => {
+    const m: Record<string, GoalPickerItem> = {};
+    for (const g of allGoals) m[g.goalId] = g;
+    return m;
+  }, [allGoals]);
 
   // Pré-preenche dados existentes
   useEffect(() => {
@@ -36,11 +162,9 @@ function SessionPlanPage() {
     setInitialized(true);
 
     const plan = (data.event as any)?.session_plan ?? {};
-    const previousPoints = data.previousPoints as string | null;
-
-    // Objetivos: usa dados salvos ou pontos da sessão anterior
-    const savedObjectives = plan.objectives ?? "";
     const fromPrevious = plan.objectives_from_previous ?? "";
+
+    const savedObjectives = plan.objectives ?? "";
     if (savedObjectives) {
       setObjectives(savedObjectives);
     } else if (fromPrevious) {
@@ -48,7 +172,11 @@ function SessionPlanPage() {
     }
 
     if (plan.specific_objectives?.length) {
-      setSpecificObjectives(plan.specific_objectives as string[]);
+      const saved = plan.specific_objectives as string[];
+      setSpecificObjectives(saved);
+      // Restore linked goal IDs
+      const savedGoalIds: (string | null)[] = plan.objective_goal_ids ?? saved.map(() => null);
+      setObjectiveGoalIds(savedGoalIds);
     }
 
     if (plan.activities?.length) {
@@ -62,25 +190,66 @@ function SessionPlanPage() {
     }
   }, [data, initialized]);
 
+  // Keep objectiveGoalIds in sync with specificObjectives length
+  const syncGoalIds = (newObjs: string[]) => {
+    setObjectiveGoalIds((prev) => {
+      const next = [...prev];
+      while (next.length < newObjs.length) next.push(null);
+      return next.slice(0, newObjs.length);
+    });
+  };
+
+  const addSpecificObjective = () => {
+    const next = [...specificObjectives, ""];
+    setSpecificObjectives(next);
+    syncGoalIds(next);
+  };
+  const removeSpecificObjective = (i: number) => {
+    const next = specificObjectives.filter((_, idx) => idx !== i);
+    setSpecificObjectives(next);
+    setObjectiveGoalIds((prev) => prev.filter((_, idx) => idx !== i));
+    if (pickerForIndex === i) setPickerForIndex(null);
+  };
+  const updateSpecificObjective = (i: number, val: string) =>
+    setSpecificObjectives((prev) => prev.map((o, idx) => (idx === i ? val : o)));
+
   const addActivity = () => setActivities((prev) => [...prev, ""]);
   const removeActivity = (i: number) => setActivities((prev) => prev.filter((_, idx) => idx !== i));
   const updateActivity = (i: number, val: string) =>
     setActivities((prev) => prev.map((a, idx) => (idx === i ? val : a)));
 
-  const addSpecificObjective = () => setSpecificObjectives((prev) => [...prev, ""]);
-  const removeSpecificObjective = (i: number) =>
-    setSpecificObjectives((prev) => prev.filter((_, idx) => idx !== i));
-  const updateSpecificObjective = (i: number, val: string) =>
-    setSpecificObjectives((prev) => prev.map((o, idx) => (idx === i ? val : o)));
+  const linkGoal = (index: number, goal: GoalPickerItem) => {
+    setObjectiveGoalIds((prev) => {
+      const next = [...prev];
+      next[index] = goal.goalId;
+      return next;
+    });
+  };
+  const unlinkGoal = (index: number) => {
+    setObjectiveGoalIds((prev) => {
+      const next = [...prev];
+      next[index] = null;
+      return next;
+    });
+  };
 
   const handleSave = async () => {
+    const filtered = specificObjectives.filter((o) => o.trim());
+    const filteredGoalIds = filtered.map((_, i) => {
+      const origIdx = specificObjectives.findIndex((o, idx) => {
+        let count = 0;
+        for (let j = 0; j <= idx; j++) if (specificObjectives[j].trim()) count++;
+        return count === i + 1;
+      });
+      return origIdx >= 0 ? (objectiveGoalIds[origIdx] ?? null) : null;
+    });
+
     try {
       await savePlan.mutateAsync({
         eventId,
         objectives: objectives.trim() || undefined,
-        specificObjectives: specificObjectives.filter((o) => o.trim()).length > 0
-          ? specificObjectives.filter((o) => o.trim())
-          : undefined,
+        specificObjectives: filtered.length > 0 ? filtered : undefined,
+        objectiveGoalIds: filteredGoalIds.some((id) => id !== null) ? filteredGoalIds : undefined,
         activities: activities.filter((a) => a.trim()).length > 0
           ? activities.filter((a) => a.trim())
           : undefined,
@@ -99,9 +268,7 @@ function SessionPlanPage() {
 
   const sessionDate = event?.start_at
     ? new Date(event.start_at).toLocaleDateString("pt-BR", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
+        weekday: "long", day: "numeric", month: "long",
       })
     : "";
   const sessionTime = event?.start_at
@@ -165,32 +332,72 @@ function SessionPlanPage() {
               <p className="mt-1 text-right text-xs text-[#9CA3AF]">{objectives.length}/1000</p>
             </div>
 
-            {/* Objetivos específicos */}
+            {/* Objetivos específicos com vínculo de meta */}
             <div>
               <label className="block text-sm font-medium text-[#374151] mb-1.5">
                 Objetivos específicos
               </label>
-              <div className="flex flex-col gap-2">
-                {specificObjectives.map((obj, i) => (
-                  <div key={i} className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder={`Objetivo específico ${i + 1}`}
-                      value={obj}
-                      onChange={(e) => updateSpecificObjective(i, e.target.value.slice(0, 200))}
-                      className="h-10 flex-1 rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm text-[#374151] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
-                    />
-                    {specificObjectives.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeSpecificObjective(i)}
-                        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] text-[#9CA3AF] hover:text-[#DC2626] hover:border-red-200 transition-colors"
-                      >
-                        <Trash2 size={14} strokeWidth={1.8} />
-                      </button>
-                    )}
-                  </div>
-                ))}
+              <div className="flex flex-col gap-3">
+                {specificObjectives.map((obj, i) => {
+                  const linkedGoalId = objectiveGoalIds[i] ?? null;
+                  const linkedGoal = linkedGoalId ? goalMap[linkedGoalId] : null;
+                  const goalColor = linkedGoal
+                    ? (MILESTONE_AREA_COLORS[linkedGoal.milestoneArea as keyof typeof MILESTONE_AREA_COLORS] ?? TEAL)
+                    : TEAL;
+
+                  return (
+                    <div key={i} className="flex flex-col gap-1.5">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder={`Objetivo específico ${i + 1}`}
+                          value={obj}
+                          onChange={(e) => updateSpecificObjective(i, e.target.value.slice(0, 200))}
+                          className="h-10 flex-1 rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm text-[#374151] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
+                        />
+                        {/* Botão de vínculo */}
+                        <button
+                          type="button"
+                          onClick={() => setPickerForIndex(i)}
+                          title="Vincular a uma meta"
+                          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border transition-colors"
+                          style={
+                            linkedGoal
+                              ? { borderColor: goalColor, background: goalColor + "11" }
+                              : { borderColor: "#E5E7EB", color: "#9CA3AF" }
+                          }
+                        >
+                          <Link2 size={14} strokeWidth={1.8} color={linkedGoal ? goalColor : "#9CA3AF"} />
+                        </button>
+                        {specificObjectives.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeSpecificObjective(i)}
+                            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-[#E5E7EB] text-[#9CA3AF] hover:text-[#DC2626] hover:border-red-200 transition-colors"
+                          >
+                            <Trash2 size={14} strokeWidth={1.8} />
+                          </button>
+                        )}
+                      </div>
+                      {/* Chip da meta vinculada */}
+                      {linkedGoal && (
+                        <div className="flex items-center gap-1.5 pl-1">
+                          <div className="h-1.5 w-1.5 rounded-full" style={{ background: goalColor }} />
+                          <span className="text-[11.5px] font-semibold" style={{ color: goalColor }}>
+                            {linkedGoal.milestoneTitle} · {linkedGoal.goalTitle}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => unlinkGoal(i)}
+                            className="ml-0.5"
+                          >
+                            <X size={11} color={goalColor} strokeWidth={2.5} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
                 <button
                   type="button"
                   onClick={addSpecificObjective}
@@ -218,7 +425,6 @@ function SessionPlanPage() {
           </h2>
 
           <div className="flex flex-col gap-4">
-            {/* Atividades planejadas */}
             <div>
               <label className="block text-sm font-medium text-[#374151] mb-1.5">
                 Atividades planejadas
@@ -256,7 +462,6 @@ function SessionPlanPage() {
               </div>
             </div>
 
-            {/* Materiais */}
             <div>
               <label className="block text-sm font-medium text-[#374151] mb-1.5">
                 Materiais necessários{" "}
@@ -319,6 +524,17 @@ function SessionPlanPage() {
           )}
         </button>
       </div>
+
+      {/* Picker de metas */}
+      {pickerForIndex !== null && (
+        <GoalPickerSheet
+          goals={allGoals}
+          currentGoalId={objectiveGoalIds[pickerForIndex] ?? null}
+          onSelect={(goal) => linkGoal(pickerForIndex, goal)}
+          onClear={() => unlinkGoal(pickerForIndex)}
+          onClose={() => setPickerForIndex(null)}
+        />
+      )}
     </AppShell>
   );
 }

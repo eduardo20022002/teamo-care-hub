@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import {
   Loader2, Plus, Trash2, Eye, EyeOff, Lock,
   Home, ChevronRight, X, CheckCircle2, MinusCircle, XCircle,
-  Calendar, Stethoscope,
+  Calendar, Stethoscope, Link2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
@@ -12,6 +12,8 @@ import {
   useGetSessionRecord,
   type UpcomingSession,
 } from "@/services/therapist.service";
+import { useAllGoalsForChild } from "@/services/milestones.service";
+import { MILESTONE_AREA_COLORS } from "@/lib/validation";
 import {
   NOTABLE_BEHAVIOR_TYPES,
   NOTABLE_BEHAVIOR_TYPE_LABELS,
@@ -43,6 +45,7 @@ interface GoalItem {
   goal: string;
   status: GoalStatus | null;
   notes: string;
+  milestoneGoalId?: string | null;
 }
 
 interface ProfObservation {
@@ -307,6 +310,15 @@ function SessionRecordPage() {
   const child = data?.child as any;
   const existing = data?.sessionRecord as any;
   const upcomingSessions: UpcomingSession[] = data?.upcomingSessions ?? [];
+
+  const allGoalsQuery = useAllGoalsForChild(child?.id as string | undefined);
+  const goalMap: Record<string, { goalTitle: string; milestoneTitle: string; milestoneArea: string }> =
+    Object.fromEntries(
+      (allGoalsQuery.data ?? []).map((g) => [
+        g.goalId,
+        { goalTitle: g.goalTitle, milestoneTitle: g.milestoneTitle, milestoneArea: g.milestoneArea },
+      ])
+    );
   const selectedNextSession = upcomingSessions.find((s) => s.id === nextSessionEventId);
 
   // Pré-preenche dados existentes (rascunho)
@@ -322,16 +334,22 @@ function SessionRecordPage() {
     const planObjectives: string = plan.objectives ?? "";
     const prevPoints: string = data.previousPoints as string ?? plan.objectives_from_previous ?? "";
 
-    // Normaliza um item de goals_achieved (suporta shape antigo {goal, achieved} e novo {goal, status, notes})
+    // Normaliza um item de goals_achieved (suporta shape antigo {goal, achieved} e novo {goal, status, notes, milestoneGoalId})
     const normalizeGoal = (g: any): GoalItem => {
       if (g && typeof g.status === "string") {
-        return { goal: g.goal ?? "", status: g.status as GoalStatus, notes: g.notes ?? "" };
+        return {
+          goal: g.goal ?? "",
+          status: g.status as GoalStatus,
+          notes: g.notes ?? "",
+          milestoneGoalId: g.milestoneGoalId ?? null,
+        };
       }
       // Shape antigo booleano
       return {
         goal: g?.goal ?? "",
         status: g?.achieved ? "achieved" : null,
         notes: "",
+        milestoneGoalId: null,
       };
     };
 
@@ -369,8 +387,16 @@ function SessionRecordPage() {
       const sourceGoals = planSpecific.length > 0
         ? planSpecific
         : planObjectives.split("\n").map((l: string) => l.trim()).filter(Boolean);
+      const planGoalIds: (string | null)[] = Array.isArray(plan.objective_goal_ids)
+        ? plan.objective_goal_ids
+        : [];
       setGoalsChecklist(
-        sourceGoals.map((goal: string): GoalItem => ({ goal, status: null, notes: "" }))
+        sourceGoals.map((goal: string, i: number): GoalItem => ({
+          goal,
+          status: null,
+          notes: "",
+          milestoneGoalId: planGoalIds[i] ?? null,
+        }))
       );
 
       // Pré-preenche pontos a continuar se houver sessão anterior
@@ -431,6 +457,7 @@ function SessionRecordPage() {
             // Objetivo não avaliado é registrado como "não alcançado"
             status: g.status ?? "not_achieved",
             notes: g.notes.trim() || undefined,
+            milestoneGoalId: g.milestoneGoalId ?? undefined,
           }))
         : undefined,
     whatWasDone: whatWasDone.trim() || undefined,
@@ -526,6 +553,19 @@ function SessionRecordPage() {
                     key={i}
                     className="rounded-[14px] border border-[#E5E7EB] p-3.5"
                   >
+                    {/* Chip de meta vinculada */}
+                    {item.milestoneGoalId && goalMap[item.milestoneGoalId] && (() => {
+                      const gInfo = goalMap[item.milestoneGoalId!]!;
+                      const goalColor = MILESTONE_AREA_COLORS[gInfo.milestoneArea as keyof typeof MILESTONE_AREA_COLORS] ?? "#0D9488";
+                      return (
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <Link2 size={11} strokeWidth={2} color={goalColor} />
+                          <span className="text-[11px] font-semibold" style={{ color: goalColor }}>
+                            {gInfo.milestoneTitle} · {gInfo.goalTitle}
+                          </span>
+                        </div>
+                      );
+                    })()}
                     <p className="text-sm font-medium text-[#374151] mb-2.5">{item.goal}</p>
                     <div className="flex gap-2">
                       {GOAL_STATUSES.map((status) => {

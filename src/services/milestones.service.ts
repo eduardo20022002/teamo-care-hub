@@ -9,8 +9,16 @@ import {
   updateMilestoneServer,
   achieveMilestoneServer,
   pauseResumeMilestoneServer,
+  listAllGoalsForChildServer,
+  getMilestoneGoalCountsServer,
+  listMilestoneGoalsServer,
+  createMilestoneGoalServer,
+  updateMilestoneGoalServer,
+  deleteMilestoneGoalServer,
+  getMilestoneGoalProgressServer,
+  getMilestoneProgressServer,
 } from "@/lib/milestones.functions";
-import type { MilestoneInput } from "@/lib/validation";
+import type { MilestoneInput, MilestoneGoalInput } from "@/lib/validation";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -29,11 +37,59 @@ export interface Milestone {
   updated_at: string;
 }
 
+// ─── Tipos — Metas ────────────────────────────────────────────────────────────
+
+export interface GoalPickerItem {
+  goalId: string;
+  goalTitle: string;
+  milestoneId: string;
+  milestoneTitle: string;
+  milestoneArea: string;
+  milestoneStatus: string;
+}
+
+export interface MilestoneGoal {
+  id: string;
+  milestone_id: string;
+  child_id: string;
+  therapist_id: string;
+  title: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GoalAttempt {
+  sessionId: string;
+  sessionDate: string;
+  sessionTitle: string;
+  status: "achieved" | "partial" | "not_achieved";
+  notes: string | null;
+}
+
+export interface MilestoneProgressEntry {
+  sessionId: string;
+  sessionDate: string;
+  sessionTitle: string;
+  goalId: string;
+  goalTitle: string;
+  status: "achieved" | "partial" | "not_achieved";
+  notes: string | null;
+}
+
 // ─── Query key factory ────────────────────────────────────────────────────────
 
 export const milestoneKeys = {
   list:   (childId: string)      => ["milestones", childId] as const,
   detail: (milestoneId: string)  => ["milestone", milestoneId] as const,
+};
+
+export const milestoneGoalKeys = {
+  allForChild:      (childId: string)     => ["all-goals-for-child", childId] as const,
+  counts:           (childId: string)     => ["milestone-goal-counts", childId] as const,
+  list:             (milestoneId: string) => ["milestone-goals", milestoneId] as const,
+  progress:         (goalId: string)      => ["goal-progress", goalId] as const,
+  milestoneProgress:(milestoneId: string) => ["milestone-progress", milestoneId] as const,
 };
 
 // ─── Auth headers helper ──────────────────────────────────────────────────────
@@ -141,5 +197,131 @@ export function usePauseResumeMilestone(childId: string) {
       qc.invalidateQueries({ queryKey: milestoneKeys.list(childId) });
       if (m?.id) qc.invalidateQueries({ queryKey: milestoneKeys.detail(m.id) });
     },
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HOOKS — METAS TERAPÊUTICAS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── 7. useAllGoalsForChild ───────────────────────────────────────────────────
+
+export function useAllGoalsForChild(childId: string | undefined) {
+  const fn = useServerFn(listAllGoalsForChildServer);
+  return useQuery({
+    queryKey: milestoneGoalKeys.allForChild(childId ?? ""),
+    queryFn:  async () => {
+      const h = await authHeaders();
+      const res = await fn({ data: { childId: childId! }, headers: h });
+      return (res.goals ?? []) as unknown as GoalPickerItem[];
+    },
+    enabled: !!childId,
+    staleTime: 30_000,
+  });
+}
+
+// ─── 8. useMilestoneGoalCounts ───────────────────────────────────────────────
+
+export function useMilestoneGoalCounts(childId: string) {
+  const fn = useServerFn(getMilestoneGoalCountsServer);
+  return useQuery({
+    queryKey: milestoneGoalKeys.counts(childId),
+    queryFn:  async () => {
+      const h = await authHeaders();
+      const res = await fn({ data: { childId }, headers: h });
+      return (res.counts ?? {}) as Record<string, number>;
+    },
+    enabled: !!childId,
+    staleTime: 30_000,
+  });
+}
+
+// ─── 8. useMilestoneGoals ─────────────────────────────────────────────────────
+
+export function useMilestoneGoals(milestoneId: string) {
+  const fn = useServerFn(listMilestoneGoalsServer);
+  return useQuery({
+    queryKey: milestoneGoalKeys.list(milestoneId),
+    queryFn:  async () => {
+      const h = await authHeaders();
+      const res = await fn({ data: { milestoneId }, headers: h });
+      return (res.goals ?? []) as unknown as MilestoneGoal[];
+    },
+    enabled: !!milestoneId,
+    staleTime: 30_000,
+  });
+}
+
+// ─── 8. useCreateMilestoneGoal ────────────────────────────────────────────────
+
+export function useCreateMilestoneGoal(milestoneId: string) {
+  const fn = useServerFn(createMilestoneGoalServer);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: MilestoneGoalInput) => {
+      const h = await authHeaders();
+      return fn({ data: input, headers: h });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: milestoneGoalKeys.list(milestoneId) }),
+  });
+}
+
+// ─── 9. useUpdateMilestoneGoal ────────────────────────────────────────────────
+
+export function useUpdateMilestoneGoal(milestoneId: string) {
+  const fn = useServerFn(updateMilestoneGoalServer);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: MilestoneGoalInput & { goalId: string }) => {
+      const h = await authHeaders();
+      return fn({ data: input, headers: h });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: milestoneGoalKeys.list(milestoneId) }),
+  });
+}
+
+// ─── 10. useDeleteMilestoneGoal ───────────────────────────────────────────────
+
+export function useDeleteMilestoneGoal(milestoneId: string) {
+  const fn = useServerFn(deleteMilestoneGoalServer);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (goalId: string) => {
+      const h = await authHeaders();
+      return fn({ data: { goalId }, headers: h });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: milestoneGoalKeys.list(milestoneId) }),
+  });
+}
+
+// ─── 11. useGoalProgress ──────────────────────────────────────────────────────
+
+export function useGoalProgress(goalId: string, childId: string) {
+  const fn = useServerFn(getMilestoneGoalProgressServer);
+  return useQuery({
+    queryKey: milestoneGoalKeys.progress(goalId),
+    queryFn:  async () => {
+      const h = await authHeaders();
+      const res = await fn({ data: { goalId, childId }, headers: h });
+      return (res.attempts ?? []) as unknown as GoalAttempt[];
+    },
+    enabled: !!goalId && !!childId,
+    staleTime: 30_000,
+  });
+}
+
+// ─── 12. useMilestoneProgress ────────────────────────────────────────────────
+
+export function useMilestoneProgress(milestoneId: string, childId: string) {
+  const fn = useServerFn(getMilestoneProgressServer);
+  return useQuery({
+    queryKey: milestoneGoalKeys.milestoneProgress(milestoneId),
+    queryFn:  async () => {
+      const h = await authHeaders();
+      const res = await fn({ data: { milestoneId, childId }, headers: h });
+      return (res.entries ?? []) as unknown as MilestoneProgressEntry[];
+    },
+    enabled: !!milestoneId && !!childId,
+    staleTime: 30_000,
   });
 }

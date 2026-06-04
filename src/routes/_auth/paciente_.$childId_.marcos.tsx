@@ -28,6 +28,7 @@ import {
   useMilestones,
   useCreateMilestone,
   useUpdateMilestone,
+  useMilestoneGoalCounts,
   type Milestone,
 } from "@/services/milestones.service";
 import {
@@ -99,9 +100,11 @@ function StatusChip({ status, achievedAt }: { status: Milestone["status"]; achie
 
 function MilestoneCard({
   milestone,
+  goalCount,
   onClick,
 }: {
   milestone: Milestone;
+  goalCount: number;
   onClick: () => void;
 }) {
   const color = MILESTONE_AREA_COLORS[milestone.area as MilestoneArea] ?? TEAL;
@@ -123,7 +126,9 @@ function MilestoneCard({
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <StatusChip status={milestone.status} achievedAt={milestone.achieved_at} />
-          <span className="text-[11px]" style={{ color: "#9CA3AF" }}>0 metas</span>
+          <span className="text-[11px]" style={{ color: "#9CA3AF" }}>
+            {goalCount === 0 ? "Sem metas" : `${goalCount} meta${goalCount !== 1 ? "s" : ""}`}
+          </span>
         </div>
       </div>
     </button>
@@ -135,10 +140,12 @@ function MilestoneCard({
 function AreaSection({
   area,
   milestones,
+  goalCounts,
   onOpenMilestone,
 }: {
   area: MilestoneArea;
   milestones: Milestone[];
+  goalCounts: Record<string, number>;
   onOpenMilestone: (m: Milestone) => void;
 }) {
   const [open, setOpen] = useState(true);
@@ -178,7 +185,12 @@ function AreaSection({
       {open && (
         <div className="mt-2 flex flex-col gap-2 pl-2">
           {milestones.map((m) => (
-            <MilestoneCard key={m.id} milestone={m} onClick={() => onOpenMilestone(m)} />
+            <MilestoneCard
+              key={m.id}
+              milestone={m}
+              goalCount={goalCounts[m.id] ?? 0}
+              onClick={() => onOpenMilestone(m)}
+            />
           ))}
         </div>
       )}
@@ -422,6 +434,10 @@ function MarcosPage() {
   const milestonesQuery = useMilestones(childId);
   const milestones = milestonesQuery.data ?? [];
 
+  // Contagem de metas por marco
+  const goalCountsQuery = useMilestoneGoalCounts(childId);
+  const goalCounts = goalCountsQuery.data ?? {};
+
   // Agrupar por área
   const byArea = useMemo(() => {
     const map = new Map<MilestoneArea, Milestone[]>();
@@ -594,6 +610,7 @@ function MarcosPage() {
                   key={area}
                   area={area}
                   milestones={list}
+                  goalCounts={goalCounts}
                   onOpenMilestone={openEdit}
                 />
               );

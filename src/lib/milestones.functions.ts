@@ -4,7 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { milestoneSchema } from "@/lib/validation";
+import { milestoneSchema, milestoneGoalSchema } from "@/lib/validation";
 
 // ─── Helper: verificação de papel ────────────────────────────────────────────
 
@@ -187,4 +187,301 @@ export const pauseResumeMilestoneServer = createServerFn({ method: "POST" })
 
     if (error) throw new Response(error.message, { status: 500 });
     return { milestone: updated };
+  });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// METAS TERAPÊUTICAS (milestone_goals)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Helper: verificar ownership da meta ─────────────────────────────────────
+
+async function assertGoalOwner(goalId: string, userId: string): Promise<any> {
+  const { data } = await supabaseAdmin
+    .from("milestone_goals" as any)
+    .select("*")
+    .eq("id", goalId)
+    .eq("therapist_id", userId)
+    .maybeSingle();
+  if (!data) {
+    throw new Response("Meta não encontrada ou sem permissão.", { status: 404 });
+  }
+  return data;
+}
+
+// ─── 7. listAllGoalsForChildServer ────────────────────────────────────────────
+// Retorna todas as metas do paciente com info do marco pai (para o picker de vínculo).
+
+export const listAllGoalsForChildServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ childId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+    await assertTherapist(userId);
+
+    // Fetch all goals for this child with milestone info
+    const { data: goals, error } = await supabaseAdmin
+      .from("milestone_goals" as any)
+      .select("id, title, milestone_id, therapeutic_milestones!inner(id, title, area, status)")
+      .eq("child_id", data.childId)
+      .eq("therapist_id", userId)
+      .order("created_at", { ascending: true });
+
+    if (error) throw new Response(error.message, { status: 500 });
+
+    // Shape the result
+    const shaped = (goals ?? []).map((g: any) => ({
+      goalId:        g.id as string,
+      goalTitle:     g.title as string,
+      milestoneId:   g.milestone_id as string,
+      milestoneTitle:(g.therapeutic_milestones as any)?.title as string,
+      milestoneArea: (g.therapeutic_milestones as any)?.area as string,
+      milestoneStatus:(g.therapeutic_milestones as any)?.status as string,
+    }));
+
+    return { goals: shaped };
+  });
+
+// ─── 8. getMilestoneGoalCountsServer ─────────────────────────────────────────
+// Retorna { [milestoneId]: count } para todos os marcos do paciente.
+
+export const getMilestoneGoalCountsServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ childId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+    await assertTherapist(userId);
+
+    const { data: goals, error } = await supabaseAdmin
+      .from("milestone_goals" as any)
+      .select("milestone_id")
+      .eq("child_id", data.childId)
+      .eq("therapist_id", userId);
+
+    if (error) throw new Response(error.message, { status: 500 });
+
+    const counts: Record<string, number> = {};
+    for (const g of goals ?? []) {
+      const mid = (g as any).milestone_id as string;
+      counts[mid] = (counts[mid] ?? 0) + 1;
+    }
+    return { counts };
+  });
+
+// ─── 8. listMilestoneGoalsServer ──────────────────────────────────────────────
+
+export const listMilestoneGoalsServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ milestoneId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+    await assertTherapist(userId);
+
+    const { data: goals, error } = await supabaseAdmin
+      .from("milestone_goals" as any)
+      .select("*")
+      .eq("milestone_id", data.milestoneId)
+      .eq("therapist_id", userId)
+      .order("created_at", { ascending: true });
+
+    if (error) throw new Response(error.message, { status: 500 });
+    return { goals: goals ?? [] };
+  });
+
+// ─── 8. createMilestoneGoalServer ─────────────────────────────────────────────
+
+export const createMilestoneGoalServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => milestoneGoalSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+    await assertTherapist(userId);
+    // Verify user owns the parent milestone
+    await assertMilestoneOwner(data.milestoneId, userId);
+
+    const now = new Date().toISOString();
+    const { data: created, error } = await supabaseAdmin
+      .from("milestone_goals" as any)
+      .insert({
+        milestone_id: data.milestoneId,
+        child_id:     data.childId,
+        therapist_id: userId,
+        title:        data.title,
+        description:  data.description ?? null,
+        created_at:   now,
+        updated_at:   now,
+      })
+      .select("*")
+      .single();
+
+    if (error) throw new Response(error.message, { status: 500 });
+    return { goal: created };
+  });
+
+// ─── 9. updateMilestoneGoalServer ─────────────────────────────────────────────
+
+export const updateMilestoneGoalServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    milestoneGoalSchema.extend({ goalId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+    await assertTherapist(userId);
+    await assertGoalOwner(data.goalId, userId);
+
+    const { data: updated, error } = await supabaseAdmin
+      .from("milestone_goals" as any)
+      .update({
+        title:       data.title,
+        description: data.description ?? null,
+        updated_at:  new Date().toISOString(),
+      })
+      .eq("id", data.goalId)
+      .eq("therapist_id", userId)
+      .select("*")
+      .single();
+
+    if (error) throw new Response(error.message, { status: 500 });
+    return { goal: updated };
+  });
+
+// ─── 10. deleteMilestoneGoalServer ────────────────────────────────────────────
+
+export const deleteMilestoneGoalServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ goalId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+    await assertTherapist(userId);
+    await assertGoalOwner(data.goalId, userId);
+
+    const { error } = await supabaseAdmin
+      .from("milestone_goals" as any)
+      .delete()
+      .eq("id", data.goalId)
+      .eq("therapist_id", userId);
+
+    if (error) throw new Response(error.message, { status: 500 });
+    return { ok: true };
+  });
+
+// ─── 11. getMilestoneGoalProgressServer ───────────────────────────────────────
+// Varre session_records.goals_achieved[] e retorna tentativas vinculadas à meta.
+
+export const getMilestoneGoalProgressServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ goalId: z.string().uuid(), childId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+    await assertTherapist(userId);
+    await assertGoalOwner(data.goalId, userId);
+
+    // Fetch all published records for this child
+    const { data: records, error } = await supabaseAdmin
+      .from("session_records")
+      .select("event_id, goals_achieved, agenda_events!inner(start_at, title)")
+      .eq("child_id", data.childId)
+      .eq("therapist_id", userId)
+      .eq("is_draft", false);
+
+    if (error) throw new Response(error.message, { status: 500 });
+
+    const attempts: Array<{
+      sessionId: string;
+      sessionDate: string;
+      sessionTitle: string;
+      status: string;
+      notes: string | null;
+    }> = [];
+
+    for (const record of records ?? []) {
+      const goalsAchieved: any[] = (record as any).goals_achieved ?? [];
+      const ev = (record as any).agenda_events;
+      for (const g of goalsAchieved) {
+        if (g?.milestoneGoalId === data.goalId && g?.status) {
+          attempts.push({
+            sessionId:    (record as any).event_id,
+            sessionDate:  ev?.start_at ?? "",
+            sessionTitle: ev?.title ?? "Sessão",
+            status:       g.status,
+            notes:        g.notes ?? null,
+          });
+        }
+      }
+    }
+
+    // Sort most recent first
+    attempts.sort((a, b) => b.sessionDate.localeCompare(a.sessionDate));
+    return { attempts };
+  });
+
+// ─── 12. getMilestoneProgressServer ───────────────────────────────────────────
+// Agrega tentativas de TODAS as metas de um marco (para o histórico do marco).
+
+export const getMilestoneProgressServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ milestoneId: z.string().uuid(), childId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+    await assertTherapist(userId);
+    await assertMilestoneOwner(data.milestoneId, userId);
+
+    // Get all goal IDs for this milestone
+    const { data: goals } = await supabaseAdmin
+      .from("milestone_goals" as any)
+      .select("id, title")
+      .eq("milestone_id", data.milestoneId)
+      .eq("therapist_id", userId);
+
+    const goalIds = new Set<string>((goals ?? []).map((g: any) => g.id));
+    const goalTitles: Record<string, string> = {};
+    for (const g of goals ?? []) {
+      goalTitles[(g as any).id] = (g as any).title;
+    }
+
+    if (goalIds.size === 0) return { entries: [] };
+
+    const { data: records, error } = await supabaseAdmin
+      .from("session_records")
+      .select("event_id, goals_achieved, agenda_events!inner(start_at, title)")
+      .eq("child_id", data.childId)
+      .eq("therapist_id", userId)
+      .eq("is_draft", false);
+
+    if (error) throw new Response(error.message, { status: 500 });
+
+    const entries: Array<{
+      sessionId: string;
+      sessionDate: string;
+      sessionTitle: string;
+      goalId: string;
+      goalTitle: string;
+      status: string;
+      notes: string | null;
+    }> = [];
+
+    for (const record of records ?? []) {
+      const goalsAchieved: any[] = (record as any).goals_achieved ?? [];
+      const ev = (record as any).agenda_events;
+      for (const g of goalsAchieved) {
+        if (g?.milestoneGoalId && goalIds.has(g.milestoneGoalId) && g?.status) {
+          entries.push({
+            sessionId:    (record as any).event_id,
+            sessionDate:  ev?.start_at ?? "",
+            sessionTitle: ev?.title ?? "Sessão",
+            goalId:       g.milestoneGoalId,
+            goalTitle:    goalTitles[g.milestoneGoalId] ?? "",
+            status:       g.status,
+            notes:        g.notes ?? null,
+          });
+        }
+      }
+    }
+
+    entries.sort((a, b) => b.sessionDate.localeCompare(a.sessionDate));
+    return { entries };
   });

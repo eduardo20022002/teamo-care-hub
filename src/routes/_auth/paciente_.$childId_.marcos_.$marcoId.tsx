@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   ArrowLeft,
   Trophy,
@@ -18,6 +18,10 @@ import {
   PersonStanding,
   Flag,
   X,
+  Plus,
+  Trash2,
+  ChevronRight,
+  Share2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
@@ -30,17 +34,22 @@ import {
   useAchieveMilestone,
   usePauseResumeMilestone,
   useUpdateMilestone,
+  useMilestoneGoals,
+  useCreateMilestoneGoal,
+  useUpdateMilestoneGoal,
+  useDeleteMilestoneGoal,
+  useMilestoneProgress,
   type Milestone,
+  type MilestoneGoal,
+  type MilestoneProgressEntry,
 } from "@/services/milestones.service";
 import {
   MILESTONE_AREA_LABELS,
   MILESTONE_AREA_COLORS,
   MILESTONE_AREA_BG,
   MILESTONE_AREAS,
-  MILESTONE_AREA_LABELS as _L,
   type MilestoneArea,
-  type MilestoneInput,
-  milestoneSchema,
+  type MilestoneGoalInput,
 } from "@/lib/validation";
 import type { Child } from "@/types/database";
 
@@ -66,6 +75,168 @@ const AREA_ICONS: Record<MilestoneArea, typeof Flag> = {
   motricidade:   PersonStanding,
 };
 
+// ─── Dots de progresso (últimas 5 tentativas) ─────────────────────────────────
+
+const STATUS_DOT_COLOR: Record<string, string> = {
+  achieved:     "#16A34A",
+  partial:      "#D97706",
+  not_achieved: "#DC2626",
+};
+const STATUS_DOT_SYMBOL: Record<string, string> = {
+  achieved:     "✓",
+  partial:      "–",
+  not_achieved: "×",
+};
+
+function GoalProgressDots({ entries }: { entries: MilestoneProgressEntry[] }) {
+  const dots = entries.slice(0, 5);
+  return (
+    <div className="flex items-center gap-1.5 mt-1.5">
+      {dots.length === 0 ? (
+        <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Sem tentativas</span>
+      ) : (
+        dots.map((e, i) => (
+          <span
+            key={i}
+            className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white"
+            style={{ background: STATUS_DOT_COLOR[e.status] ?? "#9CA3AF" }}
+          >
+            {STATUS_DOT_SYMBOL[e.status] ?? "?"}
+          </span>
+        ))
+      )}
+    </div>
+  );
+}
+
+// ─── Tela de celebração ───────────────────────────────────────────────────────
+
+const CONFETTI_COLORS = [
+  "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#06B6D4",
+  "#EF4444", "#F97316",
+];
+
+function CelebrationScreen({
+  milestone,
+  patientName,
+  areaColor,
+  areaBg,
+  AreaIcon,
+  onViewAll,
+}: {
+  milestone: Milestone;
+  patientName: string;
+  areaColor: string;
+  areaBg: string;
+  AreaIcon: typeof Flag;
+  onViewAll: () => void;
+}) {
+  const achievedDate = milestone.achieved_at
+    ? new Date(milestone.achieved_at).toLocaleDateString("pt-BR", {
+        day: "numeric", month: "long", year: "numeric",
+      })
+    : new Date().toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" });
+
+  // Deterministic confetti positions (avoids hydration mismatch)
+  const confettiDots = useMemo(() => {
+    const seed = [12, 35, 55, 8, 72, 90, 25, 60, 45, 80, 18, 66];
+    return seed.map((s, i) => ({
+      left: `${(s * 7 + i * 23) % 95}%`,
+      top:  `${(s * 3 + i * 17) % 80}%`,
+      size: 6 + (i % 4) * 2,
+      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      rotate: (s * 11 + i * 37) % 360,
+    }));
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-white px-6 overflow-hidden"
+      style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 24px)" }}
+    >
+      {/* Confetti */}
+      {confettiDots.map((d, i) => (
+        <span
+          key={i}
+          className="pointer-events-none absolute rounded-sm"
+          style={{
+            left: d.left,
+            top: d.top,
+            width: d.size,
+            height: d.size,
+            background: d.color,
+            transform: `rotate(${d.rotate}deg)`,
+            opacity: 0.75,
+          }}
+        />
+      ))}
+
+      {/* Ícones sobrepostos */}
+      <div className="relative mb-6">
+        <div
+          className="flex h-20 w-20 items-center justify-center rounded-full"
+          style={{ background: areaColor + "22", border: `2px solid ${areaColor}44` }}
+        >
+          <AreaIcon size={34} strokeWidth={1.7} color={areaColor} />
+        </div>
+        <div
+          className="absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full"
+          style={{ background: "#FEFCE8", border: "2px solid #FDE68A" }}
+        >
+          <Trophy size={15} strokeWidth={2} color="#D97706" />
+        </div>
+      </div>
+
+      <p className="text-[13px] font-semibold mb-2" style={{ color: TEAL }}>
+        🎉 {patientName} conquistou!
+      </p>
+
+      <h1
+        className="text-center text-[24px] font-extrabold leading-tight mb-4"
+        style={{ color: "#0F172A", letterSpacing: "-0.025em", maxWidth: 320 }}
+      >
+        {milestone.title}
+      </h1>
+
+      <span
+        className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] font-semibold mb-5"
+        style={{ background: "#F0FDF4", color: "#16A34A" }}
+      >
+        <CheckCircle2 size={14} strokeWidth={2.5} />
+        Atingido em {achievedDate}
+      </span>
+
+      {milestone.description && (
+        <p
+          className="text-center text-[14px] leading-relaxed mb-6"
+          style={{ color: "#4B5563", maxWidth: 320 }}
+        >
+          {milestone.description}
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={() => toast.info("Em breve: compartilhamento disponível.")}
+        className="flex w-full max-w-xs items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-bold text-white mb-3"
+        style={{ background: "#3B82F6" }}
+      >
+        <Share2 size={16} strokeWidth={2} />
+        Compartilhar esta conquista
+      </button>
+
+      <button
+        type="button"
+        onClick={onViewAll}
+        className="text-[14px] font-semibold"
+        style={{ color: "#6B7280" }}
+      >
+        Ver todos os marcos
+      </button>
+    </div>
+  );
+}
+
 // ─── Modal de confirmação de conquista ────────────────────────────────────────
 
 function AchieveModal({
@@ -80,15 +251,12 @@ function AchieveModal({
   submitting: boolean;
 }) {
   const today = new Date().toLocaleDateString("pt-BR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
+    day: "numeric", month: "long", year: "numeric",
   });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(15,23,42,0.65)" }}>
       <div className="bg-white rounded-[20px] w-full max-w-[360px] p-6 shadow-2xl">
-        {/* Ícone */}
         <div
           className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full"
           style={{ background: "#FEFCE8", border: "2px solid #FDE68A" }}
@@ -111,7 +279,7 @@ function AchieveModal({
           className="text-center text-[12px] rounded-xl px-3 py-2 mb-5"
           style={{ background: "#F0FDF4", color: "#16A34A" }}
         >
-          Será registrado como conquistado em <strong>{today}</strong>
+          Registrado como conquistado em <strong>{today}</strong>
         </p>
 
         <div className="flex gap-2">
@@ -191,17 +359,15 @@ function OptionsMenu({
   );
 }
 
-// ─── Sheet de edição (inline) ─────────────────────────────────────────────────
+// ─── Sheet de edição do marco (inline) ───────────────────────────────────────
 
 function EditSheet({
   milestone,
   childId,
-  patientName,
   onClose,
 }: {
   milestone: Milestone;
   childId: string;
-  patientName: string;
   onClose: () => void;
 }) {
   const [area, setArea] = useState<MilestoneArea>(milestone.area as MilestoneArea);
@@ -243,7 +409,6 @@ function EditSheet({
           </button>
         </div>
 
-        {/* Área */}
         <div className="mb-4">
           <label className="block text-[13px] font-semibold text-[#374151] mb-2">Área</label>
           <div className="grid grid-cols-2 gap-2">
@@ -264,14 +429,12 @@ function EditSheet({
           </div>
         </div>
 
-        {/* Título */}
         <div className="mb-4">
           <label className="block text-[13px] font-semibold text-[#374151] mb-1.5">Título</label>
           <input type="text" value={title} onChange={(e) => setTitle(e.target.value.slice(0, 120))}
             className="h-11 w-full rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm text-[#374151] focus:outline-none focus:ring-2 focus:ring-[#0D9488]" />
         </div>
 
-        {/* Descrição */}
         <div className="mb-4">
           <label className="block text-[13px] font-semibold text-[#374151] mb-1.5">
             Descrição <span className="font-normal text-[#9CA3AF]">(opcional)</span>
@@ -280,7 +443,6 @@ function EditSheet({
             className="w-full rounded-xl border border-[#E5E7EB] bg-white px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#0D9488]" />
         </div>
 
-        {/* Toggle */}
         <button type="button" onClick={() => setShared((v) => !v)}
           className="flex w-full items-center gap-3 rounded-xl border px-4 py-3 mb-4"
           style={shared ? { borderColor: TEAL_BORDER, background: TEAL_SOFT } : { borderColor: "#E5E7EB", background: "#FAFAFA" }}>
@@ -302,6 +464,118 @@ function EditSheet({
   );
 }
 
+// ─── Sheet de criação/edição de meta ─────────────────────────────────────────
+
+function GoalFormSheet({
+  milestoneId,
+  childId,
+  editGoal,
+  onClose,
+}: {
+  milestoneId: string;
+  childId: string;
+  editGoal: MilestoneGoal | null;
+  onClose: () => void;
+}) {
+  const [title, setTitle] = useState(editGoal?.title ?? "");
+  const [description, setDescription] = useState(editGoal?.description ?? "");
+
+  const createMutation = useCreateMilestoneGoal(milestoneId);
+  const updateMutation = useUpdateMilestoneGoal(milestoneId);
+  const isPending = createMutation.isPending || updateMutation.isPending;
+  const canSave = title.trim().length >= 3;
+
+  const handleSave = async () => {
+    const payload: MilestoneGoalInput = {
+      milestoneId,
+      childId,
+      title: title.trim(),
+      description: description.trim() || undefined,
+    };
+    try {
+      if (editGoal) {
+        await updateMutation.mutateAsync({ ...payload, goalId: editGoal.id });
+        toast.success("Meta atualizada.");
+      } else {
+        await createMutation.mutateAsync(payload);
+        toast.success("Meta criada.");
+      }
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar meta.");
+    }
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
+      <div
+        className="fixed inset-x-0 bottom-0 z-50 rounded-t-[24px] bg-white px-5 pt-4 shadow-2xl"
+        style={{ maxHeight: "85vh", overflowY: "auto", paddingBottom: "calc(env(safe-area-inset-bottom) + 24px)" }}
+      >
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[#E5E7EB]" />
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[18px] font-extrabold" style={{ color: "#0F172A" }}>
+            {editGoal ? "Editar meta" : "Nova meta"}
+          </h2>
+          <button type="button" onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-xl hover:bg-[#F3F4F6]">
+            <X size={18} color="#6B7280" />
+          </button>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-[13px] font-semibold text-[#374151] mb-1.5">
+            Título da meta
+          </label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value.slice(0, 200))}
+            placeholder="Ex: Pedir objeto por troca sem apoio gestual"
+            className="h-11 w-full rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm text-[#374151] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
+          />
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-[13px] font-semibold text-[#374151] mb-1.5">
+            Descrição <span className="font-normal text-[#9CA3AF]">(opcional)</span>
+          </label>
+          <textarea
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value.slice(0, 500))}
+            placeholder="Detalhes ou critério de sucesso desta meta..."
+            className="w-full rounded-xl border border-[#E5E7EB] bg-white px-3 py-2.5 text-sm resize-none placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => void handleSave()}
+          disabled={!canSave || isPending}
+          className="flex h-12 w-full items-center justify-center rounded-xl text-white text-[15px] font-bold disabled:opacity-50"
+          style={{ background: TEAL }}
+        >
+          {isPending ? <Loader2 size={16} className="animate-spin" /> : editGoal ? "Salvar alterações" : "Adicionar meta"}
+        </button>
+      </div>
+    </>
+  );
+}
+
+// ─── Status badge do histórico ────────────────────────────────────────────────
+
+const HISTORY_LABELS: Record<string, string> = {
+  achieved:     "Atingido",
+  partial:      "Parcial",
+  not_achieved: "Não atingido",
+};
+const HISTORY_COLORS: Record<string, { bg: string; text: string }> = {
+  achieved:     { bg: "#ECFDF5", text: "#16A34A" },
+  partial:      { bg: "#FEF3C7", text: "#D97706" },
+  not_achieved: { bg: "#FEE2E2", text: "#DC2626" },
+};
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 function MilestoneDetailPage() {
@@ -310,8 +584,11 @@ function MilestoneDetailPage() {
   const { user } = useAuth();
 
   const [showAchieveModal, setShowAchieveModal] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [showEditSheet, setShowEditSheet] = useState(false);
+  const [goalFormOpen, setGoalFormOpen] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<MilestoneGoal | null>(null);
 
   const { data: allChildren } = useQuery({
     queryKey: ["children"],
@@ -324,14 +601,31 @@ function MilestoneDetailPage() {
   const milestoneQuery = useMilestone(marcoId);
   const milestone = milestoneQuery.data;
 
+  const goalsQuery = useMilestoneGoals(marcoId);
+  const goals = goalsQuery.data ?? [];
+
+  const progressQuery = useMilestoneProgress(marcoId, childId);
+  const progressEntries = progressQuery.data ?? [];
+
+  // Group progress entries by goal ID for dots
+  const progressByGoal = useMemo(() => {
+    const map: Record<string, MilestoneProgressEntry[]> = {};
+    for (const e of progressEntries) {
+      if (!map[e.goalId]) map[e.goalId] = [];
+      map[e.goalId].push(e);
+    }
+    return map;
+  }, [progressEntries]);
+
   const achieveMutation = useAchieveMilestone(childId);
   const pauseResumeMutation = usePauseResumeMilestone(childId);
+  const deleteGoalMutation = useDeleteMilestoneGoal(marcoId);
 
   const handleAchieve = async () => {
     try {
       await achieveMutation.mutateAsync(marcoId);
-      toast.success("🎉 Marco atingido!");
       setShowAchieveModal(false);
+      setShowCelebration(true);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao marcar como atingido.");
     }
@@ -340,10 +634,19 @@ function MilestoneDetailPage() {
   const handlePauseResume = async () => {
     try {
       await pauseResumeMutation.mutateAsync(marcoId);
-      const m = pauseResumeMutation.data?.milestone as Milestone | undefined;
-      toast.success(m?.status === "pausado" ? "Marco pausado." : "Marco retomado.");
+      toast.success("Status do marco atualizado.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao alterar status.");
+    }
+  };
+
+  const handleDeleteGoal = async (goalId: string) => {
+    if (!confirm("Remover esta meta? As avaliações associadas serão desvinculadas.")) return;
+    try {
+      await deleteGoalMutation.mutateAsync(goalId);
+      toast.success("Meta removida.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao remover meta.");
     }
   };
 
@@ -380,6 +683,21 @@ function MilestoneDetailPage() {
 
   return (
     <AppShell hideMenu>
+      {/* Tela de celebração */}
+      {showCelebration && (
+        <CelebrationScreen
+          milestone={milestone}
+          patientName={patientName}
+          areaColor={color}
+          areaBg={bg}
+          AreaIcon={AreaIcon}
+          onViewAll={() => {
+            setShowCelebration(false);
+            navigate({ to: "/paciente/$childId/marcos" as any, params: { childId } as any });
+          }}
+        />
+      )}
+
       <div className="mx-auto max-w-2xl">
         {/* Back */}
         <button
@@ -478,34 +796,109 @@ function MilestoneDetailPage() {
             </div>
             <div>
               <p className="text-[14px] font-extrabold" style={{ color: "#16A34A" }}>
-                Marco conquistado!
+                Conquista atingida! 🎉
               </p>
               <p className="text-[12.5px] mt-0.5" style={{ color: "#4B5563" }}>
-                Atingido em {achievedDate}
+                Conquistado em {achievedDate} — permanente.
               </p>
             </div>
           </div>
         )}
 
-        {/* Seção: Metas vinculadas */}
-        <div className="mb-4">
-          <div className="flex items-center gap-2.5 mb-3">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "#EFF6FF" }}>
-              <Target size={15} strokeWidth={1.8} color="#3B82F6" />
+        {/* ── Seção: Metas vinculadas ── */}
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "#EFF6FF" }}>
+                <Target size={15} strokeWidth={1.8} color="#3B82F6" />
+              </div>
+              <h2 className="text-[15px] font-bold" style={{ color: "#0F172A" }}>
+                Metas vinculadas
+                {goals.length > 0 && (
+                  <span className="ml-1.5 text-[13px] font-semibold" style={{ color: "#9CA3AF" }}>
+                    {goals.length}
+                  </span>
+                )}
+              </h2>
             </div>
-            <h2 className="text-[15px] font-bold" style={{ color: "#0F172A" }}>Metas vinculadas</h2>
+            <button
+              type="button"
+              onClick={() => { setEditingGoal(null); setGoalFormOpen(true); }}
+              className="flex h-8 w-8 items-center justify-center rounded-xl transition-colors hover:bg-[#F3F4F6]"
+              style={{ border: "1.5px solid #E5E7EB" }}
+            >
+              <Plus size={16} strokeWidth={2} color={TEAL} />
+            </button>
           </div>
-          <div
-            className="rounded-[14px] border px-4 py-4 text-center"
-            style={{ borderColor: "#E5E7EB", borderStyle: "dashed" }}
-          >
-            <p className="text-[13px]" style={{ color: "#9CA3AF" }}>
-              Metas de sessão serão integradas na próxima fase.
-            </p>
-          </div>
+
+          {goalsQuery.isLoading ? (
+            <div className="flex justify-center py-4">
+              <Loader2 size={18} className="animate-spin" style={{ color: "#9CA3AF" }} />
+            </div>
+          ) : goals.length === 0 ? (
+            <div
+              className="rounded-[14px] border px-4 py-5 text-center"
+              style={{ borderColor: "#E5E7EB", borderStyle: "dashed" }}
+            >
+              <p className="text-[13px] font-medium" style={{ color: "#6B7280" }}>
+                Nenhuma meta criada ainda.
+              </p>
+              <p className="text-[12px] mt-0.5" style={{ color: "#9CA3AF" }}>
+                Adicione metas para acompanhar o progresso neste marco.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {goals.map((goal) => {
+                const dots = progressByGoal[goal.id] ?? [];
+                return (
+                  <div
+                    key={goal.id}
+                    className="flex items-center gap-3 rounded-[14px] border bg-white px-4 py-3"
+                    style={{ borderColor: "#E5E7EB" }}
+                  >
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 text-left"
+                      onClick={() =>
+                        navigate({
+                          to: "/paciente/$childId/marcos/$marcoId/meta/$goalId" as any,
+                          params: { childId, marcoId, goalId: goal.id } as any,
+                        })
+                      }
+                    >
+                      <p className="text-[14px] font-semibold" style={{ color: "#0F172A" }}>
+                        {goal.title}
+                      </p>
+                      <GoalProgressDots entries={dots} />
+                    </button>
+
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => { setEditingGoal(goal); setGoalFormOpen(true); }}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-[#F3F4F6]"
+                      >
+                        <History size={13} color="#6B7280" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteGoal(goal.id)}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-[#FEE2E2]"
+                        disabled={deleteGoalMutation.isPending}
+                      >
+                        <Trash2 size={13} color="#DC2626" />
+                      </button>
+                      <ChevronRight size={14} color="#9CA3AF" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {/* Seção: Histórico de progresso */}
+        {/* ── Seção: Histórico de progresso ── */}
         <div className="mb-6">
           <div className="flex items-center gap-2.5 mb-3">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "#F5F3FF" }}>
@@ -513,17 +906,76 @@ function MilestoneDetailPage() {
             </div>
             <h2 className="text-[15px] font-bold" style={{ color: "#0F172A" }}>Histórico de progresso</h2>
           </div>
-          <div
-            className="rounded-[14px] border px-4 py-4 text-center"
-            style={{ borderColor: "#E5E7EB", borderStyle: "dashed" }}
-          >
-            <p className="text-[13px]" style={{ color: "#9CA3AF" }}>
-              Tentativas registradas nas sessões aparecerão aqui.
-            </p>
-          </div>
+
+          {progressQuery.isLoading ? (
+            <div className="flex justify-center py-4">
+              <Loader2 size={18} className="animate-spin" style={{ color: "#9CA3AF" }} />
+            </div>
+          ) : progressEntries.length === 0 ? (
+            <div
+              className="rounded-[14px] border px-4 py-5 text-center"
+              style={{ borderColor: "#E5E7EB", borderStyle: "dashed" }}
+            >
+              <p className="text-[13px] font-medium" style={{ color: "#6B7280" }}>
+                Sem registros ainda.
+              </p>
+              <p className="text-[12px] mt-0.5" style={{ color: "#9CA3AF" }}>
+                Vincule objetivos de sessão às metas para ver o histórico aqui.
+              </p>
+            </div>
+          ) : (
+            <div className="relative pl-5">
+              {/* Linha vertical */}
+              <div
+                className="absolute left-2.5 top-3 bottom-3 w-0.5 rounded-full"
+                style={{ background: "#E5E7EB" }}
+              />
+              <div className="flex flex-col gap-3">
+                {progressEntries.map((entry, i) => {
+                  const dateStr = entry.sessionDate
+                    ? new Date(entry.sessionDate).toLocaleDateString("pt-BR", {
+                        day: "numeric", month: "short",
+                      })
+                    : "";
+                  const colors = HISTORY_COLORS[entry.status] ?? { bg: "#F3F4F6", text: "#6B7280" };
+                  const dotColor = STATUS_DOT_COLOR[entry.status] ?? "#9CA3AF";
+                  return (
+                    <div key={i} className="relative pl-4">
+                      {/* Dot da timeline */}
+                      <div
+                        className="absolute -left-[3px] top-1.5 h-3 w-3 rounded-full ring-2 ring-white"
+                        style={{ background: dotColor }}
+                      />
+                      <div className="rounded-[12px] border bg-white px-3 py-2.5" style={{ borderColor: "#F3F4F6" }}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[11.5px] font-semibold" style={{ color: "#6B7280" }}>
+                            {dateStr} · {entry.sessionTitle}
+                          </span>
+                          <span
+                            className="rounded-full px-2 py-0.5 text-[11px] font-bold"
+                            style={{ background: colors.bg, color: colors.text }}
+                          >
+                            {HISTORY_LABELS[entry.status] ?? entry.status}
+                          </span>
+                        </div>
+                        <p className="text-[12.5px] font-semibold" style={{ color: "#374151" }}>
+                          {entry.goalTitle}
+                        </p>
+                        {entry.notes && (
+                          <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>
+                            {entry.notes}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="h-24" />
+        <div className="h-28" />
       </div>
 
       {/* FAB — Marcar como atingido */}
@@ -549,13 +1001,22 @@ function MilestoneDetailPage() {
         />
       )}
 
-      {/* Sheet de edição */}
+      {/* Sheet de edição do marco */}
       {showEditSheet && (
         <EditSheet
           milestone={milestone}
           childId={childId}
-          patientName={patientName}
           onClose={() => setShowEditSheet(false)}
+        />
+      )}
+
+      {/* Sheet de criação/edição de meta */}
+      {goalFormOpen && (
+        <GoalFormSheet
+          milestoneId={marcoId}
+          childId={childId}
+          editGoal={editingGoal}
+          onClose={() => { setGoalFormOpen(false); setEditingGoal(null); }}
         />
       )}
     </AppShell>
