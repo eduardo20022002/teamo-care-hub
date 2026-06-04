@@ -10,6 +10,8 @@ import { useAuth } from "@/hooks/useAuth";
 const BRAND_GRADIENT =
   "linear-gradient(135deg, #4F46E5 0%, #6D3FE0 45%, #C13A8C 85%, #EC4899 100%)";
 const RESEND_COOLDOWN_S = 60;
+// Comprimento do código OTP — deve corresponder ao "Email OTP Length" no Supabase
+const OTP_LENGTH = 8;
 
 export const Route = createFileRoute("/verificar-conta")({
   head: () => ({
@@ -76,7 +78,7 @@ function VerifyAccountPage() {
 
   const handleVerify = async (value?: string) => {
     const otp = (value ?? code).trim();
-    if (!email || otp.length !== 6 || verifying) return;
+    if (!email || otp.length !== OTP_LENGTH || verifying) return;
     setVerifying(true);
     const res = await verifySignupOtp(email, otp);
     setVerifying(false);
@@ -126,7 +128,7 @@ function VerifyAccountPage() {
           Confirme seu e-mail
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-center" style={{ color: "#6B7280" }}>
-          Enviamos um código de 6 dígitos para{" "}
+          Enviamos um código de {OTP_LENGTH} dígitos para{" "}
           <span className="font-semibold" style={{ color: "#1F2937" }}>{maskedEmail}</span>.
           <br />
           Digite o código abaixo para ativar sua conta.
@@ -135,23 +137,23 @@ function VerifyAccountPage() {
         {/* Entrada do código */}
         <div className="mt-7 flex justify-center">
           <InputOTP
-            maxLength={6}
+            maxLength={OTP_LENGTH}
             value={code}
             onChange={(v) => {
-              const digits = v.replace(/\D/g, "").slice(0, 6);
+              const digits = v.replace(/\D/g, "").slice(0, OTP_LENGTH);
               setCode(digits);
-              if (digits.length === 6) void handleVerify(digits);
+              if (digits.length === OTP_LENGTH) void handleVerify(digits);
             }}
             inputMode="numeric"
             disabled={verifying}
-            containerClassName="gap-2"
+            containerClassName="gap-1.5"
           >
-            <InputOTPGroup className="gap-2">
-              {[0, 1, 2, 3, 4, 5].map((i) => (
+            <InputOTPGroup className="gap-1.5">
+              {Array.from({ length: OTP_LENGTH }, (_, i) => (
                 <InputOTPSlot
                   key={i}
                   index={i}
-                  className="h-12 w-11 rounded-xl border border-[#E5E7EB] text-lg font-bold"
+                  className="h-12 w-9 rounded-xl border border-[#E5E7EB] text-lg font-bold"
                 />
               ))}
             </InputOTPGroup>
@@ -162,7 +164,7 @@ function VerifyAccountPage() {
         <button
           type="button"
           onClick={() => void handleVerify()}
-          disabled={code.length !== 6 || verifying}
+          disabled={code.length !== OTP_LENGTH || verifying}
           className="mt-7 flex items-center justify-center gap-2 w-full text-white font-semibold text-sm transition-all duration-200 hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0"
           style={{
             height: 52,
