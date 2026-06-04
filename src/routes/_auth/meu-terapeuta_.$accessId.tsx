@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Stethoscope, Loader2, CalendarDays, ChevronDown, ChevronUp,
   Target, Trophy, Clock, CheckCircle2, MinusCircle, XCircle, MessageSquare,
+  List,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import {
@@ -12,6 +13,8 @@ import {
   useMyParentCommunications,
 } from "@/services/therapist.service";
 import { MILESTONE_AREA_COLORS } from "@/lib/validation";
+import { WeekGrid } from "@/components/agenda/WeekGrid";
+import type { AgendaEventWithRelations } from "@/types/agenda";
 
 export const Route = createFileRoute("/_auth/meu-terapeuta_/$accessId")({
   head: () => ({ meta: [{ title: "Acompanhamento — TEAmo" }] }),
@@ -333,6 +336,38 @@ function MilestoneCard({ milestone }: { milestone: any }) {
 
 // ─── Página principal ─────────────────────────────────────────────────────────
 
+// Converte sessão do portal para o shape mínimo que o WeekGrid aceita
+function toAgendaEvent(s: any): AgendaEventWithRelations {
+  return {
+    id: s.event_id,
+    user_id: "",
+    child_id: "",
+    type: "terapia" as const,
+    title: s.title ?? "Sessão",
+    professional_id: null,
+    professional_name_raw: null,
+    start_at: s.start_at,
+    end_at: s.end_at ?? null,
+    locale: null,
+    recurrence: { freq: "none" } as any,
+    reminders: { oneDayBefore: false, oneHourBefore: false } as any,
+    status: (s.session_attendance === "happened" ? "happened" : "upcoming") as any,
+    type_data: {},
+    linked_event_id: null,
+    created_at: s.start_at,
+    updated_at: s.start_at,
+    child: null,
+    professional: null,
+  } as AgendaEventWithRelations;
+}
+
+function getWeekStart(date: Date): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() - d.getDay());
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 function PortalPage() {
   const navigate = useNavigate();
   const { accessId } = (Route as any).useParams();
@@ -347,6 +382,43 @@ function PortalPage() {
   const milestones   = milestonesQ.data?.milestones ?? [];
   const comms        = (commsQ.data?.communications ?? []) as Array<{ id: string; content: string; created_at: string }>;
   const isLoading    = summaryQ.isLoading || sessionsQ.isLoading || milestonesQ.isLoading;
+
+  // ── Agrupamento de sessões ──────────────────────────────────────────────────
+  const now = new Date();
+
+  const sessionsWithContent = useMemo(
+    () => (sessions as any[]).filter((s) =>
+      s.record !== null ||
+      s.session_attendance === "happened" ||
+      s.session_attendance === "missed_justified" ||
+      s.session_attendance === "missed_no_show"
+    ),
+    [sessions],
+  );
+
+  const upcomingSessions = useMemo(
+    () => (sessions as any[])
+      .filter((s) => !s.record && !s.session_attendance && new Date(s.start_at) > now)
+      .sort((a, b) => a.start_at.localeCompare(b.start_at)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sessions],
+  );
+
+  const nextSession = upcomingSessions[0] ?? null;
+
+  // ── UI state ────────────────────────────────────────────────────────────────
+  const [sessionView, setSessionView] = useState<"lista" | "semana">("lista");
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+
+  // Inicializa na semana da próxima sessão (ou hoje)
+  const [weekStart, setWeekStart] = useState<Date>(() =>
+    getWeekStart(nextSession ? new Date(nextSession.start_at) : new Date())
+  );
+
+  const allAgendaEvents = useMemo(
+    () => (sessions as any[]).map(toAgendaEvent),
+    [sessions],
+  );
 
   const milestonesByArea = milestones.reduce((acc: Record<string, any[]>, m: any) => {
     if (!acc[m.area]) acc[m.area] = [];
@@ -394,18 +466,45 @@ function PortalPage() {
 
             {/* ═══ Sessões ═══ */}
             <div className="mb-8">
+              {/* Cabeçalho + toggle */}
               <div className="flex items-center gap-2 mb-4">
                 <CalendarDays size={18} strokeWidth={1.8} color={TEAL} />
-                <h2 className="text-[16px] font-extrabold text-[#0F172A]">
-                  Registros de sessão
+                <h2 className="text-[16px] font-extrabold text-[#0F172A] flex-1">
+                  Sessões
                 </h2>
-                {sessions.length > 0 && (
+                {sessionsWithContent.length > 0 && (
                   <span
                     className="text-[11px] font-bold px-2 py-0.5 rounded-full"
                     style={{ background: TEAL_SOFT, color: TEAL, border: `1px solid ${TEAL_BORDER}` }}
                   >
-                    {sessions.length}
+                    {sessionsWithContent.length}
                   </span>
+                )}
+                {/* Toggle Lista / Semana */}
+                {sessions.length > 0 && (
+                  <div
+                    className="flex rounded-[10px] p-0.5 ml-1"
+                    style={{ background: "#F1F5F9" }}
+                  >
+                    {(["lista", "semana"] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setSessionView(mode)}
+                        className="flex items-center gap-1 h-7 px-2.5 rounded-[8px] text-[11.5px] font-semibold transition-all"
+                        style={
+                          sessionView === mode
+                            ? { background: "#fff", color: TEAL, boxShadow: "0 1px 3px rgba(13,148,136,0.15)" }
+                            : { color: "#6B7280" }
+                        }
+                      >
+                        {mode === "lista"
+                          ? <><List size={11} strokeWidth={2.2} />Lista</>
+                          : <><CalendarDays size={11} strokeWidth={2.2} />Semana</>
+                        }
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
 
@@ -414,15 +513,134 @@ function PortalPage() {
                   className="rounded-[14px] border px-4 py-8 text-center"
                   style={{ borderColor: "#E5E7EB", background: "#FAFAFA" }}
                 >
-                  <p className="text-[13px] text-[#9CA3AF]">
-                    Nenhuma sessão agendada ainda.
+                  <p className="text-[13px] text-[#9CA3AF]">Nenhuma sessão agendada ainda.</p>
+                </div>
+              ) : sessionView === "semana" ? (
+                /* ── Visão Semana ── */
+                <div>
+                  <WeekGrid
+                    weekStart={weekStart}
+                    onPrev={() => {
+                      const d = new Date(weekStart);
+                      d.setDate(d.getDate() - 7);
+                      setWeekStart(d);
+                    }}
+                    onNext={() => {
+                      const d = new Date(weekStart);
+                      d.setDate(d.getDate() + 7);
+                      setWeekStart(d);
+                    }}
+                    events={allAgendaEvents}
+                    onSelectEvent={() => {}}
+                    getEventColor={() => ({ col: TEAL, label: "S" })}
+                  />
+                  <p className="mt-2 text-center text-[11px] text-[#9CA3AF]">
+                    Toque em "Lista" para ver os detalhes das sessões realizadas.
                   </p>
                 </div>
               ) : (
-                <div className="flex flex-col gap-3">
-                  {sessions.map((s: any) => (
-                    <SessionCard key={s.event_id} session={s} />
-                  ))}
+                /* ── Visão Lista ── */
+                <div className="flex flex-col gap-4">
+
+                  {/* Próxima sessão */}
+                  {nextSession && (
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: "#9CA3AF" }}>
+                        Próxima sessão
+                      </p>
+                      <div
+                        className="flex items-center gap-3 rounded-[14px] border bg-white px-4 py-3"
+                        style={{ borderColor: TEAL_BORDER, background: TEAL_SOFT }}
+                      >
+                        <div
+                          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl"
+                          style={{ background: TEAL_BORDER }}
+                        >
+                          <CalendarDays size={16} strokeWidth={1.8} color={TEAL} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[14px] font-bold text-[#0F172A] leading-tight">
+                            {formatDate(nextSession.start_at)}
+                          </p>
+                          {formatDuration(nextSession.start_at, nextSession.end_at) && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Clock size={10} strokeWidth={2} color="#9CA3AF" />
+                              <span className="text-[11px] text-[#9CA3AF]">
+                                {formatDuration(nextSession.start_at, nextSession.end_at)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <span
+                          className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold"
+                          style={{ background: "#F4F5FA", color: "#6B7280" }}
+                        >
+                          Agendada
+                        </span>
+                      </div>
+
+                      {/* Demais próximas */}
+                      {upcomingSessions.length > 1 && (
+                        <div className="mt-1.5">
+                          {showAllUpcoming && (
+                            <div className="flex flex-col gap-1.5 mb-1.5">
+                              {upcomingSessions.slice(1).map((s: any) => {
+                                const d = new Date(s.start_at);
+                                const dateShort = d.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" });
+                                const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+                                return (
+                                  <div
+                                    key={s.event_id}
+                                    className="flex items-center gap-2 rounded-[10px] border px-3 py-2"
+                                    style={{ borderColor: "#E5E7EB", background: "#FAFAFA" }}
+                                  >
+                                    <span className="text-[12.5px] text-[#374151] flex-1">{dateShort} · {hm}</span>
+                                    <span className="text-[10px] font-semibold" style={{ color: "#9CA3AF" }}>Agendada</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setShowAllUpcoming((v) => !v)}
+                            className="flex items-center gap-1 text-[12px] font-semibold"
+                            style={{ color: TEAL }}
+                          >
+                            {showAllUpcoming
+                              ? <><ChevronUp size={13} strokeWidth={2.5} /> Ocultar próximas</>
+                              : <><ChevronDown size={13} strokeWidth={2.5} /> Ver todas as próximas ({upcomingSessions.length - 1})</>
+                            }
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Histórico com registros */}
+                  <div>
+                    {sessionsWithContent.length > 0 && (
+                      <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: "#9CA3AF" }}>
+                        Histórico de sessões
+                      </p>
+                    )}
+                    {sessionsWithContent.length === 0 ? (
+                      !nextSession && (
+                        <div
+                          className="rounded-[14px] border px-4 py-6 text-center"
+                          style={{ borderColor: "#E5E7EB", background: "#FAFAFA" }}
+                        >
+                          <p className="text-[13px] text-[#9CA3AF]">Nenhum registro publicado ainda.</p>
+                        </div>
+                      )
+                    ) : (
+                      <div className="flex flex-col gap-3">
+                        {sessionsWithContent.map((s: any) => (
+                          <SessionCard key={s.event_id} session={s} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
