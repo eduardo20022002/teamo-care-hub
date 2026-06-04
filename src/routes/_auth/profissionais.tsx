@@ -1,7 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, Search, Users } from "lucide-react";
+import { ArrowLeft, Plus, Search, Users, Stethoscope, X, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
@@ -25,6 +25,10 @@ const BRAND_SHADOW =
   "0 8px 18px -8px rgba(79,70,229,0.45), 0 3px 8px -3px rgba(236,72,153,0.25)";
 import { useAuth } from "@/hooks/useAuth";
 import {
+  useMyPendingTherapistInvites,
+  useAcceptTherapistInviteById,
+} from "@/services/therapist.service";
+import {
   createProfessional,
   deleteProfessional,
   listProfessionals,
@@ -44,8 +48,16 @@ export const Route = createFileRoute("/_auth/profissionais")({
 
 function ProfessionalsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
+  const [dismissedInvites, setDismissedInvites] = useState<Set<string>>(new Set());
+
+  const pendingInvitesQuery = useMyPendingTherapistInvites();
+  const pendingInvites = (pendingInvitesQuery.data?.invites ?? []).filter(
+    (inv: any) => !dismissedInvites.has(inv.inviteId),
+  );
+  const acceptInviteById = useAcceptTherapistInviteById();
 
   useEffect(() => {
     track("module.open", { module: "profissionais", route: "/profissionais" });
@@ -141,6 +153,16 @@ function ProfessionalsPage() {
     );
   }
 
+  const handleAcceptInvite = async (inviteId: string, therapistName: string) => {
+    try {
+      const res = await acceptInviteById.mutateAsync(inviteId);
+      toast.success(`Vínculo estabelecido com ${therapistName}!`);
+      void navigate({ to: "/meu-terapeuta" as any });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao aceitar convite.");
+    }
+  };
+
   const total = professionals?.length ?? 0;
   const hasAny = total > 0;
 
@@ -185,6 +207,58 @@ function ProfessionalsPage() {
           </button>
         )}
       </header>
+
+      {/* Banners de convites pendentes do terapeuta */}
+      {pendingInvites.length > 0 && (
+        <div className="mb-5 flex flex-col gap-3">
+          {pendingInvites.map((inv: any) => (
+            <div
+              key={inv.inviteId}
+              className="rounded-[14px] border p-4"
+              style={{ borderColor: "#CCFBF1", background: "linear-gradient(135deg, #F0FDFA 0%, #ECFDF5 100%)" }}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl mt-0.5"
+                  style={{ background: "#CCFBF1" }}
+                >
+                  <Stethoscope size={16} strokeWidth={1.8} color="#0D9488" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-bold text-[#0F172A] leading-tight">
+                    Convite de acompanhamento
+                  </p>
+                  <p className="text-[12.5px] text-[#374151] mt-0.5 leading-relaxed">
+                    <span className="font-semibold">{inv.therapistName}</span>
+                    {inv.therapistSpecialty ? ` (${inv.therapistSpecialty})` : ""} convidou você
+                    para acompanhar <span className="font-semibold">{inv.childName}</span>.
+                  </p>
+                  <div className="flex items-center gap-2 mt-3">
+                    <button
+                      type="button"
+                      disabled={acceptInviteById.isPending}
+                      onClick={() => void handleAcceptInvite(inv.inviteId, inv.therapistName)}
+                      className="flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[12.5px] font-bold text-white transition-opacity disabled:opacity-60"
+                      style={{ background: "#0D9488" }}
+                    >
+                      <CheckCircle2 size={13} strokeWidth={2.5} />
+                      Aceitar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDismissedInvites((prev) => new Set([...prev, inv.inviteId]))}
+                      className="flex items-center gap-1 rounded-[10px] px-3 py-1.5 text-[12.5px] font-medium text-[#6B7280] transition-colors hover:bg-[#F3F4F6]"
+                    >
+                      <X size={12} strokeWidth={2.5} />
+                      Ignorar por ora
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {hasAny && (
         <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_240px]">

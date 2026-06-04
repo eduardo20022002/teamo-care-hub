@@ -21,6 +21,11 @@ import {
   confirmSessionServer,
   saveSessionRecordServer,
   getSessionRecordServer,
+  listMyPendingTherapistInvitesServer,
+  acceptTherapistInviteByIdServer,
+  getParentPortalSummaryServer,
+  listParentSessionRecordsServer,
+  listParentMilestonesServer,
 } from "@/lib/therapist.functions";
 import type {
   TherapistProfileInput,
@@ -36,10 +41,14 @@ import type {
 // ─── Query key factory ────────────────────────────────────────────────────────
 
 export const therapistKeys = {
-  profile:      ()             => ["therapist-profile"] as const,
-  patients:     ()             => ["therapist-patients"] as const,
-  invites:      (childId: string) => ["therapist-invites", childId] as const,
-  myAccesses:   ()             => ["my-therapist-accesses"] as const,
+  profile:           ()               => ["therapist-profile"] as const,
+  patients:          ()               => ["therapist-patients"] as const,
+  invites:           (childId: string) => ["therapist-invites", childId] as const,
+  myAccesses:        ()               => ["my-therapist-accesses"] as const,
+  pendingInvites:    ()               => ["my-pending-therapist-invites"] as const,
+  portalSummary:     (id: string)     => ["parent-portal-summary", id] as const,
+  portalSessions:    (id: string)     => ["parent-portal-sessions", id] as const,
+  portalMilestones:  (id: string)     => ["parent-portal-milestones", id] as const,
 };
 
 // ─── Auth headers helper ──────────────────────────────────────────────────────
@@ -303,6 +312,76 @@ export function useGetSessionRecord(eventId: string | undefined) {
       return fn({ data: { eventId: eventId! }, headers: h }) as Promise<SessionRecordQueryData>;
     },
     enabled: !!eventId,
+    staleTime: 30_000,
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PORTAL DOS PAIS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export function useMyPendingTherapistInvites() {
+  const fn = useServerFn(listMyPendingTherapistInvitesServer);
+  return useQuery({
+    queryKey: therapistKeys.pendingInvites(),
+    queryFn:  async () => {
+      const h = await authHeaders();
+      return fn({ headers: h });
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useAcceptTherapistInviteById() {
+  const fn = useServerFn(acceptTherapistInviteByIdServer);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (inviteId: string) => {
+      const h = await authHeaders();
+      return fn({ data: { inviteId }, headers: h });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: therapistKeys.pendingInvites() });
+      qc.invalidateQueries({ queryKey: therapistKeys.myAccesses() });
+    },
+  });
+}
+
+export function useParentPortalSummary(accessId: string | undefined) {
+  const fn = useServerFn(getParentPortalSummaryServer);
+  return useQuery({
+    queryKey: therapistKeys.portalSummary(accessId ?? ""),
+    queryFn:  async () => {
+      const h = await authHeaders();
+      return fn({ data: { accessId: accessId! }, headers: h });
+    },
+    enabled: !!accessId,
+    staleTime: 60_000,
+  });
+}
+
+export function useParentSessionRecords(accessId: string | undefined) {
+  const fn = useServerFn(listParentSessionRecordsServer);
+  return useQuery({
+    queryKey: therapistKeys.portalSessions(accessId ?? ""),
+    queryFn:  async () => {
+      const h = await authHeaders();
+      return fn({ data: { accessId: accessId! }, headers: h });
+    },
+    enabled: !!accessId,
+    staleTime: 30_000,
+  });
+}
+
+export function useParentMilestones(accessId: string | undefined) {
+  const fn = useServerFn(listParentMilestonesServer);
+  return useQuery({
+    queryKey: therapistKeys.portalMilestones(accessId ?? ""),
+    queryFn:  async () => {
+      const h = await authHeaders();
+      return fn({ data: { accessId: accessId! }, headers: h });
+    },
+    enabled: !!accessId,
     staleTime: 30_000,
   });
 }

@@ -854,3 +854,238 @@ export const getSessionRecordServer = createServerFn({ method: "POST" })
       upcomingSessions: (upcoming ?? []) as Array<{ id: string; start_at: string; title: string }>,
     };
   }) as any);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PORTAL DOS PAIS — Visão do responsável sobre o acompanhamento terapêutico
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Helper: valida que o usuário logado tem acesso ativo para um accessId ────
+async function assertParentAccess(
+  accessId: string,
+  userId: string,
+): Promise<{ therapistId: string; childId: string; relation: string; alias: string; grantedAt: string }> {
+  const { data: access } = await (supabaseAdmin as any)
+    .from("therapist_parent_access")
+    .select("therapist_id, child_id, relation, alias, granted_at")
+    .eq("id", accessId)
+    .eq("parent_id", userId)
+    .eq("status", "active")
+    .maybeSingle();
+  if (!access) throw new Response("Acesso não encontrado ou revogado.", { status: 404 });
+  return {
+    therapistId: (access as any).therapist_id,
+    childId:     (access as any).child_id,
+    relation:    (access as any).relation,
+    alias:       (access as any).alias,
+    grantedAt:   (access as any).granted_at,
+  };
+}
+
+// ─── listMyPendingTherapistInvitesServer — convites pendentes para o responsável
+export const listMyPendingTherapistInvitesServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId, claims } = context as any;
+
+    // Busca o e-mail do usuário logado (claims > admin API)
+    let userEmail: string | null = typeof claims?.email === "string" ? claims.email : null;
+    if (!userEmail) {
+      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
+      userEmail = authUser?.user?.email ?? null;
+    }
+    if (!userEmail) return { invites: [] };
+
+    const { data: invites } = await (supabaseAdmin as any)
+      .from("therapist_invites")
+      .select("id, therapist_id, child_id, invitee_alias, relation, created_at, expires_at")
+      .ilike("invitee_email", userEmail.toLowerCase())
+      .eq("status", "pending")
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false });
+
+    if (!invites || invites.length === 0) return { invites: [] };
+
+    // Enriquece com nome do terapeuta e da criança
+    const enriched = await Promise.all(
+      (invites as any[]).map(async (inv) => {
+        const [{ data: profile }, { data: tProfile }, { data: child }] = await Promise.all([
+          supabaseAdmin.from("profiles").select("full_name, email").eq("id", inv.therapist_id).maybeSingle(),
+          (supabaseAdmin as any).from("therapist_profiles").select("specialty").eq("user_id", inv.therapist_id).maybeSingle(),
+          supabaseAdmin.from("children").select("name").eq("id", inv.child_id).maybeSingle(),
+        ]);
+        return {
+          inviteId:          inv.id as string,
+          therapistName:     (profile as any)?.full_name || ((profile as any)?.email ?? "").split("@")[0] || "Terapeuta",
+          therapistSpecialty: (tProfile as any)?.specialty ?? "",
+          childName:         (child as any)?.name ?? "Paciente",
+          relation:          inv.relation as string,
+          sentAt:            inv.created_at as string,
+        };
+      }),
+    );
+
+    return { invites: enriched };
+  });
+
+// ─── acceptTherapistInviteByIdServer — aceita convite pelo ID (sem token) ─────
+export const acceptTherapistInviteByIdServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ inviteId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId, claims } = context as any;
+
+    const { data: invite } = await (supabaseAdmin as any)
+      .from("therapist_invites")
+      .select("*")
+      .eq("id", data.inviteId)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (!invite) throw new Response("Convite não encontrado ou já processado.", { status: 404 });
+    if (new Date((invite as TherapistInviteRow).expires_at) < new Date()) {
+      throw new Response("Este convite expirou.", { status: 410 });
+    }
+
+    // Defesa: e-mail da conta logada deve coincidir com o convite
+    let userEmail: string | null = typeof claims?.email === "string" ? claims.email : null;
+    if (!userEmail) {
+      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
+      userEmail = authUser?.user?.email ?? null;
+    }
+    if (!userEmail || userEmail.toLowerCase() !== (invite as TherapistInviteRow).invitee_email.toLowerCase()) {
+      throw new Response(
+        "Este convite foi enviado para outro e-mail. Entre com a conta correta.",
+        { status: 403 },
+      );
+    }
+
+    await createTherapistParentAccess({
+      inviteId:    (invite as TherapistInviteRow).id,
+      therapistId: (invite as TherapistInviteRow).therapist_id,
+      parentId:    userId,
+      childId:     (invite as TherapistInviteRow).child_id,
+      relation:    (invite as TherapistInviteRow).relation,
+      alias:       (invite as TherapistInviteRow).invitee_alias,
+    });
+
+    await (supabaseAdmin as any)
+      .from("therapist_invites")
+      .update({ status: "accepted", accepted_by: userId, accepted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("id", (invite as TherapistInviteRow).id);
+
+    // Busca criança para nome no retorno + notificação
+    const { data: child } = await supabaseAdmin.from("children").select("name").eq("id", (invite as TherapistInviteRow).child_id).maybeSingle();
+    const childName = (child as any)?.name ?? "Paciente";
+
+    const { data: therapistProfile } = await supabaseAdmin.from("profiles").select("email, full_name").eq("id", (invite as TherapistInviteRow).therapist_id).maybeSingle();
+    if (therapistProfile) {
+      void sendTherapistInviteAcceptedEmail({
+        to:          (therapistProfile as any).email,
+        parentAlias: (invite as TherapistInviteRow).invitee_alias,
+        childName,
+        appUrl:      APP_URL(),
+      });
+    }
+
+    return { ok: true as const, childName };
+  });
+
+// ─── getParentPortalSummaryServer — info do terapeuta + criança para o portal ─
+export const getParentPortalSummaryServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ accessId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+    const acc = await assertParentAccess(data.accessId, userId);
+
+    const [{ data: profile }, { data: tProfile }, { data: child }] = await Promise.all([
+      supabaseAdmin.from("profiles").select("full_name, email").eq("id", acc.therapistId).maybeSingle(),
+      (supabaseAdmin as any).from("therapist_profiles").select("specialty").eq("user_id", acc.therapistId).maybeSingle(),
+      supabaseAdmin.from("children").select("id, name, birth_date").eq("id", acc.childId).maybeSingle(),
+    ]);
+
+    return {
+      accessId:           data.accessId,
+      therapistName:      (profile as any)?.full_name || ((profile as any)?.email ?? "").split("@")[0] || "Terapeuta",
+      therapistSpecialty: (tProfile as any)?.specialty ?? "",
+      child:              child ?? null,
+      relation:           acc.relation,
+      alias:              acc.alias,
+      grantedAt:          acc.grantedAt,
+    };
+  });
+
+// ─── listParentSessionRecordsServer — registros de sessão publicados para o pai
+export const listParentSessionRecordsServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ accessId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+    const acc = await assertParentAccess(data.accessId, userId);
+
+    const { data: records, error } = await (supabaseAdmin as any)
+      .from("session_records")
+      .select(`
+        event_id,
+        what_was_done,
+        family_instruction,
+        notable_behaviors,
+        goals_achieved,
+        clinical_observations,
+        published_at,
+        agenda_events!inner(
+          id, start_at, title, duration_minutes, session_attendance,
+          session_plan, plan_visible_to_parents
+        )
+      `)
+      .eq("child_id", acc.childId)
+      .eq("therapist_id", acc.therapistId)
+      .eq("is_draft", false)
+      .eq("is_private", false)
+      .order("published_at", { ascending: false });
+
+    if (error) throw new Response(error.message, { status: 500 });
+
+    return { records: (records ?? []) as any[] };
+  });
+
+// ─── listParentMilestonesServer — marcos compartilhados com pais ──────────────
+export const listParentMilestonesServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ accessId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as any;
+    const acc = await assertParentAccess(data.accessId, userId);
+
+    const { data: milestones, error } = await (supabaseAdmin as any)
+      .from("therapeutic_milestones")
+      .select("*")
+      .eq("child_id", acc.childId)
+      .eq("therapist_id", acc.therapistId)
+      .eq("is_shared_with_parents", true)
+      .order("created_at", { ascending: true });
+
+    if (error) throw new Response(error.message, { status: 500 });
+    if (!milestones || milestones.length === 0) return { milestones: [] };
+
+    // Busca metas de todos os marcos
+    const milestoneIds = (milestones as any[]).map((m: any) => m.id);
+    const { data: goals } = await (supabaseAdmin as any)
+      .from("milestone_goals")
+      .select("id, milestone_id, title, status, achieved_at")
+      .in("milestone_id", milestoneIds)
+      .order("created_at", { ascending: true });
+
+    const goalsByMilestone: Record<string, any[]> = {};
+    for (const g of goals ?? []) {
+      if (!goalsByMilestone[(g as any).milestone_id]) goalsByMilestone[(g as any).milestone_id] = [];
+      goalsByMilestone[(g as any).milestone_id].push(g);
+    }
+
+    return {
+      milestones: (milestones as any[]).map((m: any) => ({
+        ...m,
+        goals: goalsByMilestone[m.id] ?? [],
+      })),
+    };
+  });

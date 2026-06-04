@@ -424,17 +424,21 @@ function TherapistAccessCard({
   access,
 }: {
   access: {
+    id: string;
     child: { id: string; name: string; birth_date: string } | null;
     therapistName: string;
     therapistSpecialty: string;
   };
 }) {
+  const navigate = useNavigate();
   const child = access.child;
   if (!child) return null;
 
   return (
-    <div
-      className="rounded-[18px] border p-4"
+    <button
+      type="button"
+      onClick={() => navigate({ to: "/meu-terapeuta/$accessId" as any, params: { accessId: access.id } as any })}
+      className="w-full rounded-[18px] border p-4 text-left transition-all hover:shadow-md active:scale-[0.99]"
       style={{
         borderColor: TEAL_BORDER,
         background: "linear-gradient(135deg, #F0FDFA 0%, #ECFDF5 100%)",
@@ -454,6 +458,7 @@ function TherapistAccessCard({
             <p className="text-xs text-[#6B7280] mt-0.5">{formatAge(child.birth_date)}</p>
           )}
         </div>
+        <ChevronRight size={16} strokeWidth={2} color="#9CA3AF" className="flex-shrink-0" />
       </div>
       <div
         className="rounded-lg px-3 py-2 text-xs leading-relaxed"
@@ -461,10 +466,9 @@ function TherapistAccessCard({
       >
         <span className="font-semibold">{access.therapistName}</span>
         {access.therapistSpecialty ? ` · ${access.therapistSpecialty}` : ""}
-        {" — compartilhou o acompanhamento de "}
-        <span className="font-semibold">{child.name}</span>.
+        {" — toque para ver o acompanhamento"}
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -940,6 +944,31 @@ function DashboardPage() {
                 </div>
               </button>
             ))}
+            {/* Tile: Meu Terapeuta (apenas para pais) */}
+            {!isTherapist && (
+              <button
+                type="button"
+                onClick={() => navigate({ to: "/meu-terapeuta" as any })}
+                className="flex flex-col gap-3 rounded-[18px] border bg-white p-4 text-left transition-shadow hover:shadow-md"
+                style={{ borderColor: "#EEF0F4", boxShadow: "0 1px 2px rgba(15,23,42,0.03)" }}
+              >
+                <div
+                  className="flex h-11 w-11 items-center justify-center rounded-xl"
+                  style={{ background: "#F0FDFA" }}
+                >
+                  <Stethoscope size={20} strokeWidth={1.7} color={TEAL_CARE} />
+                </div>
+                <div>
+                  <div className="mb-1 text-[15px] font-bold" style={{ color: "#0F172A", letterSpacing: "-0.01em" }}>
+                    Meu Terapeuta
+                  </div>
+                  <div className="text-[12.5px] leading-snug" style={{ color: "#6B7280" }}>
+                    Sessões e evolução compartilhados.
+                  </div>
+                </div>
+              </button>
+            )}
+
             {/* Tile dinâmico: Cuidado compartilhado (apenas para owners com filhos) */}
             {(children ?? []).length > 0 && (
               <button
