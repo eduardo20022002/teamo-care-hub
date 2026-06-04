@@ -477,7 +477,7 @@ function MarcosPage() {
   const patientName = patient?.name ?? "Paciente";
 
   return (
-    <AppShell hideMenu onBack={() => navigate({ to: "/paciente/$childId" as any, params: { childId } as any })}>
+    <AppShell hideMenu>
       <div className="mx-auto max-w-2xl">
         {/* Header */}
         <button
