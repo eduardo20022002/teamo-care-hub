@@ -19,7 +19,10 @@ import {
   ShieldAlert,
   ChevronRight,
   UserPlus,
+  Bell,
+  X,
 } from "lucide-react";
+import { useAgendaNotifications, useMarkNotificationsRead } from "@/hooks/useAgendaNotifications";
 import { uploadRecordAttachment } from "@/services/attachments.service";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
@@ -193,11 +196,69 @@ function ChildRow({
   child,
   onQuickRegister,
   onOpenDocs,
+  compact,
 }: {
   child: Child;
   onQuickRegister: (child: Child) => void;
   onOpenDocs: (child: Child) => void;
+  compact?: boolean;
 }) {
+  if (compact) {
+    return (
+      <div
+        className="flex flex-col rounded-[16px] border bg-white p-3.5"
+        style={{
+          borderColor: "#EEF0F4",
+          boxShadow: "0 1px 2px rgba(15,23,42,0.03), 0 6px 18px rgba(15,23,42,0.04)",
+        }}
+      >
+        <div className="mb-3 flex items-center gap-2.5">
+          <div
+            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-[18px] font-extrabold"
+            style={{
+              background: AVATAR_GRADIENT,
+              color: "#4F46E5",
+              boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.7), 0 4px 12px -4px rgba(79,70,229,0.2)",
+            }}
+          >
+            {getInitial(child.name)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div
+              className="truncate text-[15px] font-extrabold leading-tight"
+              style={{ color: "#0F172A", letterSpacing: "-0.02em" }}
+            >
+              {child.name}
+            </div>
+            <div className="mt-0.5 truncate text-[11.5px]" style={{ color: "#6B7280" }}>
+              {formatAge(child.birth_date)}
+            </div>
+          </div>
+        </div>
+        <div className="mt-auto flex gap-2">
+          <button
+            type="button"
+            onClick={() => onQuickRegister(child)}
+            className="flex h-9 flex-1 items-center justify-center gap-1 rounded-lg text-[12.5px] font-bold text-white transition-all hover:-translate-y-px"
+            style={{ background: BRAND_GRADIENT, boxShadow: BRAND_SHADOW }}
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={2.4} />
+            Registrar
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenDocs(child)}
+            aria-label={`Documentos de ${child.name}`}
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[#E5E7EB]"
+            style={{ background: "#F4F5FA" }}
+          >
+            <FolderOpen size={17} strokeWidth={1.7} color="#4F46E5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="rounded-[18px] border bg-white p-4.5"
@@ -481,7 +542,19 @@ function DashboardPage() {
   const [quickChildId, setQuickChildId] = useState<string | undefined>();
   const [docsChild, setDocsChild] = useState<Child | null>(null);
   const [revokedAccess, setRevokedAccess] = useState<{ childName: string } | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
   const realtimeRef = useRef<ReturnType<typeof supabaseClient.channel> | null>(null);
+
+  // Notificações / novidades não vistas
+  const notifications = useAgendaNotifications();
+  const unreadCount = notifications.reduce((acc, n) => acc + (n.unread ? 1 : 0), 0);
+  const markNotificationsRead = useMarkNotificationsRead();
+
+  const submitSearch = () => {
+    const q = searchValue.trim();
+    navigate({ to: "/busca", search: q ? { q } : {} });
+  };
 
   // ─── Perfil do usuário (determina terapeuta vs responsável) ──────────────────
   const profileQuery = useQuery({
@@ -778,16 +851,16 @@ function DashboardPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-2xl">
-        {/* HERO pastel */}
+        {/* HERO pastel — compacto */}
         <section
-          className="relative overflow-hidden rounded-[22px] px-[22px] pb-[26px] pt-6"
+          className="relative overflow-hidden rounded-[20px] px-[18px] pb-4 pt-4"
           style={{ background: PASTEL_GRADIENT }}
         >
           <svg
             viewBox="0 0 300 300"
             aria-hidden="true"
             className="pointer-events-none absolute"
-            style={{ top: "-45%", right: "-30%", width: "85%", opacity: 0.5 }}
+            style={{ top: "-55%", right: "-30%", width: "75%", opacity: 0.45 }}
           >
             <defs>
               <radialGradient id="dash-blob" cx="50%" cy="50%">
@@ -798,41 +871,95 @@ function DashboardPage() {
             <circle cx="150" cy="150" r="140" fill="url(#dash-blob)" />
           </svg>
           <div className="relative">
-            <div
-              className="text-[12.5px] font-semibold"
-              style={{ color: "#6B7280" }}
-            >
-              {formatTodayHero()}
-            </div>
-            <h1
-              className="mt-2 text-[26px] font-extrabold leading-tight"
-              style={{ color: "#0F172A", letterSpacing: "-0.025em" }}
-            >
-              Olá{displayName ? `, ${displayName}` : ""}
-            </h1>
-            <p
-              className="mt-1.5 text-sm leading-relaxed"
-              style={{ color: "#4B5563" }}
-            >
-              Aqui você acompanha o cuidado da sua família.
-            </p>
-
-            <button
-              type="button"
-              onClick={() => navigate({ to: "/busca" })}
-              className="mt-[18px] flex w-full items-center gap-2.5 rounded-xl bg-white px-3.5 py-[11px] text-left transition-shadow hover:shadow-md"
-              style={{
-                border: "1px solid rgba(79,70,229,0.12)",
-                boxShadow: "0 6px 18px -8px rgba(79,70,229,0.18)",
-              }}
-            >
-              <Search size={20} strokeWidth={1.8} color="#4F46E5" />
-              <span className="flex-1 text-sm" style={{ color: "#9CA3AF" }}>
-                Buscar no histórico…
-              </span>
-            </button>
+            {!searchOpen ? (
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[11.5px] font-semibold" style={{ color: "#6B7280" }}>
+                    {formatTodayHero()}
+                  </div>
+                  <h1
+                    className="mt-1 truncate text-[22px] font-extrabold leading-tight"
+                    style={{ color: "#0F172A", letterSpacing: "-0.025em" }}
+                  >
+                    Olá{displayName ? `, ${displayName}` : ""}
+                  </h1>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Buscar no histórico"
+                  onClick={() => setSearchOpen(true)}
+                  className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white transition-shadow hover:shadow-md"
+                  style={{ boxShadow: "0 4px 12px -6px rgba(79,70,229,0.25)" }}
+                >
+                  <Search size={19} strokeWidth={1.9} color="#4F46E5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search
+                    size={18}
+                    strokeWidth={1.9}
+                    color="#9CA3AF"
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
+                  />
+                  <input
+                    autoFocus
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") submitSearch(); }}
+                    placeholder="Buscar no histórico…"
+                    className="h-10 w-full rounded-xl bg-white pl-9 pr-3 text-sm outline-none"
+                    style={{ border: "1px solid rgba(79,70,229,0.14)" }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  aria-label="Fechar busca"
+                  onClick={() => { setSearchOpen(false); setSearchValue(""); }}
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white"
+                >
+                  <X size={18} strokeWidth={2} color="#6B7280" />
+                </button>
+              </div>
+            )}
           </div>
         </section>
+
+        {/* ÚLTIMAS ATUALIZAÇÕES — só quando há novidades não vistas */}
+        {unreadCount > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              markNotificationsRead.mutate();
+              navigate({ to: "/agenda" });
+            }}
+            className="mt-3 flex w-full items-center gap-3 rounded-[16px] border bg-white px-4 py-3 text-left transition-shadow hover:shadow-md"
+            style={{ borderColor: "#E0E7FF", boxShadow: "0 2px 10px -6px rgba(79,70,229,0.2)" }}
+          >
+            <div
+              className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
+              style={{ background: "#EEF1FF" }}
+            >
+              <Bell size={18} strokeWidth={1.8} color="#4F46E5" />
+              <span
+                className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[#EC4899]"
+                style={{ boxShadow: "0 0 0 2px white" }}
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13.5px] font-bold" style={{ color: "#0F172A" }}>
+                {unreadCount} {unreadCount === 1 ? "novidade" : "novidades"}
+              </p>
+              <p className="truncate text-[12.5px]" style={{ color: "#6B7280" }}>
+                {notifications.find((n) => n.unread)?.title ?? "Toque para ver"}
+              </p>
+            </div>
+            <span className="text-[12.5px] font-bold" style={{ color: "#4F46E5" }}>
+              Ver todas
+            </span>
+          </button>
+        )}
 
         {/* CRIANÇAS CADASTRADAS */}
         <div className="mt-7">
@@ -853,11 +980,12 @@ function DashboardPage() {
               </button>
             }
           />
-          <div className="flex flex-col gap-3">
+          <div className={(children?.length ?? 0) >= 2 ? "grid grid-cols-2 gap-3" : "flex flex-col gap-3"}>
             {(children ?? []).map((c) => (
               <ChildRow
                 key={c.id}
                 child={c}
+                compact={(children?.length ?? 0) >= 2}
                 onQuickRegister={handleQuickRegister}
                 onOpenDocs={(child) => setDocsChild(child)}
               />

@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
+import { shareMilestoneImage } from "@/lib/share-image";
 import {
   ArrowLeft,
   Trophy,
@@ -111,11 +112,6 @@ function GoalProgressDots({ entries }: { entries: MilestoneProgressEntry[] }) {
 
 // ─── Tela de celebração ───────────────────────────────────────────────────────
 
-const CONFETTI_COLORS = [
-  "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#06B6D4",
-  "#EF4444", "#F97316",
-];
-
 function CelebrationScreen({
   milestone,
   patientName,
@@ -137,88 +133,83 @@ function CelebrationScreen({
       })
     : new Date().toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" });
 
-  // Deterministic confetti positions (avoids hydration mismatch)
-  const confettiDots = useMemo(() => {
-    const seed = [12, 35, 55, 8, 72, 90, 25, 60, 45, 80, 18, 66];
-    return seed.map((s, i) => ({
-      left: `${(s * 7 + i * 23) % 95}%`,
-      top:  `${(s * 3 + i * 17) % 80}%`,
-      size: 6 + (i % 4) * 2,
-      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-      rotate: (s * 11 + i * 37) % 360,
-    }));
-  }, []);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  function handleShare() {
+    void shareMilestoneImage(cardRef.current, {
+      childName: patientName,
+      title: milestone.title,
+      date: achievedDate,
+    });
+  }
 
   return (
     <div
       className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-white px-6 overflow-hidden"
       style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 24px)" }}
     >
-      {/* Confetti */}
-      {confettiDots.map((d, i) => (
-        <span
-          key={i}
-          className="pointer-events-none absolute rounded-sm"
-          style={{
-            left: d.left,
-            top: d.top,
-            width: d.size,
-            height: d.size,
-            background: d.color,
-            transform: `rotate(${d.rotate}deg)`,
-            opacity: 0.75,
-          }}
-        />
-      ))}
-
-      {/* Ícones sobrepostos */}
-      <div className="relative mb-6">
-        <div
-          className="flex h-20 w-20 items-center justify-center rounded-full"
-          style={{ background: areaColor + "22", border: `2px solid ${areaColor}44` }}
-        >
-          <AreaIcon size={34} strokeWidth={1.7} color={areaColor} />
-        </div>
-        <div
-          className="absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full"
-          style={{ background: "#FEFCE8", border: "2px solid #FDE68A" }}
-        >
-          <Trophy size={15} strokeWidth={2} color="#D97706" />
-        </div>
-      </div>
-
-      <p className="text-[13px] font-semibold mb-2" style={{ color: TEAL }}>
-        🎉 {patientName} conquistou!
-      </p>
-
-      <h1
-        className="text-center text-[24px] font-extrabold leading-tight mb-4"
-        style={{ color: "#0F172A", letterSpacing: "-0.025em", maxWidth: 320 }}
+      {/* Botão de fechar */}
+      <button
+        type="button"
+        onClick={onViewAll}
+        aria-label="Fechar"
+        className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-[#6B7280] transition-colors hover:bg-[#F4F5FA]"
+        style={{ top: "calc(env(safe-area-inset-top) + 12px)" }}
       >
-        {milestone.title}
-      </h1>
+        <X size={20} strokeWidth={2} />
+      </button>
 
-      <span
-        className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] font-semibold mb-5"
-        style={{ background: "#F0FDF4", color: "#16A34A" }}
-      >
-        <CheckCircle2 size={14} strokeWidth={2.5} />
-        Atingido em {achievedDate}
-      </span>
+      {/* Card capturável para compartilhamento */}
+      <div ref={cardRef} className="flex flex-col items-center bg-white px-6 py-6">
+        {/* Ícones sobrepostos */}
+        <div className="relative mb-6">
+          <div
+            className="flex h-20 w-20 items-center justify-center rounded-full"
+            style={{ background: areaColor + "22", border: `2px solid ${areaColor}44` }}
+          >
+            <AreaIcon size={34} strokeWidth={1.7} color={areaColor} />
+          </div>
+          <div
+            className="absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full"
+            style={{ background: "#FEFCE8", border: "2px solid #FDE68A" }}
+          >
+            <Trophy size={15} strokeWidth={2} color="#D97706" />
+          </div>
+        </div>
 
-      {milestone.description && (
-        <p
-          className="text-center text-[14px] leading-relaxed mb-6"
-          style={{ color: "#4B5563", maxWidth: 320 }}
-        >
-          {milestone.description}
+        <p className="text-[13px] font-semibold mb-2" style={{ color: TEAL }}>
+          🎉 {patientName} conquistou!
         </p>
-      )}
+
+        <h1
+          className="text-center text-[24px] font-extrabold leading-tight mb-4"
+          style={{ color: "#0F172A", letterSpacing: "-0.025em", maxWidth: 320 }}
+        >
+          {milestone.title}
+        </h1>
+
+        <span
+          className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] font-semibold"
+          style={{ background: "#F0FDF4", color: "#16A34A" }}
+        >
+          <CheckCircle2 size={14} strokeWidth={2.5} />
+          Atingido em {achievedDate}
+        </span>
+
+        {milestone.description && (
+          <p
+            className="mt-5 text-center text-[14px] leading-relaxed"
+            style={{ color: "#4B5563", maxWidth: 320 }}
+          >
+            {milestone.description}
+          </p>
+        )}
+      </div>
 
       <button
         type="button"
-        onClick={() => toast.info("Em breve: compartilhamento disponível.")}
-        className="flex w-full max-w-xs items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-bold text-white mb-3"
+        onClick={handleShare}
+        className="mt-3 flex w-full max-w-xs items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-bold text-white mb-3"
         style={{ background: "#3B82F6" }}
       >
         <Share2 size={16} strokeWidth={2} />

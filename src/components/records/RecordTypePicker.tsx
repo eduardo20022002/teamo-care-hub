@@ -1,4 +1,3 @@
-import { X } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
   RECORD_TYPES,
@@ -27,23 +26,14 @@ export function RecordTypePicker({ open, onOpenChange, onSelect }: Props) {
           <div className="h-1 w-10 rounded-full bg-[#E5E7EB]" />
         </div>
 
-        {/* Header */}
-        <div className="flex items-start justify-between px-5 pb-4 pt-3">
-          <div>
-            <h2 className="text-[17px] font-bold text-foreground">
-              O que você quer registrar?
-            </h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              Escolha o tipo — assim a gente organiza os campos certos pra você.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="ml-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F6F7FB] text-muted-foreground hover:bg-[#EEF0F4]"
-          >
-            <X className="h-4 w-4" strokeWidth={2} />
-          </button>
+        {/* Header — o X de fechar é o padrão do SheetContent (canto superior direito) */}
+        <div className="px-5 pb-4 pt-3 pr-12">
+          <h2 className="text-[17px] font-bold text-foreground">
+            O que você quer registrar?
+          </h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Escolha o tipo — assim a gente organiza os campos certos pra você.
+          </p>
         </div>
 
         <div className="h-px bg-[#EEF0F4]" />

@@ -1,11 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   Stethoscope, Loader2, CalendarDays, ChevronDown, ChevronUp,
   Target, Trophy, Clock, CheckCircle2, MinusCircle, XCircle, MessageSquare,
-  List, Share2, MessageCircle, Users2, Star, Heart, Lightbulb, PersonStanding, Flag,
+  List, Share2, MessageCircle, Users2, Star, Heart, Lightbulb, PersonStanding, Flag, X,
 } from "lucide-react";
-import { toast } from "sonner";
+import { shareMilestoneImage } from "@/lib/share-image";
 import { AppShell } from "@/components/layout/AppShell";
 import {
   useParentPortalSummary,
@@ -338,10 +338,6 @@ function MilestoneCard({ milestone }: { milestone: any }) {
 
 // ─── Overlay de celebração de marco ──────────────────────────────────────────
 
-const CONFETTI_COLORS = [
-  "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#06B6D4", "#EF4444", "#F97316",
-];
-
 const AREA_ICONS: Record<string, typeof Flag> = {
   comunicacao:   MessageCircle,
   socializacao:  Users2,
@@ -368,35 +364,14 @@ function MilestoneCelebrationOverlay({
 
   const areaColor: string = (MILESTONE_AREA_COLORS as any)[milestone.area] ?? TEAL;
   const AreaIcon = AREA_ICONS[milestone.area] ?? Flag;
+  const cardRef = useRef<HTMLDivElement>(null);
 
-  // Deterministic confetti (sem mismatch de hidratação)
-  const confettiDots = useMemo(() => {
-    const seed = [12, 35, 55, 8, 72, 90, 25, 60, 45, 80, 18, 66];
-    return seed.map((s, i) => ({
-      left:   `${(s * 7 + i * 23) % 95}%`,
-      top:    `${(s * 3 + i * 17) % 80}%`,
-      size:   6 + (i % 4) * 2,
-      color:  CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-      rotate: (s * 11 + i * 37) % 360,
-    }));
-  }, []);
-
-  async function handleShare() {
-    const text = `🎉 ${childName} conquistou: ${milestone.title}! Atingido em ${achievedDate}. #TEAmo`;
-    if (typeof navigator !== "undefined" && navigator.share) {
-      try {
-        await navigator.share({ title: `Conquista: ${milestone.title}`, text });
-      } catch {
-        // usuário cancelou ou não suportado — silencioso
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(text);
-        toast.success("Texto copiado para a área de transferência!");
-      } catch {
-        toast.error("Não foi possível copiar.");
-      }
-    }
+  function handleShare() {
+    void shareMilestoneImage(cardRef.current, {
+      childName,
+      title: milestone.title,
+      date: achievedDate,
+    });
   }
 
   return (
@@ -404,69 +379,68 @@ function MilestoneCelebrationOverlay({
       className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-white px-6 overflow-hidden"
       style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 24px)" }}
     >
-      {/* Confetes */}
-      {confettiDots.map((d, i) => (
-        <span
-          key={i}
-          className="pointer-events-none absolute rounded-sm"
-          style={{
-            left: d.left, top: d.top,
-            width: d.size, height: d.size,
-            background: d.color,
-            transform: `rotate(${d.rotate}deg)`,
-            opacity: 0.75,
-          }}
-        />
-      ))}
-
-      {/* Ícone da área + troféu */}
-      <div className="relative mb-6">
-        <div
-          className="flex h-20 w-20 items-center justify-center rounded-full"
-          style={{ background: areaColor + "22", border: `2px solid ${areaColor}44` }}
-        >
-          <AreaIcon size={34} strokeWidth={1.7} color={areaColor} />
-        </div>
-        <div
-          className="absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full"
-          style={{ background: "#FEFCE8", border: "2px solid #FDE68A" }}
-        >
-          <Trophy size={15} strokeWidth={2} color="#D97706" />
-        </div>
-      </div>
-
-      <p className="text-[13px] font-semibold mb-2" style={{ color: TEAL }}>
-        🎉 {childName} conquistou!
-      </p>
-
-      <h1
-        className="text-center text-[24px] font-extrabold leading-tight mb-4"
-        style={{ color: "#0F172A", letterSpacing: "-0.025em", maxWidth: 320 }}
+      {/* Botão de fechar */}
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Fechar"
+        className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-[#6B7280] transition-colors hover:bg-[#F4F5FA]"
+        style={{ top: "calc(env(safe-area-inset-top) + 12px)" }}
       >
-        {milestone.title}
-      </h1>
+        <X size={20} strokeWidth={2} />
+      </button>
 
-      <span
-        className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] font-semibold mb-5"
-        style={{ background: "#F0FDF4", color: "#16A34A" }}
-      >
-        <CheckCircle2 size={14} strokeWidth={2.5} />
-        Atingido em {achievedDate}
-      </span>
+      {/* Card capturável para compartilhamento */}
+      <div ref={cardRef} className="flex flex-col items-center bg-white px-6 py-6">
+        {/* Ícone da área + troféu */}
+        <div className="relative mb-6">
+          <div
+            className="flex h-20 w-20 items-center justify-center rounded-full"
+            style={{ background: areaColor + "22", border: `2px solid ${areaColor}44` }}
+          >
+            <AreaIcon size={34} strokeWidth={1.7} color={areaColor} />
+          </div>
+          <div
+            className="absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full"
+            style={{ background: "#FEFCE8", border: "2px solid #FDE68A" }}
+          >
+            <Trophy size={15} strokeWidth={2} color="#D97706" />
+          </div>
+        </div>
 
-      {milestone.description && (
-        <p
-          className="text-center text-[14px] leading-relaxed mb-6"
-          style={{ color: "#4B5563", maxWidth: 320 }}
-        >
-          {milestone.description}
+        <p className="text-[13px] font-semibold mb-2" style={{ color: TEAL }}>
+          🎉 {childName} conquistou!
         </p>
-      )}
+
+        <h1
+          className="text-center text-[24px] font-extrabold leading-tight mb-4"
+          style={{ color: "#0F172A", letterSpacing: "-0.025em", maxWidth: 320 }}
+        >
+          {milestone.title}
+        </h1>
+
+        <span
+          className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] font-semibold"
+          style={{ background: "#F0FDF4", color: "#16A34A" }}
+        >
+          <CheckCircle2 size={14} strokeWidth={2.5} />
+          Atingido em {achievedDate}
+        </span>
+
+        {milestone.description && (
+          <p
+            className="mt-5 text-center text-[14px] leading-relaxed"
+            style={{ color: "#4B5563", maxWidth: 320 }}
+          >
+            {milestone.description}
+          </p>
+        )}
+      </div>
 
       <button
         type="button"
         onClick={handleShare}
-        className="flex w-full max-w-xs items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-bold text-white mb-3"
+        className="mt-3 flex w-full max-w-xs items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-bold text-white mb-3"
         style={{ background: "#3B82F6" }}
       >
         <Share2 size={16} strokeWidth={2} />
@@ -558,20 +532,24 @@ function PortalPage() {
   const nextSession = upcomingSessions[0] ?? null;
 
   // ── Celebração de marcos atingidos ─────────────────────────────────────────
-  // Sempre usa [0]: quando o pai fecha, a mutation invalida a query e o próximo
-  // marco não-celebrado passa a ser o novo [0] automaticamente.
+  // dismissedIds garante dispensa instantânea (não depende do refetch); a
+  // mutation grava parent_celebrated_at em segundo plano para não reaparecer.
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const markCelebrated = useMarkMilestoneCelebrated(accessId);
+
   const unseenAchievements = useMemo(
     () => (milestones as any[]).filter(
-      (m) => m.status === "atingido" && !m.parent_celebrated_at,
+      (m) => m.status === "atingido" && !m.parent_celebrated_at && !dismissedIds.has(m.id),
     ),
-    [milestones],
+    [milestones, dismissedIds],
   );
   const currentCelebration = unseenAchievements[0] ?? null;
-  const markCelebrated = useMarkMilestoneCelebrated(accessId);
 
   function handleCloseCelebration() {
     if (currentCelebration) {
-      markCelebrated.mutate(currentCelebration.id);
+      const id = currentCelebration.id;
+      setDismissedIds((prev) => new Set(prev).add(id));
+      markCelebrated.mutate(id);
     }
   }
 

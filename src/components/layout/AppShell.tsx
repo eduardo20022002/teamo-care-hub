@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { NotificationsDrawer } from "@/components/agenda/NotificationsDrawer";
 import { FeedbackButton } from "@/components/feedback/FeedbackButton";
-import { useAgendaNotifications } from "@/hooks/useAgendaNotifications";
+import { useAgendaNotifications, useMarkNotificationsRead } from "@/hooks/useAgendaNotifications";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,7 +50,13 @@ export function AppShell({
   // Inicializa coleta de Web Vitals uma vez por sessão (idempotente)
   if (typeof window !== "undefined") initWebVitals();
   const notifications = useAgendaNotifications();
-  const hasUnread = notifications.length > 0;
+  const markRead = useMarkNotificationsRead();
+  const hasUnread = notifications.some((n) => n.unread);
+
+  const openNotifications = () => {
+    setNotifOpen(true);
+    if (hasUnread) markRead.mutate();
+  };
 
   const { data: profile } = useQuery({
     queryKey: ["profile-shell", user?.id],
@@ -139,7 +145,7 @@ export function AppShell({
               <button
                 type="button"
                 aria-label="Notificações"
-                onClick={() => setNotifOpen(true)}
+                onClick={openNotifications}
                 className="relative inline-flex h-9 w-9 items-center justify-center rounded-[10px] text-foreground transition-colors hover:bg-muted"
               >
                 <Bell className="h-[18px] w-[18px]" strokeWidth={1.7} />

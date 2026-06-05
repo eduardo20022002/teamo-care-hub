@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { listAgendaEvents } from "@/services/agenda/events.service";
@@ -19,6 +19,8 @@ export interface AgendaNotifItem {
   cta?: string;
   deepLink?: string;
   group: "Hoje" | "Ontem" | "Mais antigas";
+  /** true quando read_at é null (notificação ainda não vista) */
+  unread?: boolean;
 }
 
 interface AgendaNotificationRow {
@@ -119,9 +121,41 @@ export function useAgendaNotifications(): AgendaNotifItem[] {
       cta: KIND_CTA[row.kind],
       deepLink: row.deep_link,
       group,
+      unread: row.read_at === null,
     });
   }
   return items;
+}
+
+/**
+ * Conta quantas notificações ainda não foram vistas (read_at null).
+ */
+export function useUnreadNotificationsCount(): number {
+  const items = useAgendaNotifications();
+  return items.reduce((acc, it) => acc + (it.unread ? 1 : 0), 0);
+}
+
+/**
+ * Marca todas as notificações do usuário como vistas (read_at = now()).
+ * Sincroniza na conta — some em todos os dispositivos.
+ */
+export function useMarkNotificationsRead() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      if (!user || DEV_BYPASS) return;
+      const { error } = await supabase
+        .from("agenda_notifications")
+        .update({ read_at: new Date().toISOString() })
+        .eq("user_id", user.id)
+        .is("read_at", null);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["agenda-notifications", user?.id] });
+    },
+  });
 }
 
 function computeLocal(

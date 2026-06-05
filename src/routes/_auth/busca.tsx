@@ -31,6 +31,9 @@ export const Route = createFileRoute("/_auth/busca")({
   head: () => ({
     meta: [{ title: "Buscar — TEAmo" }],
   }),
+  validateSearch: (search: Record<string, unknown>): { q?: string } => ({
+    q: typeof search.q === "string" ? search.q : undefined,
+  }),
   component: BuscaPage,
 });
 
@@ -77,8 +80,9 @@ function GroupHeader({ kind, count }: { kind: string; count: number }) {
 function BuscaPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { q: initialQuery } = Route.useSearch();
 
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery ?? "");
   const [filters, setFilters] = useState<SearchFiltersValue>(EMPTY_SEARCH_FILTERS);
   const [openRecord, setOpenRecord] = useState<AttendanceRecordWithRelations | null>(null);
 
