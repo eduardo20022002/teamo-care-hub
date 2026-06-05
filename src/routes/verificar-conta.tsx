@@ -11,7 +11,7 @@ const BRAND_GRADIENT =
   "linear-gradient(135deg, #4F46E5 0%, #6D3FE0 45%, #C13A8C 85%, #EC4899 100%)";
 const RESEND_COOLDOWN_S = 60;
 // Comprimento do código OTP — deve corresponder ao "Email OTP Length" no Supabase
-const OTP_LENGTH = 8;
+const OTP_LENGTH = 6;
 
 export const Route = createFileRoute("/verificar-conta")({
   head: () => ({
@@ -146,14 +146,14 @@ function VerifyAccountPage() {
             }}
             inputMode="numeric"
             disabled={verifying}
-            containerClassName="gap-1.5"
+            containerClassName="gap-2"
           >
-            <InputOTPGroup className="gap-1.5">
+            <InputOTPGroup className="gap-2">
               {Array.from({ length: OTP_LENGTH }, (_, i) => (
                 <InputOTPSlot
                   key={i}
                   index={i}
-                  className="h-12 w-9 rounded-xl border border-[#E5E7EB] text-lg font-bold"
+                  className="h-12 w-11 rounded-xl border border-[#E5E7EB] text-lg font-bold"
                 />
               ))}
             </InputOTPGroup>
