@@ -1067,7 +1067,7 @@ export const listParentSessionRecordsServer = createServerFn({ method: "POST" })
       start_at:                e.start_at as string,
       end_at:                  (e.end_at ?? null) as string | null,
       session_attendance:      (e.session_attendance ?? null) as string | null,
-      session_plan:            e.session_plan ?? null,
+      session_plan:            e.plan_visible_to_parents ? (e.session_plan ?? null) : null,
       plan_visible_to_parents: !!e.plan_visible_to_parents,
       record:                  recordByEvent[e.id] ?? null,
     }));
