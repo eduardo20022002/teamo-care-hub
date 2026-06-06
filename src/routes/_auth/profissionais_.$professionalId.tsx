@@ -15,8 +15,7 @@ import {
 } from "@/services/agenda/observations.service";
 import { AGENDA_BRAND, ALERT_TONE } from "@/lib/agenda/tokens";
 import { getInitial } from "@/lib/formatters";
-import type { AgendaObservation } from "@/types/agenda";
-import { MOCK_EVENT_ORIGIN } from "@/services/agenda/observations.service";
+import type { AgendaObservation, AgendaEventWithRelations } from "@/types/agenda";
 
 export const Route = createFileRoute("/_auth/profissionais_/$professionalId")({
   head: () => ({ meta: [{ title: "Profissional — TEAmo" }] }),
@@ -65,7 +64,7 @@ function ProfessionalDetailPage() {
 
   const eventsQuery = useQuery({
     queryKey: ["agenda-events"],
-    queryFn: listAgendaEvents,
+    queryFn: () => listAgendaEvents(),
     enabled: !!user,
   });
 
@@ -228,6 +227,7 @@ function ProfessionalDetailPage() {
           {tab === "pendentes" && (
             <PendentesTab
               observations={pending}
+              events={events}
               nextEventDate={nextEvent ? new Date(nextEvent.start_at) : null}
               onMarkAll={() => dismissAllMutation.mutate()}
               onOpenObs={(obs) =>
@@ -389,11 +389,13 @@ function HistoricoTab({
 
 function PendentesTab({
   observations,
+  events,
   nextEventDate,
   onMarkAll,
   onOpenObs,
 }: {
   observations: AgendaObservation[];
+  events: AgendaEventWithRelations[];
   nextEventDate: Date | null;
   onMarkAll: () => void;
   onOpenObs: (obs: AgendaObservation) => void;
@@ -456,7 +458,16 @@ function PendentesTab({
       </div>
       <div className="flex flex-col gap-2.5">
         {observations.map((o) => {
-          const origin = MOCK_EVENT_ORIGIN[o.event_id];
+          const evt = events.find((e) => e.id === o.event_id);
+          const origin = evt
+            ? {
+                title: evt.title,
+                dateLabel: new Date(evt.start_at).toLocaleDateString("pt-BR", {
+                  day: "numeric",
+                  month: "short",
+                }),
+              }
+            : null;
           return (
             <button
               key={o.id}
