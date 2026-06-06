@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { AuthShell } from "@/components/auth/AuthShell";
-import { PasswordStrengthBar } from "@/components/auth/PasswordStrengthBar";
+import { PasswordStrengthBar, PasswordRules } from "@/components/auth/PasswordStrengthBar";
 import { TrustBadge } from "@/components/auth/TrustBadge";
 import { updatePassword } from "@/services/auth.service";
 import { passwordSchema } from "@/lib/validation";
@@ -146,6 +146,7 @@ function ResetPasswordPage() {
                 <p className="text-xs text-destructive">{errors.password}</p>
               )}
               <PasswordStrengthBar password={password} />
+              <PasswordRules password={password} />
             </div>
 
             <div className="space-y-1.5">

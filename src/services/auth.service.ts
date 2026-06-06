@@ -193,6 +193,22 @@ export async function requestPasswordReset(email: string): Promise<AuthResult> {
   return { ok: true };
 }
 
+export async function signInWithGoogle(opts?: {
+  invite?: string;
+  therapistInvite?: string;
+}): Promise<void> {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const params = new URLSearchParams();
+  if (opts?.invite) params.set("invite", opts.invite);
+  if (opts?.therapistInvite) params.set("therapistInvite", opts.therapistInvite);
+  const qs = params.toString();
+  const redirectTo = `${origin}/completar-perfil${qs ? `?${qs}` : ""}`;
+  await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo },
+  });
+}
+
 export async function updatePassword(newPassword: string): Promise<AuthResult> {
   const { data, error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) {

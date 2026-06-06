@@ -41,6 +41,13 @@ function AuthLayout() {
       navigate({ to: "/verificar-conta" });
       return;
     }
+    // Usuários Google que ainda não aceitaram os termos → tela de conclusão.
+    const isGoogleUser = (user.app_metadata as any)?.provider === "google";
+    const termsAccepted = (user.user_metadata as any)?.terms_accepted === true;
+    if (isGoogleUser && !termsAccepted) {
+      navigate({ to: "/completar-perfil" });
+      return;
+    }
   }, [loading, user, navigate]);
 
   const handleTimeout = useCallback(async () => {
@@ -66,7 +73,11 @@ function AuthLayout() {
     window.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   };
 
-  if (loading || !user || !user.email_confirmed_at) return <LoadingSpinner label="Carregando..." />;
+  const isGoogleUser = (user?.app_metadata as any)?.provider === "google";
+  const termsAccepted = (user?.user_metadata as any)?.terms_accepted === true;
+  if (loading || !user || !user.email_confirmed_at || (isGoogleUser && !termsAccepted)) {
+    return <LoadingSpinner label="Carregando..." />;
+  }
 
   return (
     <>

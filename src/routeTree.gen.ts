@@ -16,6 +16,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as TermosRouteImport } from './routes/termos'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
+import { Route as CompletarPerfilRouteImport } from './routes/completar-perfil'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ConviteTokenRouteImport } from './routes/convite.$token'
@@ -97,6 +98,11 @@ const TermosRoute = TermosRouteImport.update({
 const PrivacidadeRoute = PrivacidadeRouteImport.update({
   id: '/privacidade',
   path: '/privacidade',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompletarPerfilRoute = CompletarPerfilRouteImport.update({
+  id: '/completar-perfil',
+  path: '/completar-perfil',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -357,6 +363,7 @@ export interface FileRoutesByFullPath {
   '/cadastro': typeof CadastroRoute
   '/termos': typeof TermosRoute
   '/privacidade': typeof PrivacidadeRoute
+  '/completar-perfil': typeof CompletarPerfilRoute
   '/login': typeof LoginRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
@@ -412,6 +419,7 @@ export interface FileRoutesByTo {
   '/cadastro': typeof CadastroRoute
   '/termos': typeof TermosRoute
   '/privacidade': typeof PrivacidadeRoute
+  '/completar-perfil': typeof CompletarPerfilRoute
   '/login': typeof LoginRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
@@ -469,6 +477,7 @@ export interface FileRoutesById {
   '/cadastro': typeof CadastroRoute
   '/termos': typeof TermosRoute
   '/privacidade': typeof PrivacidadeRoute
+  '/completar-perfil': typeof CompletarPerfilRoute
   '/login': typeof LoginRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
@@ -526,6 +535,7 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/termos'
     | '/privacidade'
+    | '/completar-perfil'
     | '/login'
     | '/recuperar-senha'
     | '/redefinir-senha'
@@ -581,6 +591,7 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/termos'
     | '/privacidade'
+    | '/completar-perfil'
     | '/login'
     | '/recuperar-senha'
     | '/redefinir-senha'
@@ -637,6 +648,7 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/termos'
     | '/privacidade'
+    | '/completar-perfil'
     | '/login'
     | '/recuperar-senha'
     | '/redefinir-senha'
@@ -694,6 +706,7 @@ export interface RootRouteChildren {
   CadastroRoute: typeof CadastroRoute
   TermosRoute: typeof TermosRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
+  CompletarPerfilRoute: typeof CompletarPerfilRoute
   LoginRoute: typeof LoginRoute
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
@@ -754,6 +767,13 @@ declare module '@tanstack/react-router' {
       path: '/privacidade'
       fullPath: '/privacidade'
       preLoaderRoute: typeof PrivacidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/completar-perfil': {
+      id: '/completar-perfil'
+      path: '/completar-perfil'
+      fullPath: '/completar-perfil'
+      preLoaderRoute: typeof CompletarPerfilRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_auth': {
@@ -1195,6 +1215,7 @@ const rootRouteChildren: RootRouteChildren = {
   CadastroRoute: CadastroRoute,
   TermosRoute: TermosRoute,
   PrivacidadeRoute: PrivacidadeRoute,
+  CompletarPerfilRoute: CompletarPerfilRoute,
   LoginRoute: LoginRoute,
   RecuperarSenhaRoute: RecuperarSenhaRoute,
   RedefinirSenhaRoute: RedefinirSenhaRoute,

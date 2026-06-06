@@ -747,6 +747,7 @@ export type Database = {
           is_admin: boolean
           phone: string | null
           secondary_role: string | null
+          terms_accepted_at: string | null
           user_type: string
         }
         Insert: {
@@ -758,6 +759,7 @@ export type Database = {
           is_admin?: boolean
           phone?: string | null
           secondary_role?: string | null
+          terms_accepted_at?: string | null
           user_type?: string
         }
         Update: {
@@ -769,6 +771,7 @@ export type Database = {
           is_admin?: boolean
           phone?: string | null
           secondary_role?: string | null
+          terms_accepted_at?: string | null
           user_type?: string
         }
         Relationships: []
