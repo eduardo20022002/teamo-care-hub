@@ -45,7 +45,6 @@ import {
 } from "@/lib/formatters";
 import type { ChildInput, AttendanceRecordInput } from "@/lib/validation";
 import type { Child } from "@/types/database";
-import { track } from "@/lib/analytics";
 import { listMyCareAccessServer } from "@/lib/care-sharing.functions";
 import { supabase as supabaseClient } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
@@ -607,11 +606,6 @@ function DashboardPage() {
     queryFn: listProfessionals,
     enabled: !!user,
   });
-
-  // Analytics: início de sessão (uma vez por montagem do dashboard)
-  useEffect(() => {
-    track("session.start", { route: "/dashboard" });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Realtime: detecta revogação de acesso de co-cuidador em tempo real
   useEffect(() => {

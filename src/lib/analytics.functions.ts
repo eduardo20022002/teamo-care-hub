@@ -9,6 +9,9 @@ import {
   fetchBusinessHealthData,
   fetchUserBehaviorData,
   fetchTechnicalHealthData,
+  fetchCaregiversList,
+  fetchTherapistsList,
+  fetchDiagnosticsStats,
 } from "@/server/analytics.server";
 
 // ─── trackEventServer ────────────────────────────────────────────────────────
@@ -63,4 +66,25 @@ export const getTechnicalHealthServer = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
     return fetchTechnicalHealthData();
+  });
+
+export const listCaregiversServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+    return fetchCaregiversList();
+  });
+
+export const listTherapistsServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+    return fetchTherapistsList();
+  });
+
+export const getDiagnosticsStatsServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+    return fetchDiagnosticsStats();
   });

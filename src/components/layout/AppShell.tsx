@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { BrandLogo } from "./BrandLogo";
 import { AccountMenuDrawer } from "./AccountMenuDrawer";
-import { initWebVitals } from "@/lib/analytics";
+import { initWebVitals, track } from "@/lib/analytics";
 
 // ─── Constantes de identidade visual por área ─────────────────────────────────
 const ROLE_THEME = {
@@ -47,8 +47,11 @@ export function AppShell({
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
 
-  // Inicializa coleta de Web Vitals uma vez por sessão (idempotente)
-  useEffect(() => { initWebVitals(); }, []);
+  // Inicializa Web Vitals e rastreia início de sessão em toda página autenticada
+  useEffect(() => {
+    initWebVitals();
+    track("session.start", { route: typeof window !== "undefined" ? window.location.pathname : "/" });
+  }, []);
   const notifications = useAgendaNotifications();
   const markRead = useMarkNotificationsRead();
   const hasUnread = notifications.some((n) => n.unread);

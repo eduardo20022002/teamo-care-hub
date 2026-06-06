@@ -90,6 +90,7 @@ export interface BusinessHealthData {
     sharesCreated: number;
     sharesConsumed: number;
     sharesExpiredUnused: number;
+    pendingInvites: number;
   };
   churn: {
     inactiveOver30d: number;
@@ -123,6 +124,7 @@ export async function fetchBusinessHealthData(): Promise<BusinessHealthData> {
     { count: sharesConsumed },
     { count: sharesExpiredUnused },
     { count: inactive30 },
+    { count: pendingInvites },
   ] = await Promise.all([
     (supabaseAdmin.from("profiles") as any).select("*", { count: "exact", head: true }),
     (supabaseAdmin.from("professionals") as any).select("*", { count: "exact", head: true }),
@@ -174,6 +176,11 @@ export async function fetchBusinessHealthData(): Promise<BusinessHealthData> {
       .select("user_id", { count: "exact", head: true })
       .eq("event_type", "session.start")
       .lt("created_at", d30),
+    // convites de cuidado compartilhado ainda pendentes e não expirados
+    (supabaseAdmin as any).from("care_invites")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending")
+      .gt("expires_at", now.toISOString()),
   ]);
 
   const uniqueIds = (rows: { user_id: string }[] | null) =>
@@ -205,11 +212,49 @@ export async function fetchBusinessHealthData(): Promise<BusinessHealthData> {
       sharesCreated: shares ?? 0,
       sharesConsumed: sharesConsumed ?? 0,
       sharesExpiredUnused: sharesExpiredUnused ?? 0,
+      pendingInvites: pendingInvites ?? 0,
     },
     churn: {
       inactiveOver30d: inactive30 ?? 0,
     },
   };
+}
+
+// ─── Listagens de usuários (admin) ──────────────────────────────────────────
+
+export interface UserListRow {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  created_at: string;
+}
+
+export async function fetchCaregiversList(): Promise<UserListRow[]> {
+  const { data } = await (supabaseAdmin as any)
+    .from("profiles")
+    .select("id, full_name, email, created_at")
+    .eq("user_type", "parent")
+    .order("created_at", { ascending: false });
+  return data ?? [];
+}
+
+export async function fetchTherapistsList(): Promise<UserListRow[]> {
+  const { data } = await (supabaseAdmin as any)
+    .from("profiles")
+    .select("id, full_name, email, created_at")
+    .eq("user_type", "therapist")
+    .order("created_at", { ascending: false });
+  return data ?? [];
+}
+
+export interface DiagnosticStat {
+  diagnosis: string;
+  count: number;
+}
+
+export async function fetchDiagnosticsStats(): Promise<DiagnosticStat[]> {
+  const { data } = await (supabaseAdmin as any).rpc("get_diagnoses_stats");
+  return (data ?? []).map((r: any) => ({ diagnosis: r.diagnosis as string, count: Number(r.count) }));
 }
 
 // ─── Comportamento dos Usuários ──────────────────────────────────────────────

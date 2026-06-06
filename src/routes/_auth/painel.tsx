@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -10,8 +10,11 @@ import {
   FileText,
   Layers,
   Link2,
+  Mail,
   RefreshCcw,
+  Search,
   Share2,
+  Stethoscope,
   TrendingUp,
   Users,
   WifiOff,
@@ -24,12 +27,23 @@ import {
   getBusinessHealthServer,
   getUserBehaviorServer,
   getTechnicalHealthServer,
+  listCaregiversServer,
+  listTherapistsServer,
+  getDiagnosticsStatsServer,
 } from "@/lib/analytics.functions";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { supabase as supabaseClient } from "@/integrations/supabase/client";
 import type {
   BusinessHealthData,
   UserBehaviorData,
   TechnicalHealthData,
+  UserListRow,
+  DiagnosticStat,
 } from "@/server/analytics.server";
 
 export const Route = createFileRoute("/_auth/painel")({
@@ -60,6 +74,7 @@ function MetricCard({
   accent = "#4F46E5",
   tint = "#EEF1FF",
   icon,
+  onClick,
 }: {
   label: string;
   value: string | number;
@@ -67,12 +82,13 @@ function MetricCard({
   accent?: string;
   tint?: string;
   icon?: React.ReactNode;
+  onClick?: () => void;
 }) {
-  return (
-    <div
-      className="rounded-2xl border bg-white p-4"
-      style={{ borderColor: "#EEF0F4", boxShadow: "0 1px 2px rgba(15,23,42,0.03)" }}
-    >
+  const cls =
+    "rounded-2xl border bg-white p-4 text-left w-full transition-all" +
+    (onClick ? " cursor-pointer hover:shadow-md hover:-translate-y-0.5" : "");
+  const inner = (
+    <>
       <div className="mb-2 flex items-center gap-2">
         {icon && (
           <div
@@ -88,7 +104,103 @@ function MetricCard({
       </div>
       <p className="text-2xl font-bold text-[#0F172A]">{value}</p>
       {sub && <p className="mt-0.5 text-xs text-[#6B7280]">{sub}</p>}
+      {onClick && (
+        <p className="mt-1.5 text-[10px] font-medium text-primary opacity-70">Ver lista →</p>
+      )}
+    </>
+  );
+  return onClick ? (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cls}
+      style={{ borderColor: "#EEF0F4", boxShadow: "0 1px 2px rgba(15,23,42,0.03)" }}
+    >
+      {inner}
+    </button>
+  ) : (
+    <div
+      className={cls}
+      style={{ borderColor: "#EEF0F4", boxShadow: "0 1px 2px rgba(15,23,42,0.03)" }}
+    >
+      {inner}
     </div>
+  );
+}
+
+function UserListDialog({
+  open,
+  onOpenChange,
+  title,
+  list,
+  isLoading,
+  icon,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  title: string;
+  list: UserListRow[];
+  isLoading: boolean;
+  icon: React.ReactNode;
+}) {
+  const [search, setSearch] = useState("");
+  const filtered = list.filter(
+    (u) =>
+      !search ||
+      (u.full_name ?? "").toLowerCase().includes(search.toLowerCase()) ||
+      (u.email ?? "").toLowerCase().includes(search.toLowerCase()),
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {icon}
+            {title} <span className="ml-1 text-sm font-normal text-[#9CA3AF]">({list.length})</span>
+          </DialogTitle>
+        </DialogHeader>
+
+        {/* Search */}
+        <div className="relative mb-3">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" strokeWidth={1.75} />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nome ou e-mail…"
+            className="h-10 w-full rounded-xl border border-[#E5E7EB] bg-[#F6F7FB] pl-9 pr-4 text-sm outline-none focus:border-primary focus:shadow-[0_0_0_3px_rgba(79,70,229,0.10)]"
+          />
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-8"><LoadingSpinner /></div>
+        ) : filtered.length === 0 ? (
+          <p className="py-6 text-center text-sm text-[#9CA3AF]">
+            {search ? "Nenhum resultado para a busca." : "Nenhum usuário cadastrado."}
+          </p>
+        ) : (
+          <div className="max-h-[400px] overflow-y-auto divide-y divide-[#F1F2F6] rounded-xl border border-[#EEF0F4]">
+            {filtered.map((u) => (
+              <div key={u.id} className="flex items-center justify-between px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-[#0F172A]">
+                    {u.full_name || <span className="italic text-[#9CA3AF]">Sem nome</span>}
+                  </p>
+                  <p className="flex items-center gap-1 truncate text-xs text-[#6B7280]">
+                    <Mail className="h-3 w-3 shrink-0" strokeWidth={1.75} />
+                    {u.email || "—"}
+                  </p>
+                </div>
+                <span className="ml-3 shrink-0 text-xs text-[#9CA3AF]">
+                  {new Date(u.created_at).toLocaleDateString("pt-BR")}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -281,6 +393,9 @@ function TechnicalHealthSection({ data }: { data: TechnicalHealthData }) {
 
 function UserBehaviorSection({ data }: { data: UserBehaviorData }) {
   const maxModule = Math.max(...data.moduleAdoption.map((m) => m.opens), 1);
+  const allZero =
+    data.moduleAdoption.every((m) => m.opens === 0 && m.actions === 0) &&
+    data.topEvents.length === 0;
 
   return (
     <section className="mb-10">
@@ -289,6 +404,14 @@ function UserBehaviorSection({ data }: { data: UserBehaviorData }) {
         title="Comportamento dos Usuários"
         subtitle="Adoção de módulos e funis — últimos 30 dias"
       />
+
+      {allZero && (
+        <div className="mb-4 flex flex-col items-center gap-2 rounded-2xl border border-dashed border-[#E5E7EB] p-6 text-center">
+          <BarChart2 className="h-8 w-8 text-[#D1D5DB]" strokeWidth={1.5} />
+          <p className="text-sm font-medium text-[#6B7280]">Nenhum dado de uso nos últimos 30 dias.</p>
+          <p className="text-xs text-[#9CA3AF]">Os dados acumulam conforme o app for utilizado pelos usuários.</p>
+        </div>
+      )}
 
       {/* Adoção por módulo */}
       <div className="mb-4 rounded-2xl border bg-white" style={{ borderColor: "#EEF0F4" }}>
@@ -366,7 +489,15 @@ function UserBehaviorSection({ data }: { data: UserBehaviorData }) {
 
 // ─── Seção 3: Saúde do Negócio ──────────────────────────────────────────────
 
-function BusinessHealthSection({ data }: { data: BusinessHealthData }) {
+function BusinessHealthSection({
+  data,
+  onCaregiversClick,
+  onTherapistsClick,
+}: {
+  data: BusinessHealthData;
+  onCaregiversClick: () => void;
+  onTherapistsClick: () => void;
+}) {
   const stickiness =
     data.activity.mau > 0
       ? Math.round((data.activity.dau / data.activity.mau) * 100)
@@ -391,13 +522,15 @@ function BusinessHealthSection({ data }: { data: BusinessHealthData }) {
           icon={<Users className="h-4 w-4" strokeWidth={1.75} />}
           accent="#4F46E5"
           tint="#EEF1FF"
+          onClick={onCaregiversClick}
         />
         <MetricCard
           label="Profissionais"
           value={data.totals.professionals}
-          icon={<Users className="h-4 w-4" strokeWidth={1.75} />}
+          icon={<Stethoscope className="h-4 w-4" strokeWidth={1.75} />}
           accent="#16A34A"
           tint="#DCFCE7"
+          onClick={onTherapistsClick}
         />
         <MetricCard
           label="Crianças"
@@ -444,6 +577,22 @@ function BusinessHealthSection({ data }: { data: BusinessHealthData }) {
           tint="#F3E8FF"
         />
       </div>
+
+      {/* Convites pendentes */}
+      {data.links.pendingInvites > 0 && (
+        <div
+          className="mb-4 flex items-center gap-3 rounded-2xl border p-4"
+          style={{ borderColor: "#FDE68A", background: "#FFFBEB" }}
+        >
+          <Mail className="h-5 w-5 shrink-0 text-[#D97706]" strokeWidth={1.75} />
+          <div>
+            <p className="text-sm font-semibold text-[#0F172A]">
+              {data.links.pendingInvites} {data.links.pendingInvites === 1 ? "convite pendente" : "convites pendentes"} de compartilhamento
+            </p>
+            <p className="text-xs text-[#6B7280]">Aguardando aceite pelo co-cuidador</p>
+          </div>
+        </div>
+      )}
 
       {/* DAU / WAU / MAU */}
       <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
@@ -526,6 +675,10 @@ function PainelPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  // Dialog state
+  const [caregiversOpen, setCaregiversOpen] = useState(false);
+  const [therapistsOpen, setTherapistsOpen] = useState(false);
+
   // Verificação de admin: busca is_admin do perfil
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ["painel-profile", user?.id],
@@ -548,7 +701,6 @@ function PainelPage() {
     }
   }, [profile, profileLoading, navigate]);
 
-  // Dados das 3 seções — staleTime alto: métricas não precisam de refresh a cada segundo
   // Helper: obtém cabeçalhos de auth para ServerFns
   const getAuthHeaders = async () => {
     const { data } = await supabaseClient.auth.getSession();
@@ -589,6 +741,40 @@ function PainelPage() {
     retry: false,
   });
 
+  // Queries lazy — só carregam quando os dialogs são abertos
+  const { data: caregiversList = [], isLoading: caregiversLoading } = useQuery({
+    queryKey: ["admin-caregivers"],
+    queryFn: async () => {
+      const headers = await getAuthHeaders();
+      return listCaregiversServer({ headers } as any);
+    },
+    enabled: !!profile?.is_admin && caregiversOpen,
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const { data: therapistsList = [], isLoading: therapistsLoading } = useQuery({
+    queryKey: ["admin-therapists"],
+    queryFn: async () => {
+      const headers = await getAuthHeaders();
+      return listTherapistsServer({ headers } as any);
+    },
+    enabled: !!profile?.is_admin && therapistsOpen,
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const { data: diagnosticsStats = [] } = useQuery<DiagnosticStat[]>({
+    queryKey: ["admin-diagnostics-stats"],
+    queryFn: async () => {
+      const headers = await getAuthHeaders();
+      return getDiagnosticsStatsServer({ headers } as any);
+    },
+    enabled: !!profile?.is_admin,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+
   const isLoading = profileLoading || bizLoading || behaviorLoading || techLoading;
 
   const handleRefresh = () => {
@@ -610,6 +796,8 @@ function PainelPage() {
   if (!profile?.is_admin) {
     return null; // redirect em andamento
   }
+
+  const maxDiag = Math.max(...diagnosticsStats.map((d) => d.count), 1);
 
   return (
     <AppShell>
@@ -640,9 +828,67 @@ function PainelPage() {
         <>
           {techData && <TechnicalHealthSection data={techData} />}
           {behaviorData && <UserBehaviorSection data={behaviorData} />}
-          {businessData && <BusinessHealthSection data={businessData} />}
+          {businessData && (
+            <BusinessHealthSection
+              data={businessData}
+              onCaregiversClick={() => setCaregiversOpen(true)}
+              onTherapistsClick={() => setTherapistsOpen(true)}
+            />
+          )}
+
+          {/* Diagnósticos mais informados */}
+          {diagnosticsStats.length > 0 && (
+            <section className="mb-10">
+              <SectionHeader
+                icon={<Activity className="h-5 w-5 text-[#4F46E5]" strokeWidth={1.75} />}
+                title="Diagnósticos mais informados"
+                subtitle="Comorbidades registradas pelos responsáveis no onboarding"
+              />
+              <div className="rounded-2xl border bg-white" style={{ borderColor: "#EEF0F4" }}>
+                <div className="space-y-4 px-4 py-4">
+                  {diagnosticsStats.map((d) => (
+                    <div key={d.diagnosis}>
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="text-xs font-semibold capitalize text-[#374151]">
+                          {d.diagnosis.replace(/_/g, " ")}
+                        </span>
+                        <span className="text-[11px] text-[#9CA3AF]">{d.count} {d.count === 1 ? "criança" : "crianças"}</span>
+                      </div>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-[#F1F2F6]">
+                        <div
+                          className="h-2 rounded-full"
+                          style={{
+                            width: `${Math.round((d.count / maxDiag) * 100)}%`,
+                            background: "#7C3AED",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
         </>
       )}
+
+      {/* Dialogs de listagem */}
+      <UserListDialog
+        open={caregiversOpen}
+        onOpenChange={setCaregiversOpen}
+        title="Cuidadores cadastrados"
+        list={caregiversList as UserListRow[]}
+        isLoading={caregiversLoading}
+        icon={<Users className="h-4 w-4 text-[#4F46E5]" strokeWidth={1.75} />}
+      />
+      <UserListDialog
+        open={therapistsOpen}
+        onOpenChange={setTherapistsOpen}
+        title="Profissionais cadastrados"
+        list={therapistsList as UserListRow[]}
+        isLoading={therapistsLoading}
+        icon={<Stethoscope className="h-4 w-4 text-[#16A34A]" strokeWidth={1.75} />}
+      />
     </AppShell>
   );
 }
