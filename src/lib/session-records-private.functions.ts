@@ -24,6 +24,6 @@ export const getSessionRecordPrivateServer = createServerFn({ method: "POST" })
     return {
       ok: true as const,
       approachAdjustment: (rec as any).approach_adjustment as string | null,
-      professionalObservations: (rec as any).professional_observations as unknown[],
+      professionalObservations: (rec as any).professional_observations as any[],
     };
   });

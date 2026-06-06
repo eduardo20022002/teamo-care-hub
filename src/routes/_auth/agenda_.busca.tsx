@@ -114,7 +114,7 @@ function AgendaSearchPage() {
 
   const eventsQuery = useQuery({
     queryKey: ["agenda-events"],
-    queryFn: listAgendaEvents,
+    queryFn: () => listAgendaEvents(),
     enabled: !!user,
   });
 

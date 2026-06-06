@@ -158,7 +158,7 @@ function AgendaEventDetailPage() {
   // Numa fase posterior podemos ter um getAgendaEvent(id) dedicado.
   const eventsQuery = useQuery({
     queryKey: ["agenda-events"],
-    queryFn: listAgendaEvents,
+    queryFn: () => listAgendaEvents(),
     enabled: !!user,
   });
 
