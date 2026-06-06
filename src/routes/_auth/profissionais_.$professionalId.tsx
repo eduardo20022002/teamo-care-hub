@@ -71,7 +71,7 @@ function ProfessionalDetailPage() {
 
   const recordsQuery = useQuery({
     queryKey: ["attendance-records"],
-    queryFn: listAttendanceRecords,
+    queryFn: () => listAttendanceRecords(),
     enabled: !!user && tab === "historico",
   });
 

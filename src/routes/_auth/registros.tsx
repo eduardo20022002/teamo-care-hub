@@ -94,7 +94,7 @@ function RegistrosPage() {
   // Queries
   const childrenQuery = useQuery({ queryKey: ["children"], queryFn: listChildren, enabled: !!user });
   const profsQuery = useQuery({ queryKey: ["professionals"], queryFn: listProfessionals, enabled: !!user });
-  const recordsQuery = useQuery({ queryKey: ["diary-records"], queryFn: listDiaryRecords, enabled: !!user });
+  const recordsQuery = useQuery({ queryKey: ["diary-records"], queryFn: () => listDiaryRecords(), enabled: !!user });
 
   // Attachment count for delete dialog
   const attachCountQuery = useQuery({

@@ -76,7 +76,7 @@ export function ShareDialog({
 
   const recordsQuery = useQuery({
     queryKey: ["attendance"],
-    queryFn: listAttendanceRecords,
+    queryFn: () => listAttendanceRecords(),
     enabled: open,
   });
   const docsQuery = useQuery({

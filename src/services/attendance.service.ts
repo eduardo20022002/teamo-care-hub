@@ -36,12 +36,23 @@ function mapError(message: string): string {
   return "Não foi possível concluir a operação. Tente novamente.";
 }
 
-export async function listAttendanceRecords(): Promise<
-  AttendanceRecordWithRelations[]
-> {
+export async function listAttendanceRecords(opts?: {
+  from?: string;
+  to?: string;
+}): Promise<AttendanceRecordWithRelations[]> {
+  const now = new Date();
+  const from =
+    opts?.from ??
+    new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+  const to = opts?.to ?? now.toISOString().slice(0, 10);
   const { data, error } = await supabase
     .from("attendance_records")
     .select(SELECT_WITH_RELATIONS)
+    .is("record_type", null)
+    .gte("record_date", from)
+    .lte("record_date", to)
     .order("record_date", { ascending: false })
     .order("created_at", { ascending: false });
   if (error) throw new Error(mapError(error.message));
@@ -105,11 +116,23 @@ export async function deleteAttendanceRecord(id: string): Promise<void> {
 // Diário tipado do cuidador
 // ───────────────────────────────────────────────
 
-export async function listDiaryRecords(): Promise<DiaryRecordWithRelations[]> {
+export async function listDiaryRecords(opts?: {
+  from?: string;
+  to?: string;
+}): Promise<DiaryRecordWithRelations[]> {
+  const now = new Date();
+  const from =
+    opts?.from ??
+    new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+  const to = opts?.to ?? now.toISOString().slice(0, 10);
   const { data, error } = await supabase
     .from("attendance_records")
     .select(SELECT_WITH_RELATIONS)
     .not("record_type", "is", null)
+    .gte("record_date", from)
+    .lte("record_date", to)
     .order("record_date", { ascending: false })
     .order("created_at", { ascending: false });
   if (error) throw new Error(mapError(error.message));

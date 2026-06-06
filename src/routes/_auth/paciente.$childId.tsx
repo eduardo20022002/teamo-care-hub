@@ -253,7 +253,7 @@ function PatientDetailPage() {
   // Registros de acompanhamento
   const { data: allRecords, isLoading: recordsLoading } = useQuery({
     queryKey: ["attendance"],
-    queryFn: listAttendanceRecords,
+    queryFn: () => listAttendanceRecords(),
     enabled: !!user && activeTab === "records",
   });
   const records = (allRecords ?? []).filter(
