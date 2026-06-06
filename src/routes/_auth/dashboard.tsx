@@ -871,8 +871,8 @@ function DashboardPage() {
             <circle cx="150" cy="150" r="140" fill="url(#dash-blob)" />
           </svg>
           <div className="relative">
-            {!searchOpen ? (
-              <div className="flex items-start justify-between gap-3">
+            {true ? (
+              <div className="flex items-start gap-3">
                 <div className="min-w-0">
                   <div className="text-[11.5px] font-semibold" style={{ color: "#6B7280" }}>
                     {formatTodayHero()}
@@ -884,15 +884,6 @@ function DashboardPage() {
                     Olá{displayName ? `, ${displayName}` : ""}
                   </h1>
                 </div>
-                <button
-                  type="button"
-                  aria-label="Buscar no histórico"
-                  onClick={() => setSearchOpen(true)}
-                  className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white transition-shadow hover:shadow-md"
-                  style={{ boxShadow: "0 4px 12px -6px rgba(79,70,229,0.25)" }}
-                >
-                  <Search size={19} strokeWidth={1.9} color="#4F46E5" />
-                </button>
               </div>
             ) : (
               <div className="flex items-center gap-2">
