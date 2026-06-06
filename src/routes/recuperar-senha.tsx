@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,11 +18,13 @@ export const Route = createFileRoute("/recuperar-senha")({
       { name: "description", content: "Redefina sua senha do TEAmo." },
     ],
   }),
+  validateSearch: z.object({ email: z.string().optional() }).parse,
   component: RecoverPasswordPage,
 });
 
 function RecoverPasswordPage() {
-  const [email, setEmail] = useState("");
+  const { email: initialEmail } = Route.useSearch();
+  const [email, setEmail] = useState(initialEmail ?? "");
   const [emailError, setEmailError] = useState<string | undefined>();
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
@@ -56,7 +59,7 @@ function RecoverPasswordPage() {
 
   return (
     <AuthShell>
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm md:p-8">
+      <div>
         {sent ? (
           <div className="text-center space-y-4">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary-soft">

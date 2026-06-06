@@ -84,7 +84,7 @@ function ResetPasswordPage() {
   if (sessionError) {
     return (
       <AuthShell>
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm md:p-8 text-center space-y-4">
+        <div className="text-center space-y-4">
           <h1 className="text-xl font-semibold text-foreground">Link expirado</h1>
           <p className="text-sm text-muted-foreground">
             Este link de redefinição de senha expirou ou já foi utilizado.
@@ -103,7 +103,7 @@ function ResetPasswordPage() {
   if (done) {
     return (
       <AuthShell>
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm md:p-8 text-center space-y-4">
+        <div className="text-center space-y-4">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary-soft">
             <span className="text-2xl">✅</span>
           </div>
@@ -118,7 +118,7 @@ function ResetPasswordPage() {
 
   return (
     <AuthShell>
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm md:p-8">
+      <div>
         <h1 className="text-xl font-semibold text-foreground">Redefinir senha</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Escolha uma senha forte para proteger sua conta.

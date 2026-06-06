@@ -61,6 +61,7 @@ function LoginPage() {
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [emailNotConfirmed, setEmailNotConfirmed] = useState(false);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -97,10 +98,17 @@ function LoginPage() {
     const res = await signIn(parsed.data.email, parsed.data.password);
     setSubmitting(false);
     if (!res.ok) {
-      toast.error(res.error ?? "Não foi possível entrar.");
+      if (res.emailNotConfirmed) {
+        try { sessionStorage.setItem("teamo:pendingEmail", parsed.data.email); } catch { /* ok */ }
+        setEmailNotConfirmed(true);
+      } else {
+        setEmailNotConfirmed(false);
+        toast.error(res.error ?? "Não foi possível entrar.");
+      }
       if (res.rateLimitSeconds) setCooldown(res.rateLimitSeconds);
       return;
     }
+    setEmailNotConfirmed(false);
     toast.success("Bem-vindo de volta!");
     if (therapistInvite) {
       navigate({ to: "/convite-terapeuta/$token/aceitar", params: { token: therapistInvite } });
@@ -117,16 +125,11 @@ function LoginPage() {
         {/* Banner de convite */}
         {(invite || therapistInvite) && <InviteBanner />}
 
-        {/* Desktop: título caloroso / Mobile: título direto */}
         <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-foreground">
-          <span className="hidden lg:inline">
-            {invite ? "Entre para aceitar o convite" : "Que bom ter você de volta 👋"}
-          </span>
-          <span className="lg:hidden">Entrar</span>
+          {invite ? "Entre para aceitar o convite" : "Que bom ter você de volta 👋"}
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          <span className="hidden lg:inline">Entre para continuar acompanhando o cuidado da sua família.</span>
-          <span className="lg:hidden">Acesse sua conta para acompanhar o cuidado da sua família.</span>
+          Entre para continuar acompanhando o cuidado da sua família.
         </p>
 
         <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-4" noValidate>
@@ -184,6 +187,7 @@ function LoginPage() {
           <div className="flex items-center justify-end">
             <Link
               to="/recuperar-senha"
+              search={{ email }}
               rel="noreferrer"
               className="text-sm font-medium text-primary hover:underline"
             >
@@ -210,6 +214,19 @@ function LoginPage() {
               "Entrar"
             )}
           </button>
+
+          {/* Aviso de e-mail não confirmado */}
+          {emailNotConfirmed && (
+            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <span className="mt-0.5 text-base">✉️</span>
+              <p>
+                Seu e-mail ainda não foi confirmado.{" "}
+                <Link to="/verificar-conta" className="font-medium text-primary hover:underline">
+                  Verificar agora →
+                </Link>
+              </p>
+            </div>
+          )}
         </form>
 
         {/* Divisor social — só exibe se Google estiver habilitado */}

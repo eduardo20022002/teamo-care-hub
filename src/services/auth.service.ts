@@ -11,6 +11,8 @@ export interface AuthResult {
   rateLimitSeconds?: number;
   /** true quando o e-mail já tem conta (permite oferecer adicionar outro papel) */
   emailExists?: boolean;
+  /** true quando o login falhou porque o e-mail ainda não foi confirmado */
+  emailNotConfirmed?: boolean;
 }
 
 function translateAuthError(message: string): string {
@@ -151,7 +153,13 @@ export async function signIn(email: string, password: string): Promise<AuthResul
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     await logAuthEvent(null, "auth.login_failure", {});
-    return { ok: false, error: translateAuthError(error.message), rateLimitSeconds: getRateLimitSeconds(error.message) };
+    const notConfirmed = error.message.toLowerCase().includes("email not confirmed");
+    return {
+      ok: false,
+      error: translateAuthError(error.message),
+      rateLimitSeconds: getRateLimitSeconds(error.message),
+      emailNotConfirmed: notConfirmed || undefined,
+    };
   }
   await logAuthEvent(data.user?.id ?? null, "auth.login_success", {});
   return { ok: true };
