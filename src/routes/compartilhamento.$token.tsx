@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Loader2,
@@ -43,6 +43,13 @@ function PublicSharePage() {
   const [submitting, setSubmitting] = useState(false);
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
   const [validated, setValidated] = useState<ValidateOtpResponse | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
 
   const handleRequestCode = async () => {
     setPhase("loading");
@@ -85,6 +92,7 @@ function PublicSharePage() {
   };
 
   const handleResend = async () => {
+    if (resendCooldown > 0) return;
     setSubmitting(true);
     try {
       const res = await requestShareOtp(token);
@@ -93,7 +101,12 @@ function PublicSharePage() {
         setTtl(res.ttlMinutes ?? 10);
         setErrorMsg("");
         setAttemptsRemaining(null);
+        setOtp("");
+        setResendCooldown(60);
       } else {
+        if (res.error === "cooldown" && res.retryAfterSeconds) {
+          setResendCooldown(res.retryAfterSeconds);
+        }
         setErrorMsg(translateError(res.error, res.detail));
       }
     } finally {
@@ -183,10 +196,10 @@ function PublicSharePage() {
             <button
               type="button"
               onClick={handleResend}
-              disabled={submitting}
-              className="mt-3 block w-full text-center text-xs font-medium text-primary hover:underline"
+              disabled={submitting || resendCooldown > 0}
+              className="mt-3 block w-full text-center text-xs font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Reenviar código
+              {resendCooldown > 0 ? `Reenviar em ${resendCooldown}s` : "Reenviar código"}
             </button>
           </div>
         )}
@@ -283,12 +296,6 @@ function SharedContentView({ data }: { data: ValidateOtpResponse }) {
             </ul>
           </section>
         )}
-
-        <section className="rounded-xl border border-dashed border-border bg-card/50 p-4 text-center">
-          <p className="text-xs font-medium text-muted-foreground">
-            Área de resposta — disponível em breve
-          </p>
-        </section>
 
         <div className="pb-8" />
       </div>

@@ -23,6 +23,8 @@ const AuthContext = createContext<AuthContextValue>({
 
 // Dev-only bypass: set VITE_DEV_BYPASS_AUTH=true in .env.local to skip Supabase auth.
 // .env.local is gitignored — this never ships to production.
+// ATENÇÃO: NUNCA ativar VITE_DEV_BYPASS_AUTH=true em máquinas que apontam para o banco
+// de staging, pois o mock user (000...001) pode ter acesso a dados reais de staging.
 const DEV_MOCK_USER =
   import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_AUTH === "true"
     ? ({

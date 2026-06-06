@@ -57,7 +57,6 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(0);
@@ -180,19 +179,8 @@ function LoginPage() {
             )}
           </div>
 
-          {/* Lembrar + Esqueci */}
-          <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded accent-primary"
-              />
-              <span className="text-sm text-muted-foreground">
-                Lembrar de mim
-              </span>
-            </label>
+          {/* Esqueci a senha */}
+          <div className="flex items-center justify-end">
             <Link
               to="/recuperar-senha"
               rel="noreferrer"

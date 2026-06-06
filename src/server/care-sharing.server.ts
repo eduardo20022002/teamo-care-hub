@@ -1,6 +1,6 @@
 // Server-only helpers para Cuidado Compartilhado (C8).
 // Nunca importar de código cliente.
-import { randomBytes } from "crypto";
+import { randomBytes, createHash } from "crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { appBaseUrl } from "@/server/app-url";
 
@@ -9,6 +9,11 @@ import { appBaseUrl } from "@/server/app-url";
 /** Gera token seguro de 32 bytes (base64url, ~43 chars). */
 export function generateInviteToken(): string {
   return randomBytes(32).toString("base64url");
+}
+
+/** SHA-256 do raw token — armazenado no banco; o raw token vai apenas no e-mail. */
+export function hashInviteToken(rawToken: string): string {
+  return createHash("sha256").update(rawToken).digest("hex");
 }
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -21,7 +26,7 @@ export interface CareInviteRow {
   invitee_alias: string;
   relation: string;
   role: "admin" | "viewer";
-  token: string;
+  token_hash: string;
   status: "pending" | "accepted" | "approved" | "denied" | "revoked";
   accepted_by: string | null;
   accepted_at: string | null;
@@ -57,14 +62,14 @@ export interface CareInviteWithContext {
 
 // ─── Fetch helpers ────────────────────────────────────────────────────────────
 
-/** Carrega invite pelo token raw. Usado na landing pública (sem auth). */
+/** Carrega invite pelo token raw (hash calculado internamente para lookup). */
 export async function fetchInviteByToken(
-  token: string,
+  rawToken: string,
 ): Promise<CareInviteWithContext | null> {
   const { data: invite } = await (supabaseAdmin as any)
     .from("care_invites")
     .select("*")
-    .eq("token", token)
+    .eq("token_hash", hashInviteToken(rawToken))
     .maybeSingle();
 
   if (!invite) return null;

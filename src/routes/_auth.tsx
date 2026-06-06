@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-const IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutos (recomendação HIPAA/LGPD)
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutos (recomendação HIPAA/LGPD)
 const IDLE_WARN_BEFORE_MS = 60 * 1000; // avisa 1 minuto antes
 
 export const Route = createFileRoute("/_auth")({

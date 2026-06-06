@@ -25,6 +25,7 @@ import {
 } from "@/services/mfa.service";
 import { formatDateBR } from "@/lib/formatters";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_auth/configuracoes")({
   head: () => ({
@@ -99,6 +100,9 @@ function ConfiguracoesPage() {
   const [code, setCode] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [removeMfaOpen, setRemoveMfaOpen] = useState(false);
+  const [removeMfaPassword, setRemoveMfaPassword] = useState("");
+  const [removeMfaLoading, setRemoveMfaLoading] = useState(false);
 
   const verifiedTotp = factors.find((f) => f.factor_type === "totp" && f.status === "verified");
 
@@ -134,18 +138,41 @@ function ConfiguracoesPage() {
         setEnrollLoading(false);
       }
     } else {
-      // Unenroll
+      // Abre diálogo de confirmação de senha antes de desativar
       if (!verifiedTotp) return;
-      setRemoving(true);
-      try {
-        await unenroll(verifiedTotp.id);
-        toast.success("Autenticação em 2 etapas desativada.");
-        await refreshFactors();
-      } catch (e: unknown) {
-        toast.error(e instanceof Error ? e.message : "Falha ao remover 2FA.");
-      } finally {
-        setRemoving(false);
+      setRemoveMfaPassword("");
+      setRemoveMfaOpen(true);
+    }
+  };
+
+  const handleConfirmRemoveMfa = async () => {
+    if (!verifiedTotp || removeMfaPassword.length === 0) return;
+    setRemoveMfaLoading(true);
+    try {
+      // Verifica a senha antes de desativar MFA
+      const { data: userData } = await supabase.auth.getUser();
+      const email = userData.user?.email;
+      if (!email) throw new Error("Usuário não identificado.");
+
+      const { error: reAuthError } = await supabase.auth.signInWithPassword({
+        email,
+        password: removeMfaPassword,
+      });
+      if (reAuthError) {
+        toast.error("Senha incorreta. O 2FA não foi desativado.");
+        return;
       }
+
+      setRemoving(true);
+      await unenroll(verifiedTotp.id);
+      toast.success("Autenticação em 2 etapas desativada.");
+      setRemoveMfaOpen(false);
+      await refreshFactors();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Falha ao remover 2FA.");
+    } finally {
+      setRemoveMfaLoading(false);
+      setRemoving(false);
     }
   };
 
@@ -246,12 +273,12 @@ function ConfiguracoesPage() {
           <NavRow
             icon={<span className="text-xs text-muted-foreground">📋</span>}
             label="Termos de uso"
-            onClick={() => toast("Termos de uso em breve.")}
+            onClick={() => navigate({ to: "/termos" })}
           />
           <NavRow
             icon={<span className="text-xs text-muted-foreground">🔒</span>}
             label="Política de privacidade"
-            onClick={() => toast("Política de privacidade em breve.")}
+            onClick={() => navigate({ to: "/privacidade" })}
           />
           <NavRow
             icon={<span className="text-xs text-muted-foreground">💬</span>}
@@ -260,6 +287,57 @@ function ConfiguracoesPage() {
           />
         </SectionCard>
       </div>
+
+      {/* ── MFA Remove Confirmation Dialog ───────────────────────────────────── */}
+      <Dialog
+        open={removeMfaOpen}
+        onOpenChange={(open) => {
+          if (!open) setRemoveMfaPassword("");
+          setRemoveMfaOpen(open);
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Desativar autenticação em 2 etapas</DialogTitle>
+            <DialogDescription>
+              Confirme sua senha para desativar o 2FA. Isso reduz a segurança da sua conta.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="remove-mfa-password">Sua senha</Label>
+            <Input
+              id="remove-mfa-password"
+              type="password"
+              autoComplete="current-password"
+              value={removeMfaPassword}
+              onChange={(e) => setRemoveMfaPassword(e.target.value)}
+              placeholder="••••••••"
+              disabled={removeMfaLoading}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setRemoveMfaPassword("");
+                setRemoveMfaOpen(false);
+              }}
+              disabled={removeMfaLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => void handleConfirmRemoveMfa()}
+              disabled={removeMfaPassword.length === 0 || removeMfaLoading}
+            >
+              {removeMfaLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Desativar 2FA
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── MFA Enrollment Dialog ────────────────────────────────────────────── */}
       <Dialog open={!!enrolling} onOpenChange={(o) => !o && void handleCancelEnroll()}>

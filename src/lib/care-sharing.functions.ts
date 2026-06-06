@@ -8,6 +8,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { rateLimit, getClientIp } from "@/server/rate-limit";
 import {
   generateInviteToken,
+  hashInviteToken,
   fetchInviteByToken,
   createCareAccess,
   sendInviteEmail,
@@ -17,6 +18,7 @@ import {
   type CareAccessRow,
 } from "@/server/care-sharing.server";
 import { careInviteSchema } from "@/lib/validation";
+import { logger } from "@/lib/logger";
 import { appBaseUrl } from "@/server/app-url";
 
 const APP_URL = appBaseUrl;
@@ -110,7 +112,7 @@ export const sendCareInviteServer = createServerFn({ method: "POST" })
         invitee_alias: data.alias,
         relation: data.relation,
         role: data.role,
-        token,
+        token_hash: hashInviteToken(token),
         status: "pending",
         expires_at: expiresAt,
       })
@@ -137,10 +139,10 @@ export const sendCareInviteServer = createServerFn({ method: "POST" })
       });
       emailSent = emailRes.ok;
       if (!emailRes.ok) {
-        console.error("[care] invite email NOT sent:", emailRes.error);
+        logger.warn("care.invite_email_failed", { failureCode: "email_not_sent" });
       }
-    } catch (e) {
-      console.error("[care] invite email threw:", (e as Error)?.message);
+    } catch {
+      logger.error("care.invite_email_threw", { failureCode: "exception" });
     }
 
     return { ok: true as const, inviteId: (invite as CareInviteRow).id, emailSent };
@@ -190,7 +192,7 @@ export const resendCareInviteServer = createServerFn({ method: "POST" })
 
     const { error } = await (supabaseAdmin as any)
       .from("care_invites")
-      .update({ token: newToken, expires_at: newExpiry })
+      .update({ token_hash: hashInviteToken(newToken), expires_at: newExpiry })
       .eq("id", data.inviteId);
 
     if (error) throw new Response("Erro ao reenviar convite.", { status: 500 });
@@ -213,9 +215,9 @@ export const resendCareInviteServer = createServerFn({ method: "POST" })
         expiresAt: newExpiry,
       });
       emailSent = emailRes.ok;
-      if (!emailRes.ok) console.error("[care] resend email NOT sent:", emailRes.error);
-    } catch (e) {
-      console.error("[care] resend email threw:", (e as Error)?.message);
+      if (!emailRes.ok) logger.warn("care.resend_email_failed", { failureCode: "email_not_sent" });
+    } catch {
+      logger.error("care.resend_email_threw", { failureCode: "exception" });
     }
 
     return { ok: true as const, emailSent };
@@ -361,11 +363,11 @@ export const listCareInvitesServer = createServerFn({ method: "POST" })
     // Não engolir erro da query de convites: se falhar, a lista apareceria
     // silenciosamente vazia (bug difícil de diagnosticar). Falhar explicitamente.
     if (invitesRes.error) {
-      console.error("[care] listCareInvites invites query error:", invitesRes.error.message);
+      logger.error("care.list_invites_query_failed", { failureCode: "db_error" });
       throw new Response("Erro ao carregar convites.", { status: 500 });
     }
     if (accessRes.error) {
-      console.error("[care] listCareInvites access query error:", accessRes.error.message);
+      logger.error("care.list_access_query_failed", { failureCode: "db_error" });
       throw new Response("Erro ao carregar acessos.", { status: 500 });
     }
 

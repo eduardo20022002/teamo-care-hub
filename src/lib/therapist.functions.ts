@@ -8,6 +8,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { rateLimit, getClientIp } from "@/server/rate-limit";
 import {
   generateTherapistInviteToken,
+  hashTherapistInviteToken,
   fetchTherapistInviteByToken,
   createTherapistParentAccess,
   sendTherapistInviteEmail,
@@ -189,7 +190,7 @@ export const sendTherapistInviteServer = createServerFn({ method: "POST" })
         invitee_email: data.inviteeEmail.toLowerCase(),
         invitee_alias: data.alias,
         relation:      data.relation,
-        token,
+        token_hash:    hashTherapistInviteToken(token),
         status:        "pending",
         expires_at:    expiresAt.toISOString(),
       })
@@ -807,10 +808,12 @@ export const getSessionRecordServer = createServerFn({ method: "POST" })
     if (evErr || !event) throw new Response("Evento não encontrado.", { status: 404 });
     if ((event as any).therapist_id !== userId) throw new Response("Sem permissão.", { status: 403 });
 
-    // Busca registro existente (pode não existir — rascunho em andamento)
+    // Busca registro existente (pode não existir — rascunho em andamento).
+    // approach_adjustment e professional_observations estão revogados de authenticated
+    // (migration 20260607200000) e são servidos separadamente via getSessionRecordPrivateServer.
     const { data: sessionRecord } = await (supabaseAdmin as any)
       .from("session_records")
-      .select("*")
+      .select("id, event_id, therapist_id, child_id, goals_achieved, what_was_done, engagement_level, clinical_observations, notable_behaviors, is_private, family_instruction, frequency_suggestion, points_to_continue, next_session_event_id, is_draft, published_at, created_at, updated_at")
       .eq("event_id", data.eventId)
       .maybeSingle();
 

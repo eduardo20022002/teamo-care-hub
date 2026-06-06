@@ -33,6 +33,15 @@ const UUID_REGEX = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 // Tokens longos em base64url/hex (sem hífen para não capturar UUIDs)
 const TOKEN_REGEX = /\b[A-Za-z0-9_]{32,}\b/g;
 
+// Chaves cujos valores são sempre redatados, independente do conteúdo.
+// Cobre nomes de pessoas (crianças, responsáveis, terapeutas) que não têm
+// padrão detectável por regex mas são PHI sob a LGPD.
+const SENSITIVE_KEY_NAMES = new Set([
+  "name", "fullname", "full_name", "displayname", "display_name",
+  "childname", "child_name", "patientname", "patient_name",
+  "therapistname", "therapist_name", "alias", "inviteealias",
+]);
+
 function sanitize(value: unknown): unknown {
   if (typeof value === "string") {
     return value
@@ -46,8 +55,11 @@ function sanitize(value: unknown): unknown {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value)) {
+      // Chaves de nomes próprios: sempre redatar, independente do valor.
+      if (SENSITIVE_KEY_NAMES.has(k.toLowerCase())) {
+        out[k] = "[NAME_REDACTED]";
       // Allow known safe keys through without redaction (UUIDs, enums, counters)
-      if (
+      } else if (
         k === "ref" ||
         k === "userId" ||
         k === "shareId" ||

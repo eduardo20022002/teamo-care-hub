@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-const ACTIVITY_EVENTS = ["mousemove", "keydown", "touchstart", "click"] as const;
+const ACTIVITY_EVENTS = ["mousemove", "keydown", "touchstart", "click", "scroll", "wheel"] as const;
 
 export interface IdleTimeoutOptions {
   /**

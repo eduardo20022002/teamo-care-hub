@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Bell, Heart, Menu, Stethoscope } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { NotificationsDrawer } from "@/components/agenda/NotificationsDrawer";
 import { FeedbackButton } from "@/components/feedback/FeedbackButton";
@@ -48,7 +48,7 @@ export function AppShell({
   const [notifOpen, setNotifOpen] = useState(false);
 
   // Inicializa coleta de Web Vitals uma vez por sessão (idempotente)
-  if (typeof window !== "undefined") initWebVitals();
+  useEffect(() => { initWebVitals(); }, []);
   const notifications = useAgendaNotifications();
   const markRead = useMarkNotificationsRead();
   const hasUnread = notifications.some((n) => n.unread);

@@ -7,6 +7,7 @@ export interface RequestOtpResponse {
   ttlMinutes?: number;
   error?: string;
   detail?: string;
+  retryAfterSeconds?: number;
 }
 
 export interface SharedRecord {

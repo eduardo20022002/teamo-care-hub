@@ -140,11 +140,26 @@ export function verifyShareJwt(token: string): ShareJwtPayload | null {
 
 // ---------- Audit ----------
 
+const SHARING_EVENT_TYPES = new Set([
+  "share.created",
+  "share.revoked",
+  "share.renewed",
+  "share.otp_requested",
+  "share.otp_failed",
+  "share.otp_succeeded",
+  "share.access_denied_revoked",
+  "share.access_denied_expired",
+  "share.document_downloaded",
+] as const);
+
+export type SharingEventType = typeof SHARING_EVENT_TYPES extends Set<infer T> ? T : never;
+
 export async function logShareEvent(
   userId: string | null,
-  eventType: string,
+  eventType: SharingEventType,
   metadata: Record<string, unknown>,
 ): Promise<void> {
+  if (!SHARING_EVENT_TYPES.has(eventType)) return;
   try {
     const safe = { ...metadata };
     delete (safe as Record<string, unknown>).otp;
@@ -279,21 +294,6 @@ export function deriveStatus(share: ShareRow, now: Date = new Date()): ShareStat
   return "active";
 }
 
-export async function fetchShareByToken(rawToken: string): Promise<ShareRow | null> {
-  const tokenHash = hashShareToken(rawToken);
-  const { data } = await (supabaseAdmin.from(TABLES.shares) as any)
-    .select("*")
-    .eq("token", tokenHash)
-    .maybeSingle();
-  return (data as ShareRow | null) ?? null;
-}
-
-/**
- * Look up a share by link_token (the URL-safe token stored in the link_token column).
- * For shares created after the link_token column was added, link_token = rawToken (the
- * original secret). For older shares backfilled with gen_random_uuid(), link_token is a UUID.
- * Either way, the public share URL carries this value and we query directly — no hashing.
- */
 export async function fetchShareByLinkToken(linkToken: string): Promise<ShareRow | null> {
   const { data } = await (supabaseAdmin.from(TABLES.shares) as any)
     .select("*")

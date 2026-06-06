@@ -114,7 +114,7 @@ function PerfilPage() {
   const [editValue, setEditValue] = useState("");
   const [addChildOpen, setAddChildOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
   const [deleting, setDeleting] = useState(false);
 
   // ── Queries ────────────────────────────────────────────────────────────────
@@ -476,48 +476,64 @@ function PerfilPage() {
       />
 
       {/* ── Delete account dialog ────────────────────────────────────────────── */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <Dialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) setDeletePassword("");
+          setDeleteDialogOpen(open);
+        }}
+      >
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-destructive">Excluir conta</DialogTitle>
             <DialogDescription>
-              Esta ação é irreversível. Todos os seus dados serão permanentemente removidos. Digite{" "}
-              <strong>EXCLUIR</strong> para confirmar.
+              Esta ação é irreversível. Todos os seus dados serão permanentemente removidos.
+              Confirme sua senha para prosseguir.
             </DialogDescription>
           </DialogHeader>
-          <Input
-            value={deleteConfirm}
-            onChange={(e) => setDeleteConfirm(e.target.value)}
-            placeholder="EXCLUIR"
-            className="font-mono"
-          />
+          <div className="space-y-1.5">
+            <Label htmlFor="delete-password">Sua senha</Label>
+            <Input
+              id="delete-password"
+              type="password"
+              autoComplete="current-password"
+              value={deletePassword}
+              onChange={(e) => setDeletePassword(e.target.value)}
+              placeholder="••••••••"
+              disabled={deleting}
+            />
+          </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setDeleteDialogOpen(false)}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setDeletePassword("");
+                setDeleteDialogOpen(false);
+              }}
+            >
               Cancelar
             </Button>
             <Button
               variant="destructive"
-              disabled={deleteConfirm !== "EXCLUIR" || deleting}
+              disabled={deletePassword.length === 0 || deleting}
               onClick={async () => {
                 setDeleting(true);
                 try {
-                  // 1. Obtém token ANTES de qualquer signOut
                   const { data: sessionData } = await supabase.auth.getSession();
                   const token = sessionData.session?.access_token;
                   const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
 
-                  // 2. Exclui a conta no servidor (cascade apaga todos os dados)
-                  //    DEVE vir antes do signOut para que o token ainda seja válido
-                  await deleteAccountFn({ headers });
+                  await deleteAccountFn({ data: { password: deletePassword }, headers });
 
-                  // 3. Faz logout local após a exclusão bem-sucedida
                   await signOut("manual");
-
                   setDeleteDialogOpen(false);
                   toast.success("Conta excluída com sucesso.");
                   navigate({ to: "/login" });
-                } catch {
-                  toast.error("Não foi possível excluir a conta. Tente novamente.");
+                } catch (err: unknown) {
+                  const msg = err instanceof Response
+                    ? await err.text()
+                    : "Não foi possível excluir a conta. Verifique sua senha e tente novamente.";
+                  toast.error(msg);
                   setDeleting(false);
                 }
               }}

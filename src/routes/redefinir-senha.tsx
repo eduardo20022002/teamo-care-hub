@@ -50,7 +50,7 @@ function ResetPasswordPage() {
     if (sessionReady) return;
     const timer = setTimeout(() => {
       setSessionError(true);
-    }, 12_000);
+    }, 30_000);
     return () => clearTimeout(timer);
   }, [sessionReady]);
 

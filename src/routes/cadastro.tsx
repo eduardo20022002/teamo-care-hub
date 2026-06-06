@@ -390,13 +390,23 @@ function SignupPage() {
               </span>
               <span className="text-sm leading-snug text-muted-foreground">
                 Concordo com os{" "}
-                <a href="#" className="font-semibold text-primary hover:underline" onClick={(e) => e.preventDefault()}>
+                <Link
+                  to="/termos"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-primary hover:underline"
+                >
                   Termos de Uso
-                </a>{" "}
+                </Link>{" "}
                 e a{" "}
-                <a href="#" className="font-semibold text-primary hover:underline" onClick={(e) => e.preventDefault()}>
+                <Link
+                  to="/privacidade"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-primary hover:underline"
+                >
                   Política de Privacidade
-                </a>
+                </Link>
                 .
               </span>
             </label>

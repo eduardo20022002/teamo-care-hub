@@ -34,6 +34,7 @@ import {
   listPatientParentSummariesServer,
   markMilestoneCelebratedServer,
 } from "@/lib/therapist.functions";
+import { getSessionRecordPrivateServer } from "@/lib/session-records-private.functions";
 import type {
   TherapistProfileInput,
   TherapistInviteInput,
@@ -320,6 +321,27 @@ export function useGetSessionRecord(eventId: string | undefined) {
     queryFn: async () => {
       const h = await authHeaders();
       return fn({ data: { eventId: eventId! }, headers: h }) as Promise<SessionRecordQueryData>;
+    },
+    enabled: !!eventId,
+    staleTime: 30_000,
+  });
+}
+
+export interface SessionRecordPrivateData {
+  ok: boolean;
+  approachAdjustment?: string | null;
+  professionalObservations?: unknown[];
+}
+
+/** Busca apenas os campos privados de session_records (revogados de authenticated).
+ *  Usa supabaseAdmin com verificação de therapist_id = userId. */
+export function useGetSessionRecordPrivate(eventId: string | undefined) {
+  const fn = useServerFn(getSessionRecordPrivateServer);
+  return useQuery<SessionRecordPrivateData>({
+    queryKey: ["session-record-private", eventId],
+    queryFn: async () => {
+      const h = await authHeaders();
+      return fn({ data: { eventId: eventId! }, headers: h }) as Promise<SessionRecordPrivateData>;
     },
     enabled: !!eventId,
     staleTime: 30_000,

@@ -114,7 +114,7 @@ function TherapistPacientesPage() {
       for (const p of addedPatients) {
         const hasEmail = p.guardians.some((g) => g.email);
         if (hasEmail) hasEmails = true;
-        await createPatient.mutateAsync({ name: p.name, guardians: p.guardians });
+        await createPatient.mutateAsync({ name: p.name, guardians: p.guardians, diagnoses: [] });
       }
 
       // Guarda estado para a tela de conclusão

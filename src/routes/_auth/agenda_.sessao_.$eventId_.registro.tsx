@@ -10,6 +10,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import {
   useSaveSessionRecord,
   useGetSessionRecord,
+  useGetSessionRecordPrivate,
   type UpcomingSession,
 } from "@/services/therapist.service";
 import { useAllGoalsForChild } from "@/services/milestones.service";
@@ -283,6 +284,7 @@ function SessionRecordPage() {
   const { eventId } = Route.useParams();
   const saveRecord = useSaveSessionRecord();
   const { data, isLoading } = useGetSessionRecord(eventId);
+  const privateQuery = useGetSessionRecordPrivate(eventId);
 
   // ─── Estado dos 4 blocos ──────────────────────────────────────────────────
   // Bloco 1
@@ -321,10 +323,14 @@ function SessionRecordPage() {
     );
   const selectedNextSession = upcomingSessions.find((s) => s.id === nextSessionEventId);
 
-  // Pré-preenche dados existentes (rascunho)
+  // Pré-preenche dados existentes (rascunho).
+  // Aguarda tanto os dados gerais quanto os campos privados (approach_adjustment,
+  // professional_observations) que chegam via getSessionRecordPrivateServer.
   useEffect(() => {
-    if (!data || initialized) return;
+    if (!data || !privateQuery.isSuccess || initialized) return;
     setInitialized(true);
+
+    const privateRec = privateQuery.data?.ok ? privateQuery.data : null;
 
     // Objetivos específicos do plano (fallback: objetivo geral quebrado por linhas)
     const plan = event?.session_plan ?? {};
@@ -362,7 +368,7 @@ function SessionRecordPage() {
         (existing.notable_behaviors ?? []).map((b: any) => ({ id: crypto.randomUUID(), ...b }))
       );
       setProfObservations(
-        (existing.professional_observations ?? []).map((p: any) => ({
+        ((privateRec?.professionalObservations ?? []) as any[]).map((p: any) => ({
           id: crypto.randomUUID(),
           professionalName: p.professional_name ?? p.professionalName ?? "",
           notes: p.notes ?? "",
@@ -372,7 +378,7 @@ function SessionRecordPage() {
       setFamilyInstruction(existing.family_instruction ?? "");
       setFrequencySuggestion(existing.frequency_suggestion ?? "");
       setPointsToContinue(existing.points_to_continue ?? "");
-      setApproachAdjustment(existing.approach_adjustment ?? "");
+      setApproachAdjustment(privateRec?.approachAdjustment ?? "");
       setNextSessionEventId(existing.next_session_event_id ?? undefined);
     } else {
       // Cria checklist inicial a partir dos objetivos específicos do plano
@@ -398,7 +404,7 @@ function SessionRecordPage() {
       // Pré-preenche pontos a continuar se houver sessão anterior
       if (prevPoints) setPointsToContinue(prevPoints);
     }
-  }, [data, initialized, event, existing]);
+  }, [data, privateQuery.isSuccess, initialized, event, existing]);
 
   const addBehavior = () =>
     setNotableBehaviors((prev) => [

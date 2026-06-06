@@ -9,6 +9,7 @@ const ALLOWED_EVENTS = [
   "auth.login_success",
   "auth.logout",
   "auth.session_expired",
+  "auth.password_changed",
 ] as const;
 
 const logAuthEventSchema = z.object({

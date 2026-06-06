@@ -1,6 +1,6 @@
 // Server-only helpers para o módulo de Terapeutas (Phase 1).
 // Nunca importar de código cliente.
-import { randomBytes } from "crypto";
+import { randomBytes, createHash } from "crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { appBaseUrl } from "@/server/app-url";
 
@@ -9,6 +9,11 @@ import { appBaseUrl } from "@/server/app-url";
 /** Gera token seguro de 32 bytes (base64url, ~43 chars). */
 export function generateTherapistInviteToken(): string {
   return randomBytes(32).toString("base64url");
+}
+
+/** SHA-256 do raw token — armazenado no banco; o raw token vai apenas no e-mail. */
+export function hashTherapistInviteToken(rawToken: string): string {
+  return createHash("sha256").update(rawToken).digest("hex");
 }
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -20,7 +25,7 @@ export interface TherapistInviteRow {
   invitee_email: string;
   invitee_alias: string;
   relation: string;
-  token: string;
+  token_hash: string;
   status: "pending" | "accepted" | "revoked";
   accepted_by: string | null;
   accepted_at: string | null;
@@ -54,14 +59,14 @@ export interface TherapistInviteWithContext {
 
 // ─── Fetch helpers ────────────────────────────────────────────────────────────
 
-/** Carrega invite pelo token (sem auth — usa supabaseAdmin). */
+/** Carrega invite pelo token raw (hash calculado internamente para lookup). */
 export async function fetchTherapistInviteByToken(
-  token: string,
+  rawToken: string,
 ): Promise<TherapistInviteWithContext | null> {
   const { data: invite } = await (supabaseAdmin as any)
     .from("therapist_invites")
     .select("*")
-    .eq("token", token)
+    .eq("token_hash", hashTherapistInviteToken(rawToken))
     .maybeSingle();
 
   if (!invite) return null;
