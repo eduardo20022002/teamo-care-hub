@@ -190,11 +190,16 @@ function mapError(message: string): string {
 const SELECT_WITH_RELATIONS =
   "*, child:children(id, name), professional:professionals(id, name)";
 
-export async function listAgendaEvents(): Promise<AgendaEventWithRelations[]> {
+export async function listAgendaEvents(opts?: { from?: string; to?: string }): Promise<AgendaEventWithRelations[]> {
   if (DEV_BYPASS) return MOCK_EVENTS;
+  const now = new Date();
+  const from = opts?.from ?? new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000).toISOString();
+  const to   = opts?.to   ?? new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from("agenda_events")
     .select(SELECT_WITH_RELATIONS)
+    .gte("start_at", from)
+    .lte("start_at", to)
     .order("start_at", { ascending: true });
   if (error) throw new Error(mapError(error.message));
   return (data ?? []) as unknown as AgendaEventWithRelations[];
@@ -345,6 +350,15 @@ export async function createTherapistSession(
   if (DEV_BYPASS) {
     throw new Error("Modo preview: operação indisponível.");
   }
+
+  // Verifica que o paciente pertence a este terapeuta antes de criar sessões
+  const { data: childCheck } = await supabase
+    .from("children")
+    .select("id")
+    .eq("id", input.childId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!childCheck) throw new Error("Paciente não encontrado ou sem permissão.");
 
   const startAt = combineDateTime(input.date, input.startTime);
   const startDateObj = new Date(startAt);

@@ -499,7 +499,6 @@ export const getCareInviteContextServer = createServerFn({ method: "POST" })
       childName: ctx.childName,
       childBirthDate: ctx.childBirthDate,
       inviteeAlias: invite.invitee_alias,
-      inviteeEmail: invite.invitee_email,
       role: invite.role,
       expiresAt: invite.expires_at,
     };

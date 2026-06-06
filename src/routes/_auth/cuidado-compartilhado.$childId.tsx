@@ -40,7 +40,7 @@ interface CareInviteRow {
   invitee_alias: string;
   relation: string;
   role: "admin" | "viewer";
-  token: string;
+  token_hash: string;
   status: "pending" | "accepted" | "approved" | "denied" | "revoked";
   accepted_by: string | null;
   accepted_at: string | null;

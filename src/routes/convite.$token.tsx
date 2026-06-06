@@ -27,7 +27,6 @@ type InviteContext =
       childName: string;
       childBirthDate: string;
       inviteeAlias: string;
-      inviteeEmail: string;
       role: "admin" | "viewer";
       expiresAt: string;
     };
