@@ -158,7 +158,7 @@ function PerfilPage() {
   });
 
   const addChildMutation = useMutation({
-    mutationFn: (data: { name: string; birth_date: string }) => createChild(user!.id, data),
+    mutationFn: (data: { name: string; birth_date: string }) => createChild(user!.id, { ...data, diagnoses: [] }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["children-counts"] });
       void qc.invalidateQueries({ queryKey: ["children"] });

@@ -70,6 +70,7 @@ function OnboardingPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
 
   // Redireciona terapeutas para o onboarding correto
   useEffect(() => {
@@ -91,10 +92,12 @@ function OnboardingPage() {
 
   const createMutation = useMutation({
     mutationFn: (input: ChildInput) => createChild(user!.id, input),
-    onSuccess: () => {
+    onSuccess: (child) => {
       toast.success("Criança cadastrada.");
       qc.invalidateQueries({ queryKey: ["children"] });
       setSheetOpen(false);
+      setLastAddedId(child.id);
+      setTimeout(() => setLastAddedId(null), 2500);
     },
     onError: (e: Error) =>
       toast.error(e.message || "Não foi possível cadastrar agora."),
@@ -169,6 +172,7 @@ function OnboardingPage() {
                   <ChildCard
                     child={child}
                     variant="row"
+                    highlighted={lastAddedId === child.id}
                     onDelete={() => deleteMutation.mutate(child.id)}
                   />
                 </li>
@@ -248,48 +252,49 @@ function OnboardingPage() {
               </div>
             </section>
 
-            {/* PREVIEW — o que você poderá fazer */}
-            <div className="mt-7 mb-2.5 px-1">
-              <div
-                className="text-[11px] font-bold uppercase tracking-[0.08em]"
-                style={{ color: "#9CA3AF" }}
-              >
-                O que você poderá fazer
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2 opacity-[0.85]">
-              {PREVIEW_FEATURES.map(({ icon: Icon, title, desc, tint, color }) => (
-                <div
-                  key={title}
-                  className="flex items-center gap-3 rounded-[14px] border bg-white px-3.5 py-3"
-                  style={{ borderColor: "#EEF0F4" }}
-                >
-                  <div
-                    className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px]"
-                    style={{ background: tint }}
-                  >
-                    <Icon size={18} strokeWidth={1.6} color={color} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div
-                      className="text-sm font-bold"
-                      style={{ color: "#0F172A", letterSpacing: "-0.01em" }}
-                    >
-                      {title}
-                    </div>
-                    <div
-                      className="mt-0.5 text-xs leading-snug"
-                      style={{ color: "#6B7280" }}
-                    >
-                      {desc}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
           </>
         )}
+
+        {/* PREVIEW — o que você poderá fazer (sempre visível) */}
+        <div className="mt-7 mb-2.5 px-1">
+          <div
+            className="text-[11px] font-bold uppercase tracking-[0.08em]"
+            style={{ color: "#9CA3AF" }}
+          >
+            O que você poderá fazer
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 opacity-[0.85]">
+          {PREVIEW_FEATURES.map(({ icon: Icon, title, desc, tint, color }) => (
+            <div
+              key={title}
+              className="flex items-center gap-3 rounded-[14px] border bg-white px-3.5 py-3"
+              style={{ borderColor: "#EEF0F4" }}
+            >
+              <div
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px]"
+                style={{ background: tint }}
+              >
+                <Icon size={18} strokeWidth={1.6} color={color} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div
+                  className="text-sm font-bold"
+                  style={{ color: "#0F172A", letterSpacing: "-0.01em" }}
+                >
+                  {title}
+                </div>
+                <div
+                  className="mt-0.5 text-xs leading-snug"
+                  style={{ color: "#6B7280" }}
+                >
+                  {desc}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <ChildFormSheet

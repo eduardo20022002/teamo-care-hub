@@ -35,6 +35,9 @@ export async function createChild(
     user_id: userId,
     name: input.name.trim(),
     birth_date: input.birth_date,
+    diagnoses: input.diagnoses ?? [],
+    relation: input.relation ?? null,
+    created_by_type: "parent",
   };
   const { data, error } = await supabase
     .from("children")

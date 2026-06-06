@@ -50,6 +50,8 @@ export const childSchema = z.object({
       const d = new Date(v);
       return !Number.isNaN(d.getTime()) && d <= new Date();
     }, "Data de nascimento inválida."),
+  diagnoses: z.array(z.string().max(80)).default([]),
+  relation: z.string().optional(),
 });
 
 export type ChildInput = z.infer<typeof childSchema>;

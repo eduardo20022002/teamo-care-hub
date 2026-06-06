@@ -10,14 +10,15 @@ interface Props {
   onDelete?: (child: Child) => void;
   onQuickRegister?: (child: Child) => void;
   variant?: "row" | "card";
+  highlighted?: boolean;
 }
 
-export function ChildCard({ child, onDelete, onQuickRegister, variant = "card" }: Props) {
+export function ChildCard({ child, onDelete, onQuickRegister, variant = "card", highlighted }: Props) {
   const [docsOpen, setDocsOpen] = useState(false);
 
   if (variant === "row") {
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+      <div className={`flex items-center gap-3 rounded-xl border bg-card p-3 transition-all duration-500 ${highlighted ? "border-primary ring-2 ring-primary/30" : "border-border"}`}>
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-soft text-sm font-semibold text-primary">
           {getInitial(child.name)}
         </div>
