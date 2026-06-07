@@ -23,17 +23,14 @@ import {
   X,
 } from "lucide-react";
 import { useAgendaNotifications, useMarkNotificationsRead } from "@/hooks/useAgendaNotifications";
-import { uploadRecordAttachment } from "@/services/attachments.service";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { ChildFormSheet } from "@/components/children/ChildFormSheet";
 import { ChildDocumentsDialog } from "@/components/attachments/ChildDocumentsDialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AttendanceFormDialog } from "@/components/attendance/AttendanceFormDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { createChild, listChildren } from "@/services/children.service";
-import { listProfessionals } from "@/services/professionals.service";
-import { createAttendanceRecord } from "@/services/attendance.service";
 import { getProfile } from "@/services/profile.service";
 import { usePatients, useMyTherapistAccesses } from "@/services/therapist.service";
 import { getRole } from "@/lib/roles";
@@ -43,7 +40,7 @@ import {
   formatTodayHero,
   getInitial,
 } from "@/lib/formatters";
-import type { ChildInput, AttendanceRecordInput } from "@/lib/validation";
+import type { ChildInput } from "@/lib/validation";
 import type { Child } from "@/types/database";
 import { listMyCareAccessServer } from "@/lib/care-sharing.functions";
 import { supabase as supabaseClient } from "@/integrations/supabase/client";
@@ -337,9 +334,11 @@ const TEAL_BORDER = "#CCFBF1";
 function SharedChildCard({
   access,
   onNavigate,
+  onAgenda,
 }: {
   access: { id: string; child: { id: string; name: string; birth_date: string }; owner: any; role: "admin" | "viewer"; alias: string };
   onNavigate: (childId: string) => void;
+  onAgenda: (childId: string) => void;
 }) {
   const child = access.child;
   const ownerName = access.owner?.raw_user_meta_data?.display_name ||
@@ -396,7 +395,7 @@ function SharedChildCard({
         </button>
         <button
           type="button"
-          onClick={() => onNavigate(access.child.id)}
+          onClick={() => onAgenda(access.child.id)}
           className="flex-1 h-9 rounded-lg text-xs font-semibold border flex items-center justify-center"
           style={{ borderColor: TEAL_CARE, color: TEAL_CARE }}
         >
@@ -537,12 +536,11 @@ function DashboardPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [childDialogOpen, setChildDialogOpen] = useState(false);
-  const [attendanceOpen, setAttendanceOpen] = useState(false);
-  const [quickChildId, setQuickChildId] = useState<string | undefined>();
   const [docsChild, setDocsChild] = useState<Child | null>(null);
   const [revokedAccess, setRevokedAccess] = useState<{ childName: string } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+  const [sharePickerOpen, setSharePickerOpen] = useState(false);
   const realtimeRef = useRef<ReturnType<typeof supabaseClient.channel> | null>(null);
 
   // Notificações / novidades não vistas
@@ -601,12 +599,6 @@ function DashboardPage() {
   });
   const careAccesses = careAccessQuery.data?.accesses ?? [];
 
-  const professionalsQuery = useQuery({
-    queryKey: ["professionals"],
-    queryFn: listProfessionals,
-    enabled: !!user,
-  });
-
   // Realtime: detecta revogação de acesso de co-cuidador em tempo real
   useEffect(() => {
     if (!user || careAccesses.length === 0) return;
@@ -661,43 +653,6 @@ function DashboardPage() {
     onError: (e: Error) => toast.error(e.message || "Não foi possível cadastrar."),
   });
 
-  const createAttendanceMutation = useMutation({
-    mutationFn: async (vars: {
-      input: AttendanceRecordInput;
-      pendingFiles?: File[];
-    }) => {
-      const record = await createAttendanceRecord(user!.id, vars.input);
-      const files = vars.pendingFiles ?? [];
-      let success = 0;
-      const failed: string[] = [];
-      for (const file of files) {
-        try {
-          await uploadRecordAttachment(user!.id, record.id, file);
-          success++;
-        } catch (e) {
-          failed.push(`${file.name}: ${(e as Error).message}`);
-        }
-      }
-      return { record, attachmentSuccess: success, attachmentFailed: failed };
-    },
-    onSuccess: ({ attachmentSuccess, attachmentFailed }) => {
-      toast.success("Registro criado.");
-      if (attachmentSuccess > 0) {
-        toast.success(
-          attachmentSuccess === 1
-            ? "Anexo enviado."
-            : `${attachmentSuccess} anexos enviados.`,
-        );
-      }
-      for (const msg of attachmentFailed) toast.error(msg);
-      qc.invalidateQueries({ queryKey: ["attendance"] });
-      qc.invalidateQueries({ queryKey: ["documents-all"] });
-      setAttendanceOpen(false);
-      setQuickChildId(undefined);
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   // Mostra skeleton enquanto carrega tipo de usuário
   if (isLoading || profileQuery.isLoading) {
     return (
@@ -709,7 +664,7 @@ function DashboardPage() {
 
   const displayName = getDisplayName(user);
   const handleQuickRegister = (child: Child) => {
-    void navigate({ to: "/registros" as const, href: `/registros?new=1&childId=${child.id}` });
+    void navigate({ to: "/registros", search: { new: "1", childId: child.id } });
   };
 
   // ─── DASHBOARD DO TERAPEUTA ───────────────────────────────────────────────────
@@ -865,8 +820,8 @@ function DashboardPage() {
             <circle cx="150" cy="150" r="140" fill="url(#dash-blob)" />
           </svg>
           <div className="relative">
-            {true ? (
-              <div className="flex items-start gap-3">
+            {!searchOpen ? (
+              <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-[11.5px] font-semibold" style={{ color: "#6B7280" }}>
                     {formatTodayHero()}
@@ -878,6 +833,15 @@ function DashboardPage() {
                     Olá{displayName ? `, ${displayName}` : ""}
                   </h1>
                 </div>
+                <button
+                  type="button"
+                  aria-label="Buscar no histórico"
+                  onClick={() => setSearchOpen(true)}
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white/70 transition-colors hover:bg-white"
+                  style={{ boxShadow: "0 2px 8px -4px rgba(79,70,229,0.25)" }}
+                >
+                  <Search size={18} strokeWidth={1.9} color="#4F46E5" />
+                </button>
               </div>
             ) : (
               <div className="flex items-center gap-2">
@@ -993,6 +957,7 @@ function DashboardPage() {
                   key={a.id}
                   access={a}
                   onNavigate={() => navigate({ to: "/registros" })}
+                  onAgenda={() => navigate({ to: "/agenda" })}
                 />
               ))}
             </div>
@@ -1058,8 +1023,8 @@ function DashboardPage() {
                 </div>
               </button>
             ))}
-            {/* Tile: Meu Terapeuta (apenas para pais) */}
-            {!isTherapist && (
+            {/* Tile: Meu Terapeuta — só quando há acompanhamento ativo */}
+            {!isTherapist && therapistAccesses.length > 0 && (
               <button
                 type="button"
                 onClick={() => navigate({ to: "/meu-terapeuta" as any })}
@@ -1087,7 +1052,14 @@ function DashboardPage() {
             {(children ?? []).length > 0 && (
               <button
                 type="button"
-                onClick={() => navigate({ to: "/cuidado-compartilhado/$childId", params: { childId: children![0]!.id } })}
+                onClick={() => {
+                  const list = children ?? [];
+                  if (list.length === 1) {
+                    navigate({ to: "/cuidado-compartilhado/$childId", params: { childId: list[0]!.id } });
+                  } else {
+                    setSharePickerOpen(true);
+                  }
+                }}
                 className="flex flex-col gap-3 rounded-[18px] border bg-white p-4 text-left transition-shadow hover:shadow-md"
                 style={{ borderColor: "#EEF0F4", boxShadow: "0 1px 2px rgba(15,23,42,0.03)" }}
               >
@@ -1180,20 +1152,40 @@ function DashboardPage() {
         submitting={createChildMutation.isPending}
       />
 
-      <AttendanceFormDialog
-        open={attendanceOpen}
-        onOpenChange={(o) => {
-          setAttendanceOpen(o);
-          if (!o) setQuickChildId(undefined);
-        }}
-        onSubmit={async (data, pendingFiles) => {
-          await createAttendanceMutation.mutateAsync({ input: data, pendingFiles });
-        }}
-        submitting={createAttendanceMutation.isPending}
-        childrenList={children ?? []}
-        professionals={professionalsQuery.data ?? []}
-        defaultChildId={quickChildId}
-      />
+      {/* Seletor de criança para Cuidado Compartilhado (quando há 2+ filhos) */}
+      <Dialog open={sharePickerOpen} onOpenChange={setSharePickerOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Compartilhar cuidado de qual criança?</DialogTitle>
+          </DialogHeader>
+          <div className="mt-1 flex flex-col gap-2">
+            {(children ?? []).map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => {
+                  setSharePickerOpen(false);
+                  navigate({ to: "/cuidado-compartilhado/$childId", params: { childId: c.id } });
+                }}
+                className="flex items-center gap-3 rounded-xl border p-3 text-left transition-colors hover:bg-[#F0FDFA]"
+                style={{ borderColor: "#EEF0F4" }}
+              >
+                <div
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-[16px] font-extrabold"
+                  style={{ background: TEAL_BORDER, color: TEAL_CARE }}
+                >
+                  {getInitial(c.name)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold" style={{ color: "#0F172A" }}>{c.name}</p>
+                  <p className="truncate text-xs" style={{ color: "#6B7280" }}>{formatAge(c.birth_date)}</p>
+                </div>
+                <ChevronRight size={16} strokeWidth={2} color="#9CA3AF" className="flex-shrink-0" />
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ChildDocumentsDialog
         open={!!docsChild}

@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate, useLocation } from "@tanstack/react-router";
+import { z } from "zod";
 import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ClipboardList, Plus, Search } from "lucide-react";
@@ -36,6 +37,10 @@ export const Route = createFileRoute("/_auth/registros")({
   head: () => ({
     meta: [{ title: "Registros — TEAmo" }],
   }),
+  validateSearch: z.object({
+    new: z.string().optional(),
+    childId: z.string().optional(),
+  }).parse,
   component: RegistrosPage,
 });
 

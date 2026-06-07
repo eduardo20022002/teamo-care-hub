@@ -8,6 +8,7 @@ import { AuthInput } from "@/components/auth/AuthInput";
 import { signIn, signInWithGoogle } from "@/services/auth.service";
 import { signInSchema } from "@/lib/validation";
 import { useAuth } from "@/hooks/useAuth";
+import { getCareInviteContextServer } from "@/lib/care-sharing.functions";
 
 const TEAL = "#0D9488";
 const GOOGLE_ENABLED = import.meta.env.VITE_GOOGLE_OAUTH_ENABLED === "true";
@@ -62,12 +63,27 @@ function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [emailNotConfirmed, setEmailNotConfirmed] = useState(false);
+  const [inviteOwnerName, setInviteOwnerName] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (cooldown <= 0) return;
     const t = setTimeout(() => setCooldown((s) => s - 1), 1000);
     return () => clearTimeout(t);
   }, [cooldown]);
+
+  // Busca o nome de quem convidou para personalizar o banner de convite.
+  useEffect(() => {
+    if (!invite) return;
+    let cancelled = false;
+    getCareInviteContextServer({ data: { token: invite } })
+      .then((ctx) => {
+        if (!cancelled && "ownerName" in ctx && ctx.ownerName) {
+          setInviteOwnerName(ctx.ownerName);
+        }
+      })
+      .catch(() => { /* mantém a mensagem genérica do banner */ });
+    return () => { cancelled = true; };
+  }, [invite]);
 
   useEffect(() => {
     if (!loading && user) {
@@ -123,22 +139,27 @@ function LoginPage() {
     <AuthShell>
       <div>
         {/* Banner de convite */}
-        {(invite || therapistInvite) && <InviteBanner />}
+        {(invite || therapistInvite) && <InviteBanner ownerName={inviteOwnerName} />}
 
         <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-foreground">
-          {invite ? "Entre para aceitar o convite" : "Que bom ter você de volta 👋"}
+          {invite || therapistInvite ? "Entre para aceitar o convite" : "Que bom ter você de volta 👋"}
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          Entre para continuar acompanhando o cuidado da sua família.
+          {therapistInvite
+            ? "Entre para aceitar o convite e acompanhar a evolução dos seus pacientes."
+            : invite
+            ? "Entre para aceitar o convite e acompanhar o cuidado."
+            : "Entre para continuar acompanhando o cuidado da sua família."}
         </p>
 
         <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-4" noValidate>
           {/* E-mail */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-foreground">
+            <label htmlFor="login-email" className="text-sm font-medium text-foreground">
               E-mail
             </label>
             <AuthInput
+              id="login-email"
               type="email"
               autoComplete="email"
               placeholder="seu@email.com"
@@ -155,10 +176,11 @@ function LoginPage() {
 
           {/* Senha */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-foreground">
+            <label htmlFor="login-password" className="text-sm font-medium text-foreground">
               Senha
             </label>
             <AuthInput
+              id="login-password"
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               placeholder="••••••••"
@@ -171,8 +193,8 @@ function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                   className="text-muted-foreground hover:text-foreground transition-colors"
-                  tabIndex={-1}
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>

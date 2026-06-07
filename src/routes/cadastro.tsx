@@ -112,7 +112,7 @@ function SignupPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const { invite, therapistInvite } = Route.useSearch();
-  const [userType, setUserType] = useState<UserType>(therapistInvite ? "parent" : "parent");
+  const [userType, setUserType] = useState<UserType>("parent");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -275,10 +275,11 @@ function SignupPage() {
 
           {/* Nome */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-foreground">
+            <label htmlFor="signup-name" className="text-sm font-medium text-foreground">
               Como prefere ser chamado(a)?
             </label>
             <AuthInput
+              id="signup-name"
               type="text"
               autoComplete="given-name"
               placeholder="Seu nome ou apelido"
@@ -295,8 +296,9 @@ function SignupPage() {
 
           {/* E-mail */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-foreground">E-mail</label>
+            <label htmlFor="signup-email" className="text-sm font-medium text-foreground">E-mail</label>
             <AuthInput
+              id="signup-email"
               type="email"
               autoComplete="email"
               placeholder="seu@email.com"
@@ -313,8 +315,9 @@ function SignupPage() {
 
           {/* Senha */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-foreground">Senha</label>
+            <label htmlFor="signup-password" className="text-sm font-medium text-foreground">Senha</label>
             <AuthInput
+              id="signup-password"
               type={showPassword ? "text" : "password"}
               autoComplete="new-password"
               placeholder="Crie uma senha"
@@ -327,8 +330,8 @@ function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                   className="text-muted-foreground hover:text-foreground transition-colors"
-                  tabIndex={-1}
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -343,8 +346,9 @@ function SignupPage() {
 
           {/* Confirmar senha */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-foreground">Confirmar senha</label>
+            <label htmlFor="signup-confirm" className="text-sm font-medium text-foreground">Confirmar senha</label>
             <AuthInput
+              id="signup-confirm"
               type={showConfirm ? "text" : "password"}
               autoComplete="new-password"
               placeholder="Repita sua senha"
@@ -357,8 +361,8 @@ function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setShowConfirm((v) => !v)}
+                  aria-label={showConfirm ? "Ocultar senha" : "Mostrar senha"}
                   className="text-muted-foreground hover:text-foreground transition-colors"
-                  tabIndex={-1}
                 >
                   {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
