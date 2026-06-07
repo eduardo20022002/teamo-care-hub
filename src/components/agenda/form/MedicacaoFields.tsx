@@ -47,6 +47,28 @@ const MOMENT_OPTIONS: { value: MedicacaoMoment; label: string }[] = [
   { value: "other", label: "Outro" },
 ];
 
+const INTERVAL_OPTIONS = [4, 6, 8, 12, 24] as const;
+
+/**
+ * Calcula os horários das doses a partir da 1ª dose e do intervalo (em horas),
+ * cobrindo uma janela de 24h. Ex.: 08:00 a cada 8h → ["08:00","16:00","00:00"].
+ */
+function computeIntervalTimes(firstDose: string, everyHours: number): string[] {
+  if (!firstDose || !everyHours) return [];
+  const [h, m] = firstDose.split(":").map(Number);
+  const start = (h ?? 0) * 60 + (m ?? 0);
+  const out: string[] = [];
+  for (let i = 0; i < 24 && out.length < 8; i++) {
+    const t = start + i * everyHours * 60;
+    if (i > 0 && t >= start + 24 * 60) break;
+    const mins = ((t % 1440) + 1440) % 1440;
+    const hh = String(Math.floor(mins / 60)).padStart(2, "0");
+    const mm = String(mins % 60).padStart(2, "0");
+    out.push(`${hh}:${mm}`);
+  }
+  return out;
+}
+
 interface Props {
   data: MedicacaoTypeData;
   onChange: (d: MedicacaoTypeData) => void;
@@ -60,6 +82,27 @@ export function MedicacaoFields({ data, onChange, disabled }: Props) {
     k: K,
     v: MedicacaoTypeData[K],
   ) => onChange({ ...data, [k]: v });
+
+  // Atualiza vários campos de uma vez (evita sobrescrita por sets encadeados).
+  const update = (partial: Partial<MedicacaoTypeData>) =>
+    onChange({ ...data, ...partial });
+
+  const doseMode = data.doseSchedule?.mode ?? "fixed";
+  const firstDose = data.doseSchedule?.firstDose ?? data.times[0] ?? "08:00";
+  const everyHours = data.doseSchedule?.everyHours ?? 8;
+
+  const applyInterval = (fd: string, eh: number) => {
+    const times = computeIntervalTimes(fd, eh);
+    update({
+      doseSchedule: { mode: "interval", firstDose: fd, everyHours: eh },
+      times: times.length ? times : data.times,
+    });
+  };
+
+  const setDoseMode = (m: "fixed" | "interval") => {
+    if (m === "interval") applyInterval(firstDose, everyHours);
+    else update({ doseSchedule: { mode: "fixed" } });
+  };
 
   return (
     <div className="flex flex-col gap-3.5">
@@ -158,14 +201,93 @@ export function MedicacaoFields({ data, onChange, disabled }: Props) {
         />
       </div>
 
-      {/* Horários */}
+      {/* Horários — fixos ou por intervalo */}
       <div>
         <FieldLabel>Horário(s)</FieldLabel>
-        <TimeMultiPicker
-          value={data.times}
-          onChange={(v) => set("times", v)}
-          disabled={disabled}
-        />
+        <div className="mb-2 flex gap-1 rounded-xl bg-[#F4F5FA] p-1">
+          {([["fixed", "Horários fixos"], ["interval", "Por intervalo"]] as const).map(
+            ([m, label]) => {
+              const active = doseMode === m;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => setDoseMode(m)}
+                  className="flex-1 rounded-lg py-1.5 text-[12.5px] font-bold transition-colors disabled:opacity-60"
+                  style={{
+                    background: active ? "#fff" : "transparent",
+                    color: active ? color : "#6B7280",
+                    boxShadow: active ? "0 1px 2px rgba(15,23,42,0.06)" : "none",
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            },
+          )}
+        </div>
+
+        {doseMode === "fixed" ? (
+          <TimeMultiPicker
+            value={data.times}
+            onChange={(v) => set("times", v)}
+            disabled={disabled}
+          />
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <FieldLabel>Primeira dose</FieldLabel>
+                <input
+                  type="time"
+                  value={firstDose}
+                  onChange={(e) => applyInterval(e.target.value, everyHours)}
+                  disabled={disabled}
+                  className={inputClasses()}
+                  style={{ color: "#0F172A", colorScheme: "light" }}
+                />
+              </div>
+              <div>
+                <FieldLabel>A cada</FieldLabel>
+                <select
+                  value={everyHours}
+                  onChange={(e) => applyInterval(firstDose, Number(e.target.value))}
+                  disabled={disabled}
+                  className={inputClasses()}
+                  style={{ color: "#0F172A" }}
+                >
+                  {INTERVAL_OPTIONS.map((h) => (
+                    <option key={h} value={h}>
+                      De {h} em {h}h
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11.5px]" style={{ color: "#6B7280" }}>
+                Doses no dia:
+              </span>
+              {(data.times.length
+                ? data.times
+                : computeIntervalTimes(firstDose, everyHours)
+              ).map((t) => (
+                <span
+                  key={t}
+                  className="rounded-full px-2 py-0.5 text-[11.5px] font-bold"
+                  style={{ background: tint, color }}
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+            <p className="text-[11px]" style={{ color: "#9CA3AF" }}>
+              Geramos as doses do dia a partir da 1ª. Doses após a meia-noite
+              entram no mesmo dia.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* É contínuo? */}

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -9,9 +9,11 @@ import {
   ClipboardCheck,
   ClipboardEdit,
   Eye,
+  Loader2,
   MapPin,
   Plus,
   Repeat,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
@@ -27,6 +29,9 @@ import {
   updateAgendaEventStatus,
   getParentEventReminder,
   upsertParentEventReminder,
+  rescheduleAgendaEvent,
+  deleteAgendaEvent,
+  deleteAgendaSeries,
 } from "@/services/agenda/events.service";
 import { getProfile } from "@/services/profile.service";
 import { getRole } from "@/lib/roles";
@@ -36,6 +41,7 @@ import {
   listObservationsByEvent,
   listPendingObservationsByEvent,
   createObservation,
+  updateObservation,
 } from "@/services/agenda/observations.service";
 import {
   listObservationAttachments,
@@ -48,7 +54,7 @@ import {
   BRAND_GRADIENT,
   BRAND_SHADOW,
 } from "@/lib/agenda/tokens";
-import { formatEventTimeRange } from "@/lib/agenda/format";
+import { formatEventTimeRange, combineDateTime } from "@/lib/agenda/format";
 import type { AgendaEventStatus } from "@/types/agenda";
 import type { AgendaObservationInput } from "@/lib/agenda/validation";
 
@@ -136,6 +142,11 @@ function AgendaEventDetailPage() {
   const { eventId } = Route.useParams();
   const qc = useQueryClient();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [reDate, setReDate] = useState("");
+  const [reTime, setReTime] = useState("");
+  const [editingObs, setEditingObs] = useState<{ id: string; text: string } | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const TEAL = "#0D9488";
 
@@ -219,11 +230,45 @@ function AgendaEventDetailPage() {
             onClick: () => navigate({ to: "/registros" }),
           },
         });
-      } else if (vars.status === "rescheduled") {
-        toast.message("Reagendamento em breve. Por ora, edite o compromisso.");
       } else {
         toast.success("Marcado como não fui.");
       }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const rescheduleMutation = useMutation({
+    mutationFn: ({ start, end }: { start: string; end: string | null }) =>
+      rescheduleAgendaEvent(eventId, start, end),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["agenda-events"] });
+      setRescheduleOpen(false);
+      toast.success("Compromisso reagendado.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updateObsMutation = useMutation({
+    mutationFn: ({ id, text }: { id: string; text: string }) =>
+      updateObservation(id, text),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["agenda-observations", eventId] });
+      setEditingObs(null);
+      toast.success("Observação atualizada.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: ({ scope }: { scope: "single" | "series" }) =>
+      scope === "series" && event?.series_id
+        ? deleteAgendaSeries(event.series_id, event.start_at)
+        : deleteAgendaEvent(eventId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["agenda-events"] });
+      setDeleteOpen(false);
+      toast.success("Compromisso excluído.");
+      navigate({ to: "/agenda" });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -308,7 +353,30 @@ function AgendaEventDetailPage() {
   const remindersLabel = formatRemindersLabel(event.reminders);
 
   const handleStatus = (status: AgendaEventStatus) => {
+    if (status === "rescheduled") {
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const d = new Date(event.start_at);
+      setReDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+      setReTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
+      setRescheduleOpen(true);
+      return;
+    }
     statusMutation.mutate({ status });
+  };
+
+  const submitReschedule = () => {
+    if (!reDate || !reTime) {
+      toast.error("Escolha a nova data e hora.");
+      return;
+    }
+    const newStart = combineDateTime(reDate, reTime);
+    // preserva a duração, se houver
+    let newEnd: string | null = null;
+    if (event.end_at) {
+      const dur = new Date(event.end_at).getTime() - new Date(event.start_at).getTime();
+      if (dur > 0) newEnd = new Date(new Date(newStart).getTime() + dur).toISOString();
+    }
+    rescheduleMutation.mutate({ start: newStart, end: newEnd });
   };
 
   const promoteToRegistro = (obsId: string) => {
@@ -455,9 +523,7 @@ function AgendaEventDetailPage() {
                         : null
                     }
                     onPromote={() => promoteToRegistro(obs.id)}
-                    onEdit={() =>
-                      toast.message("Edição de observação — em breve.")
-                    }
+                    onEdit={() => setEditingObs({ id: obs.id, text: obs.text })}
                   />
                 ))}
               </div>
@@ -651,6 +717,19 @@ function AgendaEventDetailPage() {
           </div>
         )}
 
+        {/* Excluir — só compromissos do próprio pai (não sessões do terapeuta) */}
+        {!isTherapist && !isTherapistEvent && (
+          <button
+            type="button"
+            onClick={() => setDeleteOpen(true)}
+            className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl border text-[13.5px] font-bold transition-colors hover:bg-red-50"
+            style={{ borderColor: "#FECACA", color: "#DC2626" }}
+          >
+            <Trash2 size={16} strokeWidth={2} />
+            Excluir compromisso
+          </button>
+        )}
+
         <div className="h-8" />
       </div>
 
@@ -671,7 +750,149 @@ function AgendaEventDetailPage() {
           }
         />
       )}
+
+      {/* Reagendar */}
+      {rescheduleOpen && (
+        <CenterModal onClose={() => setRescheduleOpen(false)} title="Reagendar compromisso">
+          <div className="grid grid-cols-2 gap-2.5">
+            <div>
+              <label className="mb-1 block text-[12.5px] font-semibold text-[#4B5563]">Nova data</label>
+              <input
+                type="date"
+                value={reDate}
+                onChange={(e) => setReDate(e.target.value)}
+                className="h-11 w-full rounded-xl border border-[#E5E7EB] bg-[#F6F7FB] px-3 text-[14px] outline-none focus:border-[#7C3AED]"
+                style={{ colorScheme: "light" }}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[12.5px] font-semibold text-[#4B5563]">Nova hora</label>
+              <input
+                type="time"
+                value={reTime}
+                onChange={(e) => setReTime(e.target.value)}
+                className="h-11 w-full rounded-xl border border-[#E5E7EB] bg-[#F6F7FB] px-3 text-[14px] outline-none focus:border-[#7C3AED]"
+                style={{ colorScheme: "light" }}
+              />
+            </div>
+          </div>
+          {event.series_id && (
+            <p className="mt-2 text-[12px] leading-snug text-[#9CA3AF]">
+              Isto move apenas esta ocorrência da série.
+            </p>
+          )}
+          <button
+            type="button"
+            disabled={rescheduleMutation.isPending}
+            onClick={submitReschedule}
+            className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold text-white disabled:opacity-60"
+            style={{ background: BRAND_GRADIENT, boxShadow: BRAND_SHADOW }}
+          >
+            {rescheduleMutation.isPending && <Loader2 size={15} className="animate-spin" />}
+            Salvar nova data
+          </button>
+        </CenterModal>
+      )}
+
+      {/* Editar observação */}
+      {editingObs && (
+        <CenterModal onClose={() => setEditingObs(null)} title="Editar observação">
+          <textarea
+            value={editingObs.text}
+            onChange={(e) => setEditingObs((p) => (p ? { ...p, text: e.target.value } : p))}
+            rows={5}
+            maxLength={5000}
+            className="w-full rounded-xl border border-[#E5E7EB] bg-[#F6F7FB] px-3.5 py-2.5 text-[14px] outline-none focus:border-[#7C3AED]"
+            style={{ color: "#0F172A", resize: "vertical" }}
+          />
+          <button
+            type="button"
+            disabled={updateObsMutation.isPending || !editingObs.text.trim()}
+            onClick={() => updateObsMutation.mutate({ id: editingObs.id, text: editingObs.text })}
+            className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold text-white disabled:opacity-60"
+            style={{ background: BRAND_GRADIENT, boxShadow: BRAND_SHADOW }}
+          >
+            {updateObsMutation.isPending && <Loader2 size={15} className="animate-spin" />}
+            Salvar
+          </button>
+        </CenterModal>
+      )}
+
+      {/* Excluir (com opção de série) */}
+      {deleteOpen && (
+        <CenterModal onClose={() => setDeleteOpen(false)} title="Excluir compromisso">
+          <p className="text-[13.5px] leading-relaxed text-[#4B5563]">
+            {event.series_id
+              ? "Este compromisso faz parte de uma série recorrente. O que deseja excluir?"
+              : "Tem certeza que deseja excluir este compromisso?"}
+          </p>
+          <div className="mt-4 flex flex-col gap-2">
+            <button
+              type="button"
+              disabled={deleteMutation.isPending}
+              onClick={() => deleteMutation.mutate({ scope: "single" })}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-bold text-white disabled:opacity-60"
+              style={{ background: "#DC2626" }}
+            >
+              {deleteMutation.isPending && <Loader2 size={15} className="animate-spin" />}
+              {event.series_id ? "Excluir só este" : "Excluir"}
+            </button>
+            {event.series_id && (
+              <button
+                type="button"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate({ scope: "series" })}
+                className="flex h-11 w-full items-center justify-center rounded-xl border text-[14px] font-bold disabled:opacity-60"
+                style={{ borderColor: "#FECACA", color: "#DC2626" }}
+              >
+                Excluir esta e as próximas
+              </button>
+            )}
+          </div>
+        </CenterModal>
+      )}
     </AppShell>
+  );
+}
+
+/** Modal centralizado simples reutilizado nas ações do detalhe. */
+function CenterModal({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+      <button
+        type="button"
+        aria-label="Fechar"
+        onClick={onClose}
+        className="absolute inset-0 cursor-default bg-[rgba(15,23,42,0.45)] backdrop-blur-[2px]"
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="relative w-full rounded-t-3xl bg-white px-5 pb-6 pt-4 shadow-[0_-8px_32px_rgba(15,23,42,0.16)] sm:max-w-sm sm:rounded-3xl"
+      >
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#E5E7EB] sm:hidden" />
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-[17px] font-extrabold tracking-tight text-[#0F172A]">{title}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fechar"
+            className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#F4F5FA] text-[15px] text-[#9CA3AF] hover:bg-[#E5E7EB]"
+          >
+            ✕
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
   );
 }
 

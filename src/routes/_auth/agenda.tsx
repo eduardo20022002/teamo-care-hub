@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Calendar, Plus, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
@@ -16,8 +16,10 @@ import { listProfessionals } from "@/services/professionals.service";
 import {
   createAgendaEvent,
   createTherapistSession,
+  extendAgendaSeries,
   listAgendaEvents,
 } from "@/services/agenda/events.service";
+import { isIndefinite } from "@/lib/agenda/occurrences";
 import { getNotificationPrefs } from "@/services/agenda/prefs.service";
 import { getProfile } from "@/services/profile.service";
 import { getRole } from "@/lib/roles";
@@ -175,6 +177,38 @@ function AgendaPage() {
     queryFn: () => listAgendaEvents(),
     enabled: !!user,
   });
+
+  // Top-up de séries indefinidas: se a última ocorrência materializada de uma
+  // série recorrente sem fim está a < 30 dias, estende mais ~90 dias. Best-effort.
+  const toppedUpRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!user) return;
+    const events = eventsQuery.data ?? [];
+    if (events.length === 0) return;
+    const horizon = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    const lastBySeries = new Map<string, number>();
+    for (const e of events) {
+      if (!e.series_id || !isIndefinite(e.recurrence)) continue;
+      const t = new Date(e.start_at).getTime();
+      if (t > (lastBySeries.get(e.series_id) ?? 0)) lastBySeries.set(e.series_id, t);
+    }
+    const toExtend = [...lastBySeries.entries()]
+      .filter(([sid, last]) => last < horizon && !toppedUpRef.current.has(sid))
+      .map(([sid]) => sid);
+    if (toExtend.length === 0) return;
+    toExtend.forEach((sid) => toppedUpRef.current.add(sid));
+    void (async () => {
+      let total = 0;
+      for (const sid of toExtend) {
+        try {
+          total += await extendAgendaSeries(sid);
+        } catch {
+          /* best-effort — não bloqueia a agenda */
+        }
+      }
+      if (total > 0) qc.invalidateQueries({ queryKey: ["agenda-events"] });
+    })();
+  }, [eventsQuery.data, user, qc]);
 
   const prefsQuery = useQuery({
     queryKey: ["agenda-prefs", user?.id],

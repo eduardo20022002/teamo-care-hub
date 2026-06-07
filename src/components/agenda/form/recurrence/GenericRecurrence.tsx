@@ -34,6 +34,15 @@ export function GenericRecurrence({
   disabled,
 }: Props) {
   const choice = toChoice(value);
+  const currentEndsOn =
+    value.freq === "weekly" || value.freq === "custom" ? value.endsOn : undefined;
+  const setEndsOn = (d?: string) => {
+    if (value.freq === "weekly") {
+      onChange({ freq: "weekly", daysOfWeek: value.daysOfWeek, endsOn: d });
+    } else if (value.freq === "custom") {
+      onChange({ freq: "custom", interval: value.interval ?? 1, endsOn: d });
+    }
+  };
   return (
     <div>
       <FieldLabel>Com que frequência?</FieldLabel>
@@ -69,6 +78,22 @@ export function GenericRecurrence({
             style={{ color: "#0F172A" }}
           />
           <span className="text-[13px] text-[#4B5563]">dias</span>
+        </div>
+      </AnimatedReveal>
+      <AnimatedReveal show={choice !== "once"}>
+        <div className="mt-3">
+          <FieldLabel optional>Até quando?</FieldLabel>
+          <input
+            type="date"
+            value={currentEndsOn ?? ""}
+            onChange={(e) => setEndsOn(e.target.value || undefined)}
+            disabled={disabled}
+            className={inputClasses()}
+            style={{ color: "#0F172A", colorScheme: "light" }}
+          />
+          <p className="mt-1 text-[11.5px]" style={{ color: "#9CA3AF" }}>
+            Deixe em branco para repetir por tempo indeterminado.
+          </p>
         </div>
       </AnimatedReveal>
     </div>

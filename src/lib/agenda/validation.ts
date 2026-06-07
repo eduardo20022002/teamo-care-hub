@@ -132,6 +132,13 @@ export const medicacaoTypeDataSchema = z.object({
     .array(hhmm)
     .min(1, "Adicione ao menos um horário.")
     .max(8, "Máximo de 8 horários."),
+  doseSchedule: z
+    .object({
+      mode: z.enum(["fixed", "interval"]),
+      firstDose: hhmm.optional(),
+      everyHours: z.number().int().min(1).max(24).optional(),
+    })
+    .optional(),
   isContinuous: z.boolean(),
   endsOn: isoDate.optional(),
   prescriptionExpiresOn: isoDate.optional(),

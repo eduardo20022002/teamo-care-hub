@@ -8,7 +8,6 @@ import {
   ChevronRight,
   Clock,
   Filter,
-  Paperclip,
   Search,
   X,
 } from "lucide-react";
@@ -21,7 +20,13 @@ import {
 } from "@/lib/agenda/tokens";
 import { listAgendaEvents } from "@/services/agenda/events.service";
 import { useAuth } from "@/hooks/useAuth";
-import type { AgendaEventWithRelations } from "@/types/agenda";
+import type { AgendaEventType, AgendaEventWithRelations } from "@/types/agenda";
+
+interface SearchFilters {
+  types: Set<AgendaEventType>;
+  withReminder: boolean;
+  period: "all" | "week";
+}
 
 export const Route = createFileRoute("/_auth/agenda_/busca")({
   head: () => ({ meta: [{ title: "Buscar na agenda — TEAmo" }] }),
@@ -63,23 +68,41 @@ interface ResultHit {
   deepLink: string;
 }
 
+function inThisWeek(ev: AgendaEventWithRelations): boolean {
+  const t = new Date(ev.start_at).getTime();
+  const now = Date.now();
+  return t >= now - 24 * 3600 * 1000 && t <= now + 7 * 24 * 3600 * 1000;
+}
+
 function searchEvents(
   events: AgendaEventWithRelations[],
   q: string,
+  f: SearchFilters,
 ): ResultHit[] {
-  if (!q || q.trim().length < 2) return [];
   const needle = q.trim().toLowerCase();
+  const useText = needle.length >= 2;
   return events
     .filter((ev) => {
-      const hay = [
-        ev.title,
-        ev.locale ?? "",
-        ev.professional?.name ?? ev.professional_name_raw ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(needle);
+      if (useText) {
+        const hay = [
+          ev.title,
+          ev.locale ?? "",
+          ev.professional?.name ?? ev.professional_name_raw ?? "",
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      if (f.types.size > 0 && !f.types.has(ev.type)) return false;
+      if (
+        f.withReminder &&
+        !(ev.reminders?.oneDayBefore || ev.reminders?.oneHourBefore)
+      )
+        return false;
+      if (f.period === "week" && !inThisWeek(ev)) return false;
+      return true;
     })
+    .sort((a, b) => a.start_at.localeCompare(b.start_at))
     .map((ev) => ({
       id: ev.id,
       kind: "Compromisso" as const,
@@ -111,6 +134,15 @@ function AgendaSearchPage() {
   const { user } = useAuth();
   const [q, setQ] = useState("");
   const [recent, setRecent] = useState(() => loadRecent());
+  const [types, setTypes] = useState<Set<AgendaEventType>>(new Set());
+  const [withReminder, setWithReminder] = useState(false);
+  const [period, setPeriod] = useState<"all" | "week">("all");
+
+  const filters = useMemo<SearchFilters>(
+    () => ({ types, withReminder, period }),
+    [types, withReminder, period],
+  );
+  const anyFilter = types.size > 0 || withReminder || period !== "all";
 
   const eventsQuery = useQuery({
     queryKey: ["agenda-events"],
@@ -119,11 +151,19 @@ function AgendaSearchPage() {
   });
 
   const eventHits = useMemo(
-    () => searchEvents(eventsQuery.data ?? [], q),
-    [eventsQuery.data, q],
+    () => searchEvents(eventsQuery.data ?? [], q, filters),
+    [eventsQuery.data, q, filters],
   );
 
-  const showResults = q.trim().length >= 2;
+  const showResults = q.trim().length >= 2 || anyFilter;
+
+  const toggleType = (t: AgendaEventType) =>
+    setTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t);
+      else next.add(t);
+      return next;
+    });
 
   const onSubmitSearch = () => {
     if (q.trim()) {
@@ -187,6 +227,31 @@ function AgendaSearchPage() {
           </form>
         </div>
 
+        {/* Filtros funcionais (tipo, anexos, lembrete) */}
+        <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1">
+          {(Object.keys(TYPE_STYLES) as AgendaEventType[]).map((t) => {
+            const st = TYPE_STYLES[t];
+            const active = types.has(t);
+            return (
+              <FilterChip
+                key={t}
+                label={st.label}
+                active={active}
+                activeColor={st.col}
+                activeTint={st.tint}
+                onClick={() => toggleType(t)}
+                icon={<TypeIcon type={t} size={13} color={active ? st.col : "#6B7280"} />}
+              />
+            );
+          })}
+          <FilterChip
+            label="Com lembrete"
+            active={withReminder}
+            onClick={() => setWithReminder((v) => !v)}
+            icon={<Bell size={13} strokeWidth={1.7} color={withReminder ? "#4F46E5" : "#6B7280"} />}
+          />
+        </div>
+
         {!showResults ? (
           <EmptySearchState
             recent={recent}
@@ -203,7 +268,7 @@ function AgendaSearchPage() {
               if (target === "pending") {
                 navigate({ to: "/agenda" });
               } else if (target === "week") {
-                navigate({ to: "/agenda" });
+                setPeriod("week");
               }
             }}
             onOpenGlobal={() => navigate({ to: "/busca" })}
@@ -233,15 +298,29 @@ function AgendaSearchPage() {
 function FilterChip({
   label,
   icon,
+  active,
+  activeColor = "#4F46E5",
+  activeTint = "#EEF1FF",
+  onClick,
 }: {
   label: string;
   icon: React.ReactNode;
+  active?: boolean;
+  activeColor?: string;
+  activeTint?: string;
+  onClick?: () => void;
 }) {
   return (
     <button
       type="button"
-      className="inline-flex h-[34px] flex-shrink-0 items-center gap-1.5 rounded-full border bg-white px-3 text-[12.5px] font-semibold transition-colors hover:bg-[#F4F5FA]"
-      style={{ borderColor: "#E5E7EB", color: "#374151" }}
+      onClick={onClick}
+      aria-pressed={active}
+      className="inline-flex h-[34px] flex-shrink-0 items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-semibold transition-colors"
+      style={{
+        borderColor: active ? activeColor : "#E5E7EB",
+        background: active ? activeTint : "#fff",
+        color: active ? activeColor : "#374151",
+      }}
     >
       {icon}
       {label}
@@ -264,59 +343,6 @@ function EmptySearchState({
 }) {
   return (
     <>
-      <div className="mt-4">
-        <div
-          className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em]"
-          style={{ color: "#9CA3AF" }}
-        >
-          Filtros rápidos
-        </div>
-        <div className="-mx-1 flex flex-wrap gap-2 overflow-x-auto px-1">
-          <FilterChip
-            label="Profissional"
-            icon={
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <circle
-                  cx="12"
-                  cy="9"
-                  r="3.5"
-                  stroke="#4F46E5"
-                  strokeWidth="1.7"
-                />
-                <path
-                  d="M5 19c1-3.5 4-5 7-5s6 1.5 7 5"
-                  stroke="#4F46E5"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                />
-              </svg>
-            }
-          />
-          <FilterChip
-            label="Tipo"
-            icon={
-              <span className="flex gap-0.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#4F46E5]" />
-                <span className="h-1.5 w-1.5 rounded-full bg-[#EC4899]" />
-                <span className="h-1.5 w-1.5 rounded-full bg-[#D97706]" />
-              </span>
-            }
-          />
-          <FilterChip
-            label="Período"
-            icon={<Calendar size={14} strokeWidth={1.6} color="#4F46E5" />}
-          />
-          <FilterChip
-            label="Com anexos"
-            icon={<Paperclip size={14} strokeWidth={1.6} color="#7C3AED" />}
-          />
-          <FilterChip
-            label="Com lembrete"
-            icon={<Bell size={14} strokeWidth={1.6} color={ALERT_TONE.bodyColor} />}
-          />
-        </div>
-      </div>
-
       {recent.length > 0 && (
         <div className="mt-5">
           <div className="mb-2 flex items-center justify-between">

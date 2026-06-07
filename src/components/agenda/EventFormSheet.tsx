@@ -66,6 +66,10 @@ export function EventFormSheet({
   const [recurrence, setRecurrence] = useState<RecurrenceConfig>(
     defaultRecurrence("medicacao"),
   );
+  const [reminders, setReminders] = useState({
+    oneDayBefore: true,
+    oneHourBefore: true,
+  });
   // type_data é armazenado por tipo (cada um isolado) para não perder o
   // que a mãe digitou se ela alternar de tipo por engano.
   const [typeDataByType, setTypeDataByType] = useState<{
@@ -102,7 +106,7 @@ export function EventFormSheet({
       end_time: endTime,
       locale,
       recurrence,
-      reminders: { oneDayBefore: true, oneHourBefore: true },
+      reminders,
       type_data: typeData,
     });
     return parsed.success ? parsed.data : null;
@@ -118,6 +122,7 @@ export function EventFormSheet({
     endTime,
     locale,
     recurrence,
+    reminders,
   ]);
 
   const canSubmit = !!candidateInput && childrenList.length > 0 && !submitting;
@@ -135,6 +140,7 @@ export function EventFormSheet({
     setEndTime("");
     setLocale("");
     setRecurrence(defaultRecurrence(type));
+    setReminders({ oneDayBefore: true, oneHourBefore: true });
     setTypeDataByType({
       medicacao: defaultTypeData("medicacao"),
       terapia: defaultTypeData("terapia"),
@@ -472,6 +478,48 @@ export function EventFormSheet({
                 disabled={submitting}
               />
             )}
+          </div>
+
+          {/* Lembretes */}
+          <div className="mt-4">
+            <FieldLabel>Lembretes</FieldLabel>
+            <div className="flex flex-col gap-2">
+              {([
+                ["oneDayBefore", "1 dia antes"],
+                ["oneHourBefore", "1 hora antes"],
+              ] as const).map(([key, label]) => {
+                const checked = reminders[key];
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    role="switch"
+                    aria-checked={checked}
+                    disabled={submitting}
+                    onClick={() =>
+                      setReminders((r) => ({ ...r, [key]: !r[key] }))
+                    }
+                    className="flex items-center justify-between rounded-xl border px-3.5 py-2.5 text-[13.5px] font-semibold transition-colors disabled:opacity-60"
+                    style={{
+                      borderColor: checked ? TYPE_STYLES[type].col : "#E5E7EB",
+                      background: checked ? TYPE_STYLES[type].tint : "#F6F7FB",
+                      color: checked ? TYPE_STYLES[type].col : "#6B7280",
+                    }}
+                  >
+                    {label}
+                    <span
+                      className="relative h-5 w-9 flex-shrink-0 rounded-full transition-colors"
+                      style={{ background: checked ? TYPE_STYLES[type].col : "#D1D5DB" }}
+                    >
+                      <span
+                        className="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform"
+                        style={{ transform: checked ? "translateX(18px)" : "translateX(2px)" }}
+                      />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <button

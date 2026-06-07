@@ -100,6 +100,18 @@ export type MedicacaoMoment =
   | "any"
   | "other";
 
+/**
+ * Como os horários das doses foram informados:
+ * - fixed: a mãe digitou cada horário manualmente (TimeMultiPicker).
+ * - interval: a mãe informou a 1ª dose + intervalo em horas, e o app calculou
+ *   os horários do dia. `times[]` continua sendo a fonte da verdade.
+ */
+export interface DoseSchedule {
+  mode: "fixed" | "interval";
+  firstDose?: string; // "HH:MM" — usado no modo interval
+  everyHours?: number; // 1..24 — usado no modo interval
+}
+
 export interface MedicacaoTypeData {
   medicationName: string;
   dose: { value: number; unit: MedicacaoUnit; customUnit?: string };
@@ -108,6 +120,7 @@ export interface MedicacaoTypeData {
   moment: MedicacaoMoment;
   momentCustom?: string;
   times: string[]; // ["08:00","20:00"]
+  doseSchedule?: DoseSchedule;
   isContinuous: boolean;
   endsOn?: string;
   prescriptionExpiresOn?: string;
@@ -209,6 +222,7 @@ export interface AgendaEvent {
   status: AgendaEventStatus;
   type_data: Record<string, unknown>;
   linked_event_id: string | null;
+  series_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -228,6 +242,7 @@ export interface AgendaEventInsert {
   status?: AgendaEventStatus;
   type_data?: Record<string, unknown>;
   linked_event_id?: string | null;
+  series_id?: string | null;
 }
 
 export interface AgendaEventWithRelations extends AgendaEvent {

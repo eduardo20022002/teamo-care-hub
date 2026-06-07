@@ -3,9 +3,46 @@ import type {
   AgendaEvent,
   AgendaEventInsert,
   AgendaEventWithRelations,
+  RecurrenceConfig,
 } from "@/types/agenda";
 import type { AgendaEventInput } from "@/lib/agenda/validation";
 import { combineDateTime } from "@/lib/agenda/format";
+import { expandOccurrences, isIndefinite } from "@/lib/agenda/occurrences";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function parseHHMM(t: string): { h: number; m: number } {
+  const [h, m] = t.split(":").map(Number);
+  return { h: h ?? 0, m: m ?? 0 };
+}
+
+/**
+ * Datas+horas de início para todas as ocorrências/doses de uma recorrência.
+ * Para medicação, multiplica cada data de ocorrência pelos horários em `times[]`.
+ */
+function buildStartDates(
+  anchor: Date,
+  recurrence: RecurrenceConfig,
+  typeData: Record<string, unknown>,
+  horizonDays: number,
+): Date[] {
+  const occ = expandOccurrences(anchor, recurrence, { horizonDays });
+  const isMed = (typeData as { kind?: string })?.kind === "medicacao";
+  const times = isMed ? ((typeData as { times?: string[] }).times ?? []) : [];
+  if (isMed && times.length > 0) {
+    const out: Date[] = [];
+    for (const d of occ) {
+      for (const t of times) {
+        const { h, m } = parseHHMM(t);
+        const x = new Date(d);
+        x.setHours(h, m, 0, 0);
+        out.push(x);
+      }
+    }
+    return out.sort((a, b) => a.getTime() - b.getTime());
+  }
+  return occ;
+}
 
 const DEV_BYPASS =
   import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_AUTH === "true";
@@ -47,6 +84,7 @@ const MOCK_EVENTS: AgendaEventWithRelations[] = DEV_BYPASS
         updated_at: new Date().toISOString(),
         type_data: {},
         linked_event_id: null,
+        series_id: null,
         child: { id: MOCK_CHILD_ID, name: "Lucas" },
         professional: null,
       },
@@ -68,6 +106,7 @@ const MOCK_EVENTS: AgendaEventWithRelations[] = DEV_BYPASS
         updated_at: new Date().toISOString(),
         type_data: {},
         linked_event_id: null,
+        series_id: null,
         child: { id: MOCK_CHILD_ID, name: "Lucas" },
         professional: null,
         observation_count: 2,
@@ -91,6 +130,7 @@ const MOCK_EVENTS: AgendaEventWithRelations[] = DEV_BYPASS
         updated_at: new Date().toISOString(),
         type_data: {},
         linked_event_id: null,
+        series_id: null,
         child: { id: MOCK_CHILD_ID, name: "Lucas" },
         professional: null,
         observation_count: 3,
@@ -113,6 +153,7 @@ const MOCK_EVENTS: AgendaEventWithRelations[] = DEV_BYPASS
         updated_at: new Date().toISOString(),
         type_data: {},
         linked_event_id: null,
+        series_id: null,
         child: { id: MOCK_CHILD_ID, name: "Lucas" },
         professional: null,
       },
@@ -134,6 +175,7 @@ const MOCK_EVENTS: AgendaEventWithRelations[] = DEV_BYPASS
         updated_at: new Date().toISOString(),
         type_data: {},
         linked_event_id: null,
+        series_id: null,
         child: { id: MOCK_CHILD_ID, name: "Lucas" },
         professional: null,
       },
@@ -155,6 +197,7 @@ const MOCK_EVENTS: AgendaEventWithRelations[] = DEV_BYPASS
         updated_at: new Date().toISOString(),
         type_data: {},
         linked_event_id: null,
+        series_id: null,
         child: { id: MOCK_CHILD_ID, name: "Lucas" },
         professional: null,
       },
@@ -214,11 +257,6 @@ export async function createAgendaEvent(
       "Modo preview: não é possível criar compromissos sem sessão real.",
     );
   }
-  const startAt = combineDateTime(input.date, input.start_time);
-  const endAt = input.end_time
-    ? combineDateTime(input.date, input.end_time)
-    : null;
-
   // Separa campos auxiliares de Consulta (returnDate/returnTime) — não vão
   // para o JSONB persistido; servem só para criar o evento vinculado.
   const typeData = input.type_data;
@@ -232,30 +270,57 @@ export async function createAgendaEvent(
     }
   }
 
-  const payload: AgendaEventInsert = {
+  // Âncora: para medicação, a 1ª dose do dia; para os demais, a hora de início.
+  const isMed = typeData.kind === "medicacao";
+  const medTimes = isMed ? typeData.times ?? [] : [];
+  const anchorTime = isMed ? medTimes[0] ?? input.start_time : input.start_time;
+  const anchor = new Date(combineDateTime(input.date, anchorTime));
+
+  // Duração (preservada em cada ocorrência) — só tipos com hora final.
+  let durationMs = 0;
+  if (input.end_time) {
+    const s = new Date(combineDateTime(input.date, input.start_time)).getTime();
+    const e = new Date(combineDateTime(input.date, input.end_time)).getTime();
+    if (e > s) durationMs = e - s;
+  }
+
+  // Materializa ocorrências/doses (honra recorrência, fim e múltiplas doses).
+  const startDates = buildStartDates(anchor, input.recurrence, typeData, 90);
+  const isSeries = startDates.length > 1;
+  const seriesId = isSeries ? crypto.randomUUID() : null;
+
+  const rows: AgendaEventInsert[] = startDates.map((d) => ({
     user_id: userId,
     child_id: input.child_id,
     type: input.type,
     title: input.title.trim(),
     professional_id: input.professional_id ?? null,
     professional_name_raw: input.professional_name_raw?.trim() || null,
-    start_at: startAt,
-    end_at: endAt,
+    start_at: d.toISOString(),
+    end_at: durationMs ? new Date(d.getTime() + durationMs).toISOString() : null,
     locale: input.locale?.trim() || null,
     recurrence: input.recurrence,
     reminders: input.reminders,
     type_data: storedTypeData,
-  };
+    // Só referencia a coluna quando há série — eventos avulsos seguem
+    // funcionando mesmo se a migration de series_id ainda não foi aplicada.
+    ...(seriesId ? { series_id: seriesId } : {}),
+  }));
+
   const { data, error } = await supabase
     .from("agenda_events")
     // recurrence/reminders/type_data são JSONB no schema — TS gera tipo Json
     // estrito; o payload já tem o shape correto.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .insert(payload as any)
-    .select()
-    .single();
+    .insert(rows as any)
+    .select();
   if (error) throw new Error(mapError(error.message));
-  const created = data as unknown as AgendaEvent;
+  const inserted = (data as unknown as AgendaEvent[]) ?? [];
+  // Ocorrência âncora (a mais próxima da data informada) para retorno/links.
+  const created =
+    inserted.find((r) => r.start_at === anchor.toISOString()) ??
+    [...inserted].sort((a, b) => a.start_at.localeCompare(b.start_at))[0];
+  if (!created) throw new Error(mapError("insert returned no rows"));
 
   // Retorno vinculado (consulta) — best effort. Falha aqui não invalida o
   // evento principal já criado; apenas mostra o erro pra mãe decidir.
@@ -291,56 +356,6 @@ export async function createAgendaEvent(
   }
 
   return created;
-}
-
-/**
- * Gera as datas de ocorrência para uma sessão recorrente.
- * - weekly:   até 12 ocorrências (≈3 meses)
- * - biweekly: até 6 ocorrências  (≈3 meses)
- * - monthly:  até 6 ocorrências  (≈6 meses)
- *
- * Para "weekly" com múltiplos `daysOfWeek`, cada combinação
- * semana×dia gera uma ocorrência separada.
- */
-function computeOccurrenceDates(
-  firstDate: Date,
-  recurrence: "weekly" | "biweekly" | "monthly",
-  daysOfWeek: number[],
-): Date[] {
-  const h = firstDate.getHours();
-  const m = firstDate.getMinutes();
-
-  if (recurrence === "weekly") {
-    const selectedDays = daysOfWeek.length ? daysOfWeek : [firstDate.getDay()];
-    const dates: Date[] = [];
-    for (let week = 0; week < 12; week++) {
-      for (const day of selectedDays) {
-        const diff = (day - firstDate.getDay() + 7) % 7 + week * 7;
-        const d = new Date(firstDate);
-        d.setDate(d.getDate() + diff);
-        d.setHours(h, m, 0, 0);
-        if (d >= firstDate) dates.push(d);
-      }
-    }
-    return dates.sort((a, b) => a.getTime() - b.getTime());
-  }
-
-  if (recurrence === "biweekly") {
-    return Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(firstDate);
-      d.setDate(d.getDate() + i * 14);
-      d.setHours(h, m, 0, 0);
-      return d;
-    });
-  }
-
-  // monthly
-  return Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(firstDate);
-    d.setMonth(d.getMonth() + i);
-    d.setHours(h, m, 0, 0);
-    return d;
-  });
 }
 
 export async function createTherapistSession(
@@ -415,17 +430,19 @@ export async function createTherapistSession(
     return data as unknown as AgendaEvent;
   }
 
-  // Sessão recorrente — insere uma linha por ocorrência
-  const occurrenceDates = computeOccurrenceDates(
+  // Sessão recorrente — insere uma linha por ocorrência (mesmo motor dos pais)
+  const occurrenceDates = expandOccurrences(
     startDateObj,
-    input.recurrence,
-    input.daysOfWeek,
+    recurrencePayload as RecurrenceConfig,
+    { horizonDays: 90 },
   );
+  const seriesId = crypto.randomUUID();
 
   const rows = occurrenceDates.map((occDate) => ({
     ...basePayload,
     start_at: occDate.toISOString(),
     end_at: new Date(occDate.getTime() + durationMs).toISOString(),
+    series_id: seriesId,
   }));
 
   const { data, error } = await supabase
@@ -446,6 +463,91 @@ export async function deleteAgendaEvent(id: string): Promise<void> {
     .delete()
     .eq("id", id);
   if (error) throw new Error(mapError(error.message));
+}
+
+/**
+ * Exclui uma série (ocorrências/doses) a partir de uma data — "esta e as
+ * próximas". O passado é preservado como histórico.
+ */
+export async function deleteAgendaSeries(
+  seriesId: string,
+  fromISO?: string,
+): Promise<void> {
+  if (DEV_BYPASS) return;
+  const from = fromISO ?? new Date().toISOString();
+  const { error } = await supabase
+    .from("agenda_events")
+    .delete()
+    .eq("series_id", seriesId)
+    .gte("start_at", from);
+  if (error) throw new Error(mapError(error.message));
+}
+
+/** Reagenda uma ocorrência (move data/hora). Não altera as demais da série. */
+export async function rescheduleAgendaEvent(
+  id: string,
+  newStartISO: string,
+  newEndISO?: string | null,
+): Promise<void> {
+  if (DEV_BYPASS) return;
+  const { error } = await supabase
+    .from("agenda_events")
+    .update({ start_at: newStartISO, end_at: newEndISO ?? null })
+    .eq("id", id);
+  if (error) throw new Error(mapError(error.message));
+}
+
+/**
+ * Top-up de séries indefinidas: garante ~90 dias de ocorrências à frente do
+ * último item materializado. Reusa o motor de expansão (TS) — sem recorrência
+ * em SQL. Idempotente: só insere ocorrências com `start_at` posterior ao último.
+ */
+export async function extendAgendaSeries(seriesId: string): Promise<number> {
+  if (DEV_BYPASS) return 0;
+  const { data, error } = await supabase
+    .from("agenda_events")
+    .select("*")
+    .eq("series_id", seriesId)
+    .order("start_at", { ascending: false })
+    .limit(1);
+  if (error) throw new Error(mapError(error.message));
+  const lastRow = (data as unknown as AgendaEvent[])?.[0];
+  if (!lastRow || !isIndefinite(lastRow.recurrence)) return 0;
+
+  const lastStart = new Date(lastRow.start_at);
+  const durationMs = lastRow.end_at
+    ? new Date(lastRow.end_at).getTime() - lastStart.getTime()
+    : 0;
+
+  const dates = buildStartDates(
+    lastStart,
+    lastRow.recurrence,
+    lastRow.type_data,
+    90,
+  ).filter((d) => d.getTime() > lastStart.getTime());
+  if (dates.length === 0) return 0;
+
+  const rows: AgendaEventInsert[] = dates.map((d) => ({
+    user_id: lastRow.user_id,
+    child_id: lastRow.child_id,
+    type: lastRow.type,
+    title: lastRow.title,
+    professional_id: lastRow.professional_id,
+    professional_name_raw: lastRow.professional_name_raw,
+    start_at: d.toISOString(),
+    end_at: durationMs ? new Date(d.getTime() + durationMs).toISOString() : null,
+    locale: lastRow.locale,
+    recurrence: lastRow.recurrence,
+    reminders: lastRow.reminders,
+    type_data: lastRow.type_data,
+    series_id: seriesId,
+  }));
+  const { error: insErr } = await supabase
+    .from("agenda_events")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .insert(rows as any);
+  if (insErr) throw new Error(mapError(insErr.message));
+  return rows.length;
 }
 
 import type { AgendaEventStatus } from "@/types/agenda";

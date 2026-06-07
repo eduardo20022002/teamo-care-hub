@@ -479,6 +479,7 @@ function toAgendaEvent(s: any): AgendaEventWithRelations {
     status: (s.session_attendance === "happened" ? "happened" : "upcoming") as any,
     type_data: {},
     linked_event_id: null,
+    series_id: null,
     created_at: s.start_at,
     updated_at: s.start_at,
     child: null,

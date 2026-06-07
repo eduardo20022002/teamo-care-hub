@@ -248,6 +248,19 @@ export async function dismissObservation(observationId: string): Promise<void> {
   if (error) throw new Error(mapError(error.message));
 }
 
+/** Edita o texto de uma observação. RLS garante que só o dono altera. */
+export async function updateObservation(
+  observationId: string,
+  text: string,
+): Promise<void> {
+  if (DEV_BYPASS) return;
+  const { error } = await supabase
+    .from("agenda_observations")
+    .update({ text: text.trim(), updated_at: new Date().toISOString() })
+    .eq("id", observationId);
+  if (error) throw new Error(mapError(error.message));
+}
+
 /**
  * Marca uma observação como promovida a um attendance_record.
  * Mantém o vínculo bi-direcional pra evitar duplicações.
