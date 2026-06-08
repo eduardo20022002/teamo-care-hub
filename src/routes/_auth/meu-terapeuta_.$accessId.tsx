@@ -3,7 +3,7 @@ import { useState, useMemo, useRef } from "react";
 import {
   Stethoscope, Loader2, CalendarDays, ChevronDown, ChevronUp,
   Target, Trophy, Clock, CheckCircle2, MinusCircle, XCircle, MessageSquare,
-  List, Share2, MessageCircle, Users2, Star, Heart, Lightbulb, PersonStanding, Flag, X,
+  Share2, MessageCircle, Users2, Star, Heart, Lightbulb, PersonStanding, Flag, X,
 } from "lucide-react";
 import {
   Sheet,
@@ -848,7 +848,6 @@ function PortalPage() {
   }
 
   // ── UI state ────────────────────────────────────────────────────────────────
-  const [sessionView, setSessionView] = useState<"lista" | "semana">("semana");
   const [historyVisible,    setHistoryVisible]    = useState(0);
   const [upcomingVisible,   setUpcomingVisible]   = useState(0);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -922,7 +921,6 @@ function PortalPage() {
 
             {/* ═══ Sessões ═══ */}
             <div className="mb-8">
-              {/* Cabeçalho + toggle */}
               <div className="flex items-center gap-2 mb-4">
                 <CalendarDays size={18} strokeWidth={1.8} color={TEAL} />
                 <h2 className="text-[16px] font-extrabold text-[#0F172A] flex-1">
@@ -936,32 +934,6 @@ function PortalPage() {
                     {sessionsWithContent.length}
                   </span>
                 )}
-                {/* Toggle Lista / Semana */}
-                {sessions.length > 0 && (
-                  <div
-                    className="flex rounded-[10px] p-0.5 ml-1"
-                    style={{ background: "#F1F5F9" }}
-                  >
-                    {(["lista", "semana"] as const).map((mode) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => setSessionView(mode)}
-                        className="flex items-center gap-1 h-7 px-2.5 rounded-[8px] text-[11.5px] font-semibold transition-all"
-                        style={
-                          sessionView === mode
-                            ? { background: "#fff", color: TEAL, boxShadow: "0 1px 3px rgba(13,148,136,0.15)" }
-                            : { color: "#6B7280" }
-                        }
-                      >
-                        {mode === "lista"
-                          ? <><List size={11} strokeWidth={2.2} />Lista</>
-                          : <><CalendarDays size={11} strokeWidth={2.2} />Semana</>
-                        }
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
 
               {sessions.length === 0 ? (
@@ -971,10 +943,9 @@ function PortalPage() {
                 >
                   <p className="text-[13px] text-[#9CA3AF]">Nenhuma sessão agendada ainda.</p>
                 </div>
-              ) : sessionView === "semana" ? (
-                /* ── Visão Semana ── */
+              ) : (
                 <div className="flex flex-col gap-4">
-                  {/* 1. Calendário */}
+                  {/* Calendário */}
                   <WeekGrid
                     weekStart={weekStart}
                     onPrev={() => {
@@ -992,10 +963,10 @@ function PortalPage() {
                     getEventColor={() => ({ col: TEAL, label: "S" })}
                   />
 
-                  {/* 2. Próxima sessão em destaque */}
+                  {/* Próxima sessão em destaque */}
                   {nextSession && <ProximaSessaoCard session={nextSession} />}
 
-                  {/* 3. Sessões anteriores — dropdown progressivo */}
+                  {/* Sessões anteriores — dropdown progressivo */}
                   <CollapsibleSessionSection
                     title="Sessões anteriores"
                     emptyText="Nenhum registro publicado ainda."
@@ -1006,7 +977,7 @@ function PortalPage() {
                     onClose={() => setHistoryVisible(0)}
                   />
 
-                  {/* 4. Próximas sessões (excluindo a destacada acima) */}
+                  {/* Próximas sessões (excluindo a destacada acima) */}
                   {upcomingSessions.length > 1 && (
                     <CollapsibleSessionSection
                       title="Próximas sessões"
@@ -1019,100 +990,12 @@ function PortalPage() {
                     />
                   )}
 
-                  {/* 5. Bottom sheet de detalhe ao clicar no calendário */}
+                  {/* Bottom sheet de detalhe ao clicar no calendário */}
                   <SessionDetailSheet
                     session={(sessions as any[]).find((s) => s.event_id === selectedSessionId) ?? null}
                     open={!!selectedSessionId}
                     onClose={() => setSelectedSessionId(null)}
                   />
-                </div>
-              ) : (
-                /* ── Visão Lista ── */
-                <div className="flex flex-col gap-4">
-
-                  {/* Próxima sessão */}
-                  {nextSession && (
-                    <div>
-                      <ProximaSessaoCard session={nextSession} />
-
-                      {/* Demais próximas */}
-                      {upcomingSessions.length > 1 && (
-                        <div className="mt-1.5">
-                          {upcomingVisible > 0 && (
-                            <div className="flex flex-col gap-1.5 mb-1.5">
-                              {upcomingSessions.slice(1, 1 + upcomingVisible).map((s: any) => {
-                                const d = new Date(s.start_at);
-                                const dateShort = d.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" });
-                                const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-                                return (
-                                  <div
-                                    key={s.event_id}
-                                    className="flex items-center gap-2 rounded-[10px] border px-3 py-2"
-                                    style={{ borderColor: "#E5E7EB", background: "#FAFAFA" }}
-                                  >
-                                    <span className="text-[12.5px] text-[#374151] flex-1">{dateShort} · {hm}</span>
-                                    <span className="text-[10px] font-semibold" style={{ color: "#9CA3AF" }}>Agendada</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => setUpcomingVisible((v) => v > 0 ? 0 : upcomingSessions.length - 1)}
-                            className="flex items-center gap-1 text-[12px] font-semibold"
-                            style={{ color: TEAL }}
-                          >
-                            {upcomingVisible > 0
-                              ? <><ChevronUp size={13} strokeWidth={2.5} /> Ocultar próximas</>
-                              : <><ChevronDown size={13} strokeWidth={2.5} /> Ver todas as próximas ({upcomingSessions.length - 1})</>
-                            }
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Histórico com registros */}
-                  <div>
-                    {sessionsWithContent.length > 0 && (
-                      <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: "#9CA3AF" }}>
-                        Histórico de sessões
-                      </p>
-                    )}
-                    {sessionsWithContent.length === 0 ? (
-                      !nextSession && (
-                        <div
-                          className="rounded-[14px] border px-4 py-6 text-center"
-                          style={{ borderColor: "#E5E7EB", background: "#FAFAFA" }}
-                        >
-                          <p className="text-[13px] text-[#9CA3AF]">Nenhum registro publicado ainda.</p>
-                        </div>
-                      )
-                    ) : (
-                      <div className="flex flex-col gap-3">
-                        {sessionsWithContent
-                          .slice(0, historyVisible > 0 ? historyVisible : 4)
-                          .map((s: any) => (
-                            <SessionCard key={s.event_id} session={s} />
-                          ))}
-                        {sessionsWithContent.length > 4 && (
-                          <button
-                            type="button"
-                            onClick={() => setHistoryVisible((v) => v > 4 ? 4 : sessionsWithContent.length)}
-                            className="flex items-center justify-center gap-1 text-[12px] font-semibold py-2"
-                            style={{ color: TEAL }}
-                          >
-                            {historyVisible > 4 ? (
-                              <><ChevronUp size={13} strokeWidth={2.5} /> Mostrar menos</>
-                            ) : (
-                              <><ChevronDown size={13} strokeWidth={2.5} /> Ver sessões anteriores ({sessionsWithContent.length - 4})</>
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
                 </div>
               )}
             </div>
