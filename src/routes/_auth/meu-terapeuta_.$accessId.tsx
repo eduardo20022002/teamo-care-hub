@@ -5,6 +5,10 @@ import {
   Target, Trophy, Clock, CheckCircle2, MinusCircle, XCircle, MessageSquare,
   List, Share2, MessageCircle, Users2, Star, Heart, Lightbulb, PersonStanding, Flag, X,
 } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+} from "@/components/ui/sheet";
 import { shareMilestoneImage } from "@/lib/share-image";
 import { AppShell } from "@/components/layout/AppShell";
 import {
@@ -459,6 +463,295 @@ function MilestoneCelebrationOverlay({
   );
 }
 
+// ─── Sub-componentes da visão de semana ──────────────────────────────────────
+
+function ProximaSessaoCard({ session }: { session: any }) {
+  const duration = formatDuration(session.start_at, session.end_at);
+  return (
+    <div>
+      <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: "#9CA3AF" }}>
+        Próxima sessão
+      </p>
+      <div
+        className="flex items-center gap-3 rounded-[14px] border bg-white px-4 py-3"
+        style={{ borderColor: TEAL_BORDER, background: TEAL_SOFT }}
+      >
+        <div
+          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl"
+          style={{ background: TEAL_BORDER }}
+        >
+          <CalendarDays size={16} strokeWidth={1.8} color={TEAL} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[14px] font-bold text-[#0F172A] leading-tight">
+            {formatDate(session.start_at)}
+          </p>
+          {duration && (
+            <div className="flex items-center gap-1 mt-0.5">
+              <Clock size={10} strokeWidth={2} color="#9CA3AF" />
+              <span className="text-[11px] text-[#9CA3AF]">{duration}</span>
+            </div>
+          )}
+        </div>
+        <span
+          className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold"
+          style={{ background: "#F4F5FA", color: "#6B7280" }}
+        >
+          Agendada
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function CollapsibleSessionSection({
+  title,
+  emptyText,
+  sessions,
+  visible,
+  onOpen,
+  onLoadMore,
+  onClose,
+}: {
+  title: string;
+  emptyText?: string;
+  sessions: any[];
+  visible: number;
+  onOpen: () => void;
+  onLoadMore: () => void;
+  onClose: () => void;
+}) {
+  const isOpen = visible > 0;
+  const displayed = sessions.slice(0, visible);
+  const remaining = sessions.length - visible;
+
+  return (
+    <div
+      className="rounded-[14px] border overflow-hidden"
+      style={{ borderColor: "#E5E7EB", background: "#FAFAFA" }}
+    >
+      <button
+        type="button"
+        onClick={isOpen ? onClose : sessions.length > 0 ? onOpen : undefined}
+        className="flex w-full items-center gap-2 px-4 py-3 text-left"
+        style={{ cursor: sessions.length === 0 ? "default" : "pointer" }}
+      >
+        <span className="flex-1 text-[13.5px] font-bold text-[#0F172A]">{title}</span>
+        {sessions.length > 0 && (
+          <span
+            className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+            style={{ background: TEAL_SOFT, color: TEAL, border: `1px solid ${TEAL_BORDER}` }}
+          >
+            {sessions.length}
+          </span>
+        )}
+        {sessions.length === 0 ? null : isOpen
+          ? <ChevronUp size={15} strokeWidth={2.2} color="#9CA3AF" />
+          : <ChevronDown size={15} strokeWidth={2.2} color="#9CA3AF" />
+        }
+      </button>
+
+      {isOpen && (
+        <div className="border-t border-[#F3F4F6] px-4 pb-4 pt-3 flex flex-col gap-3 bg-white">
+          {sessions.length === 0 ? (
+            <p className="text-[12px] text-[#9CA3AF]">{emptyText}</p>
+          ) : (
+            <>
+              {displayed.map((s: any) => (
+                <SessionCard key={s.event_id} session={s} />
+              ))}
+              {remaining > 0 && (
+                <button
+                  type="button"
+                  onClick={onLoadMore}
+                  className="flex items-center gap-1 text-[12px] font-semibold py-1"
+                  style={{ color: TEAL }}
+                >
+                  <ChevronDown size={13} strokeWidth={2.5} />
+                  Ver mais ({remaining})
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SessionDetailSheet({
+  session,
+  open,
+  onClose,
+}: {
+  session: any | null;
+  open: boolean;
+  onClose: () => void;
+}) {
+  if (!session) return null;
+
+  const record = session.record ?? {};
+  const hasRecord = !!session.record;
+  const plan = session.session_plan ?? {};
+  const showPlan = session.plan_visible_to_parents && (plan.objectives || (plan.specific_objectives?.length ?? 0) > 0);
+  const notableBehaviors: any[] = record.notable_behaviors ?? [];
+  const conquistas = notableBehaviors.filter((b: any) => b.type === "conquista" || b.type === "regulacao");
+  const goalsAchieved: any[] = record.goals_achieved ?? [];
+
+  const isPast = new Date(session.start_at) < new Date();
+  const attendance = session.session_attendance as string | null;
+  let statusLabel = "Agendada", statusColor = "#6B7280", statusBg = "#F4F5FA";
+  if (attendance === "missed_justified" || attendance === "missed_no_show") {
+    statusLabel = "Falta"; statusColor = "#DC2626"; statusBg = "#FEF2F2";
+  } else if (hasRecord) {
+    statusLabel = "Registrada"; statusColor = "#16A34A"; statusBg = "#ECFDF5";
+  } else if (attendance === "happened") {
+    statusLabel = "Realizada"; statusColor = TEAL; statusBg = TEAL_SOFT;
+  } else if (isPast) {
+    statusLabel = "Aguardando registro"; statusColor = "#D97706"; statusBg = "#FEF3C7";
+  }
+
+  const date = session.start_at ? formatDate(session.start_at) : "";
+  const duration = formatDuration(session.start_at, session.end_at);
+  const hasContent = hasRecord || showPlan;
+
+  return (
+    <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <SheetContent side="bottom" className="rounded-t-[20px] px-0 pb-0 max-h-[85vh] overflow-y-auto">
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="h-1 w-10 rounded-full" style={{ background: "#D1D5DB" }} />
+        </div>
+
+        <div className="px-5 pb-8">
+          {/* Título + status */}
+          <div className="flex items-start gap-2 mb-1 mt-1">
+            <p className="flex-1 text-[16px] font-extrabold text-[#0F172A] leading-tight">
+              {session.title ?? "Sessão"}
+            </p>
+            <span
+              className="mt-0.5 flex-shrink-0 rounded-full px-2.5 py-0.5 text-[10.5px] font-bold"
+              style={{ background: statusBg, color: statusColor }}
+            >
+              {statusLabel}
+            </span>
+          </div>
+
+          {/* Data e hora */}
+          <div className="flex items-center gap-3 mt-2 mb-4">
+            <div className="flex items-center gap-1.5">
+              <CalendarDays size={13} strokeWidth={1.8} color="#9CA3AF" />
+              <span className="text-[12.5px] text-[#6B7280]">{date}</span>
+            </div>
+            {duration && (
+              <>
+                <span className="text-[#D1D5DB]">·</span>
+                <div className="flex items-center gap-1.5">
+                  <Clock size={13} strokeWidth={1.8} color="#9CA3AF" />
+                  <span className="text-[12.5px] text-[#6B7280]">{duration}</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="h-px mb-4" style={{ background: "#F3F4F6" }} />
+
+          {/* Instrução à família */}
+          {record.family_instruction && (
+            <div
+              className="rounded-xl px-3 py-2.5 mb-4"
+              style={{ background: AMBER_SOFT, border: `1px solid ${AMBER_BORDER}` }}
+            >
+              <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: AMBER }}>
+                Instrução da família
+              </p>
+              <p className="text-[13px] text-[#92400E] leading-relaxed">
+                {record.family_instruction}
+              </p>
+            </div>
+          )}
+
+          {!hasContent ? (
+            <p className="text-[13px] text-[#9CA3AF] text-center py-4">
+              Esta sessão ainda não tem registro publicado pelo terapeuta.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {/* Plano */}
+              {showPlan && (
+                <div>
+                  <p className="text-[11.5px] font-bold text-[#6B7280] uppercase tracking-wide mb-1.5">Plano da sessão</p>
+                  {plan.objectives && (
+                    <p className="text-[13px] text-[#374151] mb-1.5 leading-relaxed">{plan.objectives}</p>
+                  )}
+                  {(plan.specific_objectives?.length ?? 0) > 0 && (
+                    <ul className="flex flex-col gap-1">
+                      {(plan.specific_objectives as string[]).map((obj: string, i: number) => (
+                        <li key={i} className="flex items-start gap-1.5">
+                          <div className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: TEAL }} />
+                          <span className="text-[13px] text-[#374151]">{obj}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {/* O que foi trabalhado */}
+              {record.what_was_done && (
+                <div>
+                  <p className="text-[11.5px] font-bold text-[#6B7280] uppercase tracking-wide mb-1.5">O que foi trabalhado</p>
+                  <p className="text-[13px] text-[#374151] leading-relaxed">{record.what_was_done}</p>
+                </div>
+              )}
+
+              {/* Objetivos */}
+              {goalsAchieved.length > 0 && (
+                <div>
+                  <p className="text-[11.5px] font-bold text-[#6B7280] uppercase tracking-wide mb-1.5">Objetivos</p>
+                  <div className="flex flex-col gap-1.5">
+                    {goalsAchieved.map((g: any, i: number) => {
+                      const status = g.status as keyof typeof GOAL_STATUS_ICON;
+                      const Icon = GOAL_STATUS_ICON[status] ?? MinusCircle;
+                      const color = GOAL_STATUS_COLOR[status] ?? "#6B7280";
+                      return (
+                        <div key={i} className="flex items-start gap-2">
+                          <Icon size={14} strokeWidth={2} color={color} className="mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <span className="text-[13px] text-[#374151]">{g.goal}</span>
+                            {g.notes && (
+                              <p className="text-[11.5px] text-[#6B7280] mt-0.5">{g.notes}</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Conquistas */}
+              {conquistas.length > 0 && (
+                <div>
+                  <p className="text-[11.5px] font-bold text-[#6B7280] uppercase tracking-wide mb-1.5">Conquistas 🎉</p>
+                  <div className="flex flex-col gap-1.5">
+                    {conquistas.map((b: any, i: number) => (
+                      <div key={i} className="flex items-start gap-2">
+                        <div className="mt-1 h-2 w-2 flex-shrink-0 rounded-full" style={{ background: "#16A34A" }} />
+                        <p className="text-[13px] text-[#374151]">{b.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 // Converte sessão do portal para o shape mínimo que o WeekGrid aceita
@@ -555,10 +848,10 @@ function PortalPage() {
   }
 
   // ── UI state ────────────────────────────────────────────────────────────────
-  const [sessionView, setSessionView] = useState<"lista" | "semana">("lista");
-  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
-  const [showAllHistory, setShowAllHistory] = useState(false);
-  const HISTORY_LIMIT = 4;
+  const [sessionView, setSessionView] = useState<"lista" | "semana">("semana");
+  const [historyVisible,    setHistoryVisible]    = useState(0);
+  const [upcomingVisible,   setUpcomingVisible]   = useState(0);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
   // Inicializa na semana da próxima sessão (ou hoje)
   const [weekStart, setWeekStart] = useState<Date>(() =>
@@ -680,7 +973,8 @@ function PortalPage() {
                 </div>
               ) : sessionView === "semana" ? (
                 /* ── Visão Semana ── */
-                <div>
+                <div className="flex flex-col gap-4">
+                  {/* 1. Calendário */}
                   <WeekGrid
                     weekStart={weekStart}
                     onPrev={() => {
@@ -694,12 +988,43 @@ function PortalPage() {
                       setWeekStart(d);
                     }}
                     events={allAgendaEvents}
-                    onSelectEvent={() => {}}
+                    onSelectEvent={(id) => setSelectedSessionId(id)}
                     getEventColor={() => ({ col: TEAL, label: "S" })}
                   />
-                  <p className="mt-2 text-center text-[11px] text-[#9CA3AF]">
-                    Toque em "Lista" para ver os detalhes das sessões realizadas.
-                  </p>
+
+                  {/* 2. Próxima sessão em destaque */}
+                  {nextSession && <ProximaSessaoCard session={nextSession} />}
+
+                  {/* 3. Sessões anteriores — dropdown progressivo */}
+                  <CollapsibleSessionSection
+                    title="Sessões anteriores"
+                    emptyText="Nenhum registro publicado ainda."
+                    sessions={sessionsWithContent}
+                    visible={historyVisible}
+                    onOpen={() => setHistoryVisible(1)}
+                    onLoadMore={() => setHistoryVisible((v) => v + 4)}
+                    onClose={() => setHistoryVisible(0)}
+                  />
+
+                  {/* 4. Próximas sessões (excluindo a destacada acima) */}
+                  {upcomingSessions.length > 1 && (
+                    <CollapsibleSessionSection
+                      title="Próximas sessões"
+                      emptyText=""
+                      sessions={upcomingSessions.slice(1)}
+                      visible={upcomingVisible}
+                      onOpen={() => setUpcomingVisible(1)}
+                      onLoadMore={() => setUpcomingVisible((v) => v + 4)}
+                      onClose={() => setUpcomingVisible(0)}
+                    />
+                  )}
+
+                  {/* 5. Bottom sheet de detalhe ao clicar no calendário */}
+                  <SessionDetailSheet
+                    session={(sessions as any[]).find((s) => s.event_id === selectedSessionId) ?? null}
+                    open={!!selectedSessionId}
+                    onClose={() => setSelectedSessionId(null)}
+                  />
                 </div>
               ) : (
                 /* ── Visão Lista ── */
@@ -708,46 +1033,14 @@ function PortalPage() {
                   {/* Próxima sessão */}
                   {nextSession && (
                     <div>
-                      <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: "#9CA3AF" }}>
-                        Próxima sessão
-                      </p>
-                      <div
-                        className="flex items-center gap-3 rounded-[14px] border bg-white px-4 py-3"
-                        style={{ borderColor: TEAL_BORDER, background: TEAL_SOFT }}
-                      >
-                        <div
-                          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl"
-                          style={{ background: TEAL_BORDER }}
-                        >
-                          <CalendarDays size={16} strokeWidth={1.8} color={TEAL} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[14px] font-bold text-[#0F172A] leading-tight">
-                            {formatDate(nextSession.start_at)}
-                          </p>
-                          {formatDuration(nextSession.start_at, nextSession.end_at) && (
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <Clock size={10} strokeWidth={2} color="#9CA3AF" />
-                              <span className="text-[11px] text-[#9CA3AF]">
-                                {formatDuration(nextSession.start_at, nextSession.end_at)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <span
-                          className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold"
-                          style={{ background: "#F4F5FA", color: "#6B7280" }}
-                        >
-                          Agendada
-                        </span>
-                      </div>
+                      <ProximaSessaoCard session={nextSession} />
 
                       {/* Demais próximas */}
                       {upcomingSessions.length > 1 && (
                         <div className="mt-1.5">
-                          {showAllUpcoming && (
+                          {upcomingVisible > 0 && (
                             <div className="flex flex-col gap-1.5 mb-1.5">
-                              {upcomingSessions.slice(1).map((s: any) => {
+                              {upcomingSessions.slice(1, 1 + upcomingVisible).map((s: any) => {
                                 const d = new Date(s.start_at);
                                 const dateShort = d.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" });
                                 const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -766,11 +1059,11 @@ function PortalPage() {
                           )}
                           <button
                             type="button"
-                            onClick={() => setShowAllUpcoming((v) => !v)}
+                            onClick={() => setUpcomingVisible((v) => v > 0 ? 0 : upcomingSessions.length - 1)}
                             className="flex items-center gap-1 text-[12px] font-semibold"
                             style={{ color: TEAL }}
                           >
-                            {showAllUpcoming
+                            {upcomingVisible > 0
                               ? <><ChevronUp size={13} strokeWidth={2.5} /> Ocultar próximas</>
                               : <><ChevronDown size={13} strokeWidth={2.5} /> Ver todas as próximas ({upcomingSessions.length - 1})</>
                             }
@@ -798,23 +1091,22 @@ function PortalPage() {
                       )
                     ) : (
                       <div className="flex flex-col gap-3">
-                        {(showAllHistory
-                          ? sessionsWithContent
-                          : sessionsWithContent.slice(0, HISTORY_LIMIT)
-                        ).map((s: any) => (
-                          <SessionCard key={s.event_id} session={s} />
-                        ))}
-                        {sessionsWithContent.length > HISTORY_LIMIT && (
+                        {sessionsWithContent
+                          .slice(0, historyVisible > 0 ? historyVisible : 4)
+                          .map((s: any) => (
+                            <SessionCard key={s.event_id} session={s} />
+                          ))}
+                        {sessionsWithContent.length > 4 && (
                           <button
                             type="button"
-                            onClick={() => setShowAllHistory((v) => !v)}
+                            onClick={() => setHistoryVisible((v) => v > 4 ? 4 : sessionsWithContent.length)}
                             className="flex items-center justify-center gap-1 text-[12px] font-semibold py-2"
                             style={{ color: TEAL }}
                           >
-                            {showAllHistory ? (
+                            {historyVisible > 4 ? (
                               <><ChevronUp size={13} strokeWidth={2.5} /> Mostrar menos</>
                             ) : (
-                              <><ChevronDown size={13} strokeWidth={2.5} /> Ver sessões anteriores ({sessionsWithContent.length - HISTORY_LIMIT})</>
+                              <><ChevronDown size={13} strokeWidth={2.5} /> Ver sessões anteriores ({sessionsWithContent.length - 4})</>
                             )}
                           </button>
                         )}
