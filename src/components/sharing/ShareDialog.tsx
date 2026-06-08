@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ShareStepper } from "./ShareStepper";
@@ -183,26 +183,15 @@ export function ShareDialog({
           <div className="h-1 w-10 rounded-full bg-[#E5E7EB]" />
         </div>
 
-        {/* Header */}
-        <div className="flex items-start justify-between px-5 pb-4 pt-3">
-          <div>
-            <h2 className="text-[17px] font-bold text-foreground">
-              Compartilhar com profissional
-            </h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              Gere um link seguro com prazo. O profissional confirma o acesso com
-              um código de 6 dígitos enviado por e-mail.
-            </p>
-          </div>
-          {step !== 4 && (
-            <button
-              type="button"
-              onClick={handleClose}
-              className="ml-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F6F7FB] text-muted-foreground hover:bg-[#EEF0F4]"
-            >
-              <X className="h-4 w-4" strokeWidth={2} />
-            </button>
-          )}
+        {/* Header — o X de fechar é o padrão do SheetContent (canto sup. direito) */}
+        <div className="px-5 pb-4 pt-3">
+          <h2 className="text-[17px] font-bold text-foreground">
+            Compartilhar com profissional
+          </h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Gere um link seguro com prazo. O profissional confirma o acesso com
+            um código de 6 dígitos enviado por e-mail.
+          </p>
         </div>
 
         <div className="h-px bg-[#EEF0F4]" />

@@ -12,7 +12,6 @@ import {
   Sunrise,
   Sunset,
   Video,
-  X,
   type LucideIcon,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -1310,16 +1309,9 @@ export function RecordFormSheet({
         </div>
 
         <div className="px-5 pt-3 pb-4">
-          {/* Back link / type chip */}
-          <div className="mb-2 flex items-center justify-between">
+          {/* Type chip — o X de fechar é o padrão do SheetContent (canto sup. direito) */}
+          <div className="mb-2 flex items-center">
             <RecordTypeChip type={recordType} size="md" />
-            <button
-              type="button"
-              onClick={() => onOpenChange(false)}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F6F7FB] text-muted-foreground hover:bg-[#EEF0F4]"
-            >
-              <X className="h-4 w-4" strokeWidth={2} />
-            </button>
           </div>
 
           <h2 className="text-[20px] font-bold text-foreground leading-tight">
