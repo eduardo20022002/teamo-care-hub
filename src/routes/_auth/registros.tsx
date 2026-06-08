@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { z } from "zod";
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ClipboardList, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
@@ -40,7 +40,6 @@ export const Route = createFileRoute("/_auth/registros")({
   validateSearch: z.object({
     new: z.string().optional(),
     childId: z.string().optional(),
-    returnTo: z.string().optional(),
   }).parse,
   component: RegistrosPage,
 });
@@ -73,13 +72,6 @@ function RegistrosPage() {
   const [savedDefaultChildId] = useState<string | undefined>(
     () => new URLSearchParams(location.search).get("childId") ?? undefined,
   );
-  const [returnTo] = useState<string | undefined>(
-    () => new URLSearchParams(location.search).get("returnTo") ?? undefined,
-  );
-
-  // Ref síncrono: true quando o type picker fechou porque um tipo foi selecionado
-  // (evita falso-positivo no onOpenChange que dispara antes do setState ser commitado)
-  const typeJustSelectedRef = useRef(false);
 
   // UI state
   const [typePickerOpen, setTypePickerOpen] = useState(false);
@@ -137,7 +129,6 @@ function RegistrosPage() {
       qc.invalidateQueries({ queryKey: ["attendance"] });
       setFormOpen(false);
       setSelectedType(null);
-      if (returnTo) void navigate({ to: returnTo as "/", replace: true });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -359,20 +350,7 @@ function RegistrosPage() {
       {/* Type picker → Form */}
       <RecordTypePicker
         open={typePickerOpen}
-        onOpenChange={(o) => {
-          setTypePickerOpen(o);
-          if (!o) {
-            // Se fechou por seleção de tipo, limpa o ref e não navega
-            if (typeJustSelectedRef.current) {
-              typeJustSelectedRef.current = false;
-              return;
-            }
-            // Se fechou sem selecionar (X / swipe down) e veio de atalho → retorna à origem
-            if (returnTo) {
-              void navigate({ to: returnTo as "/", replace: true });
-            }
-          }
-        }}
+        onOpenChange={setTypePickerOpen}
         onSelect={handleTypeSelected}
       />
 
@@ -381,13 +359,7 @@ function RegistrosPage() {
           open={formOpen}
           onOpenChange={(o) => {
             setFormOpen(o);
-            if (!o) {
-              setEditingRecord(null);
-              // Se veio de atalho de criança e fechou sem salvar (edição aberta pelo módulo não conta) → retorna
-              if (returnTo && !editingRecord) {
-                void navigate({ to: returnTo as "/", replace: true });
-              }
-            }
+            if (!o) { setEditingRecord(null); }
           }}
           recordType={selectedType}
           childrenList={childrenList}
