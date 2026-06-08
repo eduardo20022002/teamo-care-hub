@@ -17,14 +17,11 @@ import {
   addChildDocuments,
   deleteUnifiedDocument,
   listAllDocuments,
-  normalizeForSearch,
   type UnifiedDocument,
 } from "@/services/documents.service";
 import {
   DocumentFilters,
-  type PeriodFilter,
-  type SourceFilter,
-  type TypeFilter,
+  type CategoryFilter,
 } from "@/components/documents/DocumentFilters";
 import { DocumentCard } from "@/components/documents/DocumentCard";
 import { AddChildDocumentDialog } from "@/components/documents/AddChildDocumentDialog";
@@ -41,22 +38,6 @@ export const Route = createFileRoute("/_auth/documentos")({
   }).parse,
   component: DocumentosPage,
 });
-
-function withinPeriod(createdAt: string, period: PeriodFilter): boolean {
-  if (period === "all") return true;
-  const created = new Date(createdAt);
-  const now = new Date();
-  if (period === "year") return created.getFullYear() === now.getFullYear();
-  const days = period === "7d" ? 7 : 30;
-  const limit = new Date(now.getTime() - days * 86400000);
-  return created >= limit;
-}
-
-function matchesType(mime: string, type: TypeFilter): boolean {
-  if (type === "all") return true;
-  if (type === "pdf") return mime === "application/pdf";
-  return mime.startsWith("image/");
-}
 
 function DocumentosPage() {
   const { user } = useAuth();
@@ -82,10 +63,7 @@ function DocumentosPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
-  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
-  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
 
   const [addOpen, setAddOpen] = useState(false);
   const [deleting, setDeleting] = useState<UnifiedDocument | null>(null);
@@ -152,16 +130,16 @@ function DocumentosPage() {
   const childrenList = childrenQuery.data ?? [];
 
   const filtered = useMemo(() => {
-    const q = normalizeForSearch(search.trim());
     return documents.filter((d) => {
       if (childFilter !== "all" && d.child_id !== childFilter) return false;
-      if (sourceFilter !== "all" && d.source !== sourceFilter) return false;
-      if (!matchesType(d.mime_type, typeFilter)) return false;
-      if (!withinPeriod(d.created_at, periodFilter)) return false;
-      if (q && !normalizeForSearch(d.file_name).includes(q)) return false;
+      if (categoryFilter !== "all") {
+        // Documentos de criança filtram pela coluna category; anexos de registro não têm categoria própria
+        if (d.source === "child" && d.category !== categoryFilter) return false;
+        if (d.source === "record") return false; // não participam do filtro de categoria
+      }
       return true;
     });
-  }, [documents, childFilter, sourceFilter, typeFilter, periodFilter, search]);
+  }, [documents, childFilter, categoryFilter]);
 
   const isLoading = childrenQuery.isLoading || documentsQuery.isLoading;
 
@@ -224,14 +202,8 @@ function DocumentosPage() {
             childrenList={childrenList}
             childFilter={childFilter}
             onChildChange={setChildFilter}
-            sourceFilter={sourceFilter}
-            onSourceChange={setSourceFilter}
-            typeFilter={typeFilter}
-            onTypeChange={setTypeFilter}
-            periodFilter={periodFilter}
-            onPeriodChange={setPeriodFilter}
-            search={search}
-            onSearchChange={setSearch}
+            categoryFilter={categoryFilter}
+            onCategoryChange={setCategoryFilter}
           />
         </div>
       )}

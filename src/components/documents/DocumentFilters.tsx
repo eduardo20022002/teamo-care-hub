@@ -1,136 +1,99 @@
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { Child } from "@/types/database";
+import { CATEGORIES } from "./AddChildDocumentDialog";
 
-export type SourceFilter = "all" | "child" | "record";
-export type TypeFilter = "all" | "pdf" | "image";
-export type PeriodFilter = "all" | "7d" | "30d" | "year";
+export type CategoryFilter = "all" | "laudo" | "relatorio" | "prescricao" | "escolar" | "outros";
 
 interface Props {
   childrenList: Child[];
   childFilter: string;
   onChildChange: (v: string) => void;
-  sourceFilter: SourceFilter;
-  onSourceChange: (v: SourceFilter) => void;
-  typeFilter: TypeFilter;
-  onTypeChange: (v: TypeFilter) => void;
-  periodFilter: PeriodFilter;
-  onPeriodChange: (v: PeriodFilter) => void;
-  search: string;
-  onSearchChange: (v: string) => void;
+  categoryFilter: CategoryFilter;
+  onCategoryChange: (v: CategoryFilter) => void;
 }
 
 export function DocumentFilters({
   childrenList,
   childFilter,
   onChildChange,
-  sourceFilter,
-  onSourceChange,
-  typeFilter,
-  onTypeChange,
-  periodFilter,
-  onPeriodChange,
-  search,
-  onSearchChange,
+  categoryFilter,
+  onCategoryChange,
 }: Props) {
+  const showChildFilter = childrenList.length > 1;
+
   return (
-    <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-      <div className="space-y-1.5">
-        <Label htmlFor="doc-search" className="text-xs">
-          Buscar por nome
-        </Label>
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            strokeWidth={1.75}
-          />
-          <Input
-            id="doc-search"
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Ex.: laudo, relatório..."
-            className="pl-9"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="space-y-1.5">
-          <Label className="text-xs">Criança</Label>
-          <Select value={childFilter} onValueChange={onChildChange}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as crianças</SelectItem>
-              {childrenList.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs">Origem</Label>
-          <Select
-            value={sourceFilter}
-            onValueChange={(v) => onSourceChange(v as SourceFilter)}
+    <div className="flex flex-wrap gap-2">
+      {/* Filtro de criança — só aparece quando há mais de uma */}
+      {showChildFilter && (
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() => onChildChange("all")}
+            className="rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors"
+            style={
+              childFilter === "all"
+                ? { background: "#4F46E5", borderColor: "#4F46E5", color: "#fff" }
+                : { background: "#F6F7FB", borderColor: "#E5E7EB", color: "#374151" }
+            }
           >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as origens</SelectItem>
-              <SelectItem value="child">Documento da criança</SelectItem>
-              <SelectItem value="record">Anexo de registro</SelectItem>
-            </SelectContent>
-          </Select>
+            Todas
+          </button>
+          {childrenList.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => onChildChange(c.id)}
+              className="rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors"
+              style={
+                childFilter === c.id
+                  ? { background: "#4F46E5", borderColor: "#4F46E5", color: "#fff" }
+                  : { background: "#F6F7FB", borderColor: "#E5E7EB", color: "#374151" }
+              }
+            >
+              {c.name}
+            </button>
+          ))}
         </div>
+      )}
 
-        <div className="space-y-1.5">
-          <Label className="text-xs">Tipo</Label>
-          <Select
-            value={typeFilter}
-            onValueChange={(v) => onTypeChange(v as TypeFilter)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os tipos</SelectItem>
-              <SelectItem value="pdf">PDF</SelectItem>
-              <SelectItem value="image">Imagens</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Separador visual entre os dois grupos */}
+      {showChildFilter && (
+        <div className="w-full border-t border-[#EEF0F4]" />
+      )}
 
-        <div className="space-y-1.5">
-          <Label className="text-xs">Período</Label>
-          <Select
-            value={periodFilter}
-            onValueChange={(v) => onPeriodChange(v as PeriodFilter)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Qualquer data</SelectItem>
-              <SelectItem value="7d">Últimos 7 dias</SelectItem>
-              <SelectItem value="30d">Últimos 30 dias</SelectItem>
-              <SelectItem value="year">Este ano</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Filtro de categoria */}
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          onClick={() => onCategoryChange("all")}
+          className="rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors"
+          style={
+            categoryFilter === "all"
+              ? { background: "#7C3AED", borderColor: "#7C3AED", color: "#fff" }
+              : { background: "#F6F7FB", borderColor: "#E5E7EB", color: "#374151" }
+          }
+        >
+          Todas categorias
+        </button>
+        {CATEGORIES.map((cat) => {
+          const active = categoryFilter === cat.id;
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => onCategoryChange(cat.id as CategoryFilter)}
+              className="rounded-full border px-3 py-1.5 text-xs font-semibold transition-all"
+              style={
+                active
+                  ? { background: cat.activeBg, borderColor: cat.activeBorder, color: "inherit" }
+                  : { background: "#F6F7FB", borderColor: "#E5E7EB", color: "#374151" }
+              }
+            >
+              <span className={active ? cat.color : ""}>
+                {cat.emoji} {cat.label}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
