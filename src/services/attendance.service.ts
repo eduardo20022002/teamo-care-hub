@@ -186,3 +186,43 @@ export async function updateDiaryRecord(
   if (error) throw new Error(mapError(error.message));
   return data as unknown as DiaryRecordWithRelations;
 }
+
+// ───────────────────────────────────────────────
+// Mention ↔ Agenda event linking
+// ───────────────────────────────────────────────
+
+/**
+ * Retorna o Set de IDs de eventos da agenda que têm ao menos 1 registro
+ * de diário com mention.agenda_event_id preenchido.
+ * Query leve (só IDs, sem relações) — usada para o indicador na listagem.
+ */
+export async function listMentionedAgendaEventIds(): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from("attendance_records")
+    .select("type_data")
+    .not("type_data->'mention'->>'agenda_event_id'", "is", null);
+  if (error) throw new Error(mapError(error.message));
+  const ids = new Set<string>();
+  for (const row of data ?? []) {
+    const td = row.type_data as Record<string, unknown> | null;
+    const evId = (td?.mention as Record<string, unknown> | undefined)?.agenda_event_id;
+    if (typeof evId === "string" && evId) ids.add(evId);
+  }
+  return ids;
+}
+
+/**
+ * Retorna registros de diário vinculados a um evento específico da agenda
+ * via mention.agenda_event_id.
+ */
+export async function listRecordsMentioningEvent(
+  eventId: string,
+): Promise<DiaryRecordWithRelations[]> {
+  const { data, error } = await supabase
+    .from("attendance_records")
+    .select(SELECT_WITH_RELATIONS)
+    .not("record_type", "is", null)
+    .filter("type_data->'mention'->>'agenda_event_id'", "eq", eventId);
+  if (error) throw new Error(mapError(error.message));
+  return (data ?? []) as unknown as DiaryRecordWithRelations[];
+}

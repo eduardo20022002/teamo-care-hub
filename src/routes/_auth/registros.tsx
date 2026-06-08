@@ -40,6 +40,7 @@ export const Route = createFileRoute("/_auth/registros")({
   validateSearch: z.object({
     new: z.string().optional(),
     childId: z.string().optional(),
+    returnTo: z.string().optional(),
   }).parse,
   component: RegistrosPage,
 });
@@ -67,9 +68,14 @@ function RegistrosPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
-  const openNew = searchParams.get("new") === "1";
-  const defaultChildId = searchParams.get("childId") ?? undefined;
+  const openNew = new URLSearchParams(location.search).get("new") === "1";
+  // Captura uma única vez no mount (antes de navigate limpar a URL)
+  const [savedDefaultChildId] = useState<string | undefined>(
+    () => new URLSearchParams(location.search).get("childId") ?? undefined,
+  );
+  const [returnTo] = useState<string | undefined>(
+    () => new URLSearchParams(location.search).get("returnTo") ?? undefined,
+  );
 
   // UI state
   const [typePickerOpen, setTypePickerOpen] = useState(false);
@@ -127,6 +133,7 @@ function RegistrosPage() {
       qc.invalidateQueries({ queryKey: ["attendance"] });
       setFormOpen(false);
       setSelectedType(null);
+      if (returnTo) void navigate({ to: returnTo as "/", replace: true });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -347,7 +354,13 @@ function RegistrosPage() {
       {/* Type picker → Form */}
       <RecordTypePicker
         open={typePickerOpen}
-        onOpenChange={setTypePickerOpen}
+        onOpenChange={(o) => {
+          setTypePickerOpen(o);
+          // Se fechou sem selecionar tipo e veio de atalho de criança → retorna à origem
+          if (!o && !selectedType && returnTo) {
+            void navigate({ to: returnTo as "/", replace: true });
+          }
+        }}
         onSelect={handleTypeSelected}
       />
 
@@ -356,13 +369,19 @@ function RegistrosPage() {
           open={formOpen}
           onOpenChange={(o) => {
             setFormOpen(o);
-            if (!o) { setEditingRecord(null); }
+            if (!o) {
+              setEditingRecord(null);
+              // Se veio de atalho de criança e fechou sem salvar (edição aberta pelo módulo não conta) → retorna
+              if (returnTo && !editingRecord) {
+                void navigate({ to: returnTo as "/", replace: true });
+              }
+            }
           }}
           recordType={selectedType}
           childrenList={childrenList}
           professionals={professionals}
           initial={editingRecord}
-          defaultChildId={editingRecord ? undefined : defaultChildId}
+          defaultChildId={editingRecord ? undefined : savedDefaultChildId}
           onSave={handleSave}
           submitting={createMutation.isPending || updateMutation.isPending}
         />

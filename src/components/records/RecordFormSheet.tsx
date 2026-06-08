@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Bell,
   Camera,
@@ -33,6 +34,8 @@ import {
 import { RecordTypeChip } from "./RecordTypeChip";
 import type { DiaryRecordWithRelations } from "@/services/attendance.service";
 import type { Child, Professional } from "@/types/database";
+import { listAgendaEvents } from "@/services/agenda/events.service";
+import type { AgendaEventWithRelations } from "@/types/agenda";
 
 const BRAND_GRADIENT =
   "linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)";
@@ -90,7 +93,7 @@ function StyledInput({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="h-[44px] w-full rounded-[11px] border-[1.5px] border-[#E5E7EB] bg-[#F6F7FB] px-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-[#4F46E5] focus:bg-[#FAFBFF] focus:outline-none focus:ring-4 focus:ring-[rgba(79,70,229,0.10)]"
+      className="h-[44px] w-full min-w-0 max-w-full rounded-[11px] border-[1.5px] border-[#E5E7EB] bg-[#F6F7FB] px-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-[#4F46E5] focus:bg-[#FAFBFF] focus:outline-none focus:ring-4 focus:ring-[rgba(79,70,229,0.10)]"
     />
   );
 }
@@ -363,7 +366,7 @@ function DateShiftRow({
 }) {
   if (!showShift) {
     return (
-      <div>
+      <div className="min-w-0">
         <FieldLabel>Data</FieldLabel>
         <StyledInput type="date" value={date} onChange={onDate} />
       </div>
@@ -371,7 +374,7 @@ function DateShiftRow({
   }
   return (
     <div className="space-y-3">
-      <div>
+      <div className="min-w-0">
         <FieldLabel>Data</FieldLabel>
         <StyledInput type="date" value={date} onChange={onDate} />
       </div>
@@ -687,7 +690,7 @@ function SonoFields({
         />
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div>
+        <div className="min-w-0">
           <FieldLabel>Dormiu às</FieldLabel>
           <StyledInput
             type="time"
@@ -695,7 +698,7 @@ function SonoFields({
             onChange={(v) => update({ sleep_time: v })}
           />
         </div>
-        <div>
+        <div className="min-w-0">
           <FieldLabel>Acordou às</FieldLabel>
           <StyledInput
             type="time"
@@ -1078,6 +1081,9 @@ function MentionSection({
   setProfId,
   note,
   setNote,
+  agendaEvents,
+  agendaEventId,
+  setAgendaEventId,
 }: {
   open: boolean;
   onToggle: () => void;
@@ -1086,6 +1092,9 @@ function MentionSection({
   setProfId: (v: string) => void;
   note: string;
   setNote: (v: string) => void;
+  agendaEvents: AgendaEventWithRelations[];
+  agendaEventId: string;
+  setAgendaEventId: (v: string) => void;
 }) {
   return (
     <div className="rounded-[14px] border border-[#FCD34D] bg-[#FFFBEB] overflow-hidden">
@@ -1102,7 +1111,7 @@ function MentionSection({
             Quero mencionar isso com alguém
           </p>
           <p className="text-[11px] text-amber-700">
-            {open ? "Vincule a um profissional." : "Te avisamos na data certa."}
+            {open ? "Selecione o profissional e, opcionalmente, o evento." : "Te avisamos na data certa."}
           </p>
         </div>
         {open ? (
@@ -1130,6 +1139,36 @@ function MentionSection({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Seletor de evento da agenda — aparece quando profissional está selecionado */}
+          {profId && (
+            <div>
+              <FieldLabel>Em qual consulta/sessão? (opcional)</FieldLabel>
+              <Select value={agendaEventId || "__none__"} onValueChange={(v) => setAgendaEventId(v === "__none__" ? "" : v)}>
+                <SelectTrigger className="h-[44px] rounded-[11px] border-[1.5px] border-[#E5E7EB] bg-white text-sm">
+                  <SelectValue placeholder="Selecione um evento (opcional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sem vínculo com evento</SelectItem>
+                  {agendaEvents.map((ev) => {
+                    const d = new Date(ev.start_at);
+                    const label = `${ev.title} · ${d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+                    return (
+                      <SelectItem key={ev.id} value={ev.id}>
+                        {label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              {agendaEventId && (
+                <p className="mt-1 text-[11px] text-amber-700">
+                  ✓ Um indicador vai aparecer nesse evento da agenda.
+                </p>
+              )}
+            </div>
+          )}
+
           <div>
             <FieldLabel>Observação (opcional)</FieldLabel>
             <StyledTextarea
@@ -1182,8 +1221,22 @@ export function RecordFormSheet({
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionProfId, setMentionProfId] = useState("");
   const [mentionNote, setMentionNote] = useState("");
+  const [mentionAgendaEventId, setMentionAgendaEventId] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  // Carrega eventos futuros da agenda para o seletor "Em qual consulta?"
+  const agendaEventsQuery = useQuery({
+    queryKey: ["agenda-events-for-mention"],
+    queryFn: () =>
+      listAgendaEvents({
+        from: new Date().toISOString(),
+        to: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      }),
+    enabled: open && mentionOpen && !!mentionProfId,
+    staleTime: 60_000,
+  });
+  const agendaEventsForMention = agendaEventsQuery.data ?? [];
 
   const updateTD = useCallback((patch: Record<string, unknown>) => {
     setTypeData((prev) => ({ ...prev, ...patch }));
@@ -1212,11 +1265,13 @@ export function RecordFormSheet({
         setMentionOpen(true);
         setMentionProfId(mention.professional_id ?? "");
         setMentionNote(mention.note ?? "");
+        setMentionAgendaEventId((mention as Record<string, unknown>).agenda_event_id as string ?? "");
         delete td.mention;
       } else {
         setMentionOpen(false);
         setMentionProfId("");
         setMentionNote("");
+        setMentionAgendaEventId("");
       }
       setTypeData(td);
     } else {
@@ -1228,6 +1283,7 @@ export function RecordFormSheet({
       setMentionOpen(defaultMentionOpen);
       setMentionProfId("");
       setMentionNote("");
+      setMentionAgendaEventId("");
     }
     setAttachedFiles([]);
     setError(null);
@@ -1247,11 +1303,18 @@ export function RecordFormSheet({
     const finalTypeData: Record<string, unknown> = { ...typeData };
     if (mentionOpen && mentionProfId) {
       const prof = professionals.find((p) => p.id === mentionProfId);
+      const linkedEvent = agendaEventsForMention.find((e) => e.id === mentionAgendaEventId);
       finalTypeData.mention = {
         enabled: true,
         professional_id: mentionProfId,
         professional_name: prof?.name ?? "",
         note: mentionNote,
+        ...(mentionAgendaEventId
+          ? {
+              agenda_event_id: mentionAgendaEventId,
+              agenda_event_title: linkedEvent?.title ?? "",
+            }
+          : {}),
       };
     }
 
@@ -1447,6 +1510,9 @@ export function RecordFormSheet({
               setProfId={setMentionProfId}
               note={mentionNote}
               setNote={setMentionNote}
+              agendaEvents={agendaEventsForMention}
+              agendaEventId={mentionAgendaEventId}
+              setAgendaEventId={setMentionAgendaEventId}
             />
           )}
 

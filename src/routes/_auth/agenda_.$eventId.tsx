@@ -48,6 +48,8 @@ import {
   uploadObservationAttachment,
 } from "@/services/agenda/attachments.service";
 import { listProfessionals } from "@/services/professionals.service";
+import { listRecordsMentioningEvent } from "@/services/attendance.service";
+import { RECORD_TYPE_CONFIG } from "@/lib/validation";
 import { useAuth } from "@/hooks/useAuth";
 import {
   AGENDA_BRAND,
@@ -207,6 +209,14 @@ function AgendaEventDetailPage() {
     enabled: !!user && canSetParentReminder,
     staleTime: 30_000,
   });
+
+  const mentionRecordsQuery = useQuery({
+    queryKey: ["records-mentioning-event", eventId],
+    queryFn: () => listRecordsMentioningEvent(eventId),
+    enabled: !!user && !isTherapist,
+    staleTime: 30_000,
+  });
+  const mentionRecords = mentionRecordsQuery.data ?? [];
 
   const reminderMutation = useMutation({
     mutationFn: (next: { oneDayBefore: boolean; oneHourBefore: boolean }) =>
@@ -424,6 +434,43 @@ function AgendaEventDetailPage() {
               toast.message("Abrindo todas — em breve com leitor sequencial.");
             }}
           />
+        )}
+
+        {/* Banner de registros vinculados via "Quero mencionar" */}
+        {mentionRecords.length > 0 && (
+          <div className="mt-3 rounded-[14px] border border-amber-200 bg-amber-50 px-4 py-3">
+            <div className="mb-2 flex items-center gap-2">
+              <Bell size={15} strokeWidth={1.8} className="text-amber-600 shrink-0" />
+              <p className="text-[13px] font-bold text-amber-900">
+                {mentionRecords.length === 1
+                  ? "Você queria mencionar algo nessa consulta"
+                  : `${mentionRecords.length} lembretes vinculados a essa consulta`}
+              </p>
+            </div>
+            <div className="space-y-2">
+              {mentionRecords.map((r) => {
+                const td = r.type_data as Record<string, unknown> | null;
+                const mention = td?.mention as
+                  | { professional_name?: string; note?: string }
+                  | undefined;
+                const cfg = RECORD_TYPE_CONFIG[r.record_type as keyof typeof RECORD_TYPE_CONFIG];
+                return (
+                  <div
+                    key={r.id}
+                    className="rounded-[10px] border border-amber-200 bg-white px-3 py-2"
+                  >
+                    <p className="text-[11.5px] font-semibold text-amber-800">
+                      {cfg?.label ?? r.record_type}
+                      {mention?.professional_name ? ` · para ${mention.professional_name}` : ""}
+                    </p>
+                    {mention?.note && (
+                      <p className="mt-0.5 text-[12px] text-amber-700">{mention.note}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
 
         {/* Card "Detalhes" */}

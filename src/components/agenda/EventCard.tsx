@@ -7,9 +7,10 @@ import { TypeChip } from "./TypeChip";
 interface Props {
   event: AgendaEventWithRelations;
   onClick?: () => void;
+  hasMention?: boolean;
 }
 
-export function EventCard({ event, onClick }: Props) {
+export function EventCard({ event, onClick, hasMention = false }: Props) {
   const time = formatEventTimeRange(event.start_at, event.end_at);
   const [startStr, endStr] = time.split(" – ");
   const isPast = new Date(event.start_at) < new Date();
@@ -54,6 +55,15 @@ export function EventCard({ event, onClick }: Props) {
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-center gap-1.5">
           <TypeChip type={event.type} size="sm" />
+          {hasMention && (
+            <span
+              title="Há um lembrete vinculado a este evento"
+              className="inline-flex h-[18px] items-center gap-1 rounded-full px-1.5 text-[10px] font-bold"
+              style={{ background: "#FEF3C7", color: "#B45309" }}
+            >
+              🔔
+            </span>
+          )}
         </div>
         <div
           className="truncate text-[14.5px] font-bold"

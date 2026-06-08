@@ -250,6 +250,8 @@ export interface TypeDataComportamento {
     professional_id?: string;
     professional_name?: string;
     note?: string;
+    agenda_event_id?: string;
+    agenda_event_title?: string;
   };
 }
 
@@ -262,6 +264,8 @@ export interface TypeDataConquista {
     professional_id?: string;
     professional_name?: string;
     note?: string;
+    agenda_event_id?: string;
+    agenda_event_title?: string;
   };
 }
 
@@ -279,6 +283,8 @@ export interface TypeDataSono {
     professional_id?: string;
     professional_name?: string;
     note?: string;
+    agenda_event_id?: string;
+    agenda_event_title?: string;
   };
 }
 
@@ -294,6 +300,8 @@ export interface TypeDataSaude {
     professional_id?: string;
     professional_name?: string;
     note?: string;
+    agenda_event_id?: string;
+    agenda_event_title?: string;
   };
 }
 
@@ -310,6 +318,8 @@ export interface TypeDataAlimentacao {
     professional_id?: string;
     professional_name?: string;
     note?: string;
+    agenda_event_id?: string;
+    agenda_event_title?: string;
   };
 }
 
@@ -323,6 +333,8 @@ export interface TypeDataSensorial {
     professional_id?: string;
     professional_name?: string;
     note?: string;
+    agenda_event_id?: string;
+    agenda_event_title?: string;
   };
 }
 
@@ -333,6 +345,8 @@ export interface TypeDataLivre {
     professional_id?: string;
     professional_name?: string;
     note?: string;
+    agenda_event_id?: string;
+    agenda_event_title?: string;
   };
 }
 

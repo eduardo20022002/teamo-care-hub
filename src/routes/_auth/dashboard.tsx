@@ -664,7 +664,7 @@ function DashboardPage() {
 
   const displayName = getDisplayName(user);
   const handleQuickRegister = (child: Child) => {
-    void navigate({ to: "/registros", search: { new: "1", childId: child.id } });
+    void navigate({ to: "/registros", search: { new: "1", childId: child.id, returnTo: "/" } });
   };
 
   // ─── DASHBOARD DO TERAPEUTA ───────────────────────────────────────────────────

@@ -19,6 +19,7 @@ import {
   extendAgendaSeries,
   listAgendaEvents,
 } from "@/services/agenda/events.service";
+import { listMentionedAgendaEventIds } from "@/services/attendance.service";
 import { isIndefinite } from "@/lib/agenda/occurrences";
 import { getNotificationPrefs } from "@/services/agenda/prefs.service";
 import { getProfile } from "@/services/profile.service";
@@ -538,6 +539,13 @@ function AgendaTodayView({
   onChangeView: (v: ViewMode) => void;
 }) {
   const navigate = useNavigate();
+  const mentionedIdsQuery = useQuery({
+    queryKey: ["mentioned-agenda-event-ids"],
+    queryFn: listMentionedAgendaEventIds,
+    staleTime: 30_000,
+  });
+  const mentionedIds = mentionedIdsQuery.data ?? new Set<string>();
+
   const [monthYear, setMonthYear] = useState(() => {
     const d = new Date();
     return { year: d.getFullYear(), month: d.getMonth() };
@@ -611,6 +619,7 @@ function AgendaTodayView({
               <EventCard
                 key={ev.id}
                 event={ev}
+                hasMention={mentionedIds.has(ev.id)}
                 onClick={() =>
                   navigate({
                     to: "/agenda/$eventId",
@@ -684,6 +693,7 @@ function AgendaTodayView({
               <EventCard
                 key={ev.id}
                 event={ev}
+                hasMention={mentionedIds.has(ev.id)}
                 onClick={() =>
                   navigate({
                     to: "/agenda/$eventId",
@@ -764,6 +774,7 @@ function AgendaTodayView({
                 <EventCard
                   key={ev.id}
                   event={ev}
+                  hasMention={mentionedIds.has(ev.id)}
                   onClick={() =>
                     navigate({
                       to: "/agenda/$eventId",
