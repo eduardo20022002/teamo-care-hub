@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { z } from "zod";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ClipboardList, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
@@ -76,6 +76,10 @@ function RegistrosPage() {
   const [returnTo] = useState<string | undefined>(
     () => new URLSearchParams(location.search).get("returnTo") ?? undefined,
   );
+
+  // Ref síncrono: true quando o type picker fechou porque um tipo foi selecionado
+  // (evita falso-positivo no onOpenChange que dispara antes do setState ser commitado)
+  const typeJustSelectedRef = useRef(false);
 
   // UI state
   const [typePickerOpen, setTypePickerOpen] = useState(false);
@@ -209,6 +213,7 @@ function RegistrosPage() {
   }
 
   const handleTypeSelected = (type: RecordType) => {
+    typeJustSelectedRef.current = true; // sinaliza: fechou por seleção, não por cancel
     setSelectedType(type);
     setEditingRecord(null);
     setFormOpen(true);
@@ -356,9 +361,16 @@ function RegistrosPage() {
         open={typePickerOpen}
         onOpenChange={(o) => {
           setTypePickerOpen(o);
-          // Se fechou sem selecionar tipo e veio de atalho de criança → retorna à origem
-          if (!o && !selectedType && returnTo) {
-            void navigate({ to: returnTo as "/", replace: true });
+          if (!o) {
+            // Se fechou por seleção de tipo, limpa o ref e não navega
+            if (typeJustSelectedRef.current) {
+              typeJustSelectedRef.current = false;
+              return;
+            }
+            // Se fechou sem selecionar (X / swipe down) e veio de atalho → retorna à origem
+            if (returnTo) {
+              void navigate({ to: returnTo as "/", replace: true });
+            }
           }
         }}
         onSelect={handleTypeSelected}
