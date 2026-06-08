@@ -143,6 +143,8 @@ export async function uploadChildAttachment(
   childId: string,
   file: File,
   title?: string,
+  category?: string,
+  categoryDescription?: string,
 ): Promise<ChildAttachment> {
   const validation = await validateAttachmentFileAsync(file);
   if (!validation.ok) throw new Error(validation.error);
@@ -158,6 +160,8 @@ export async function uploadChildAttachment(
     mime_type: file.type,
     size_bytes: file.size,
     ...(title?.trim() ? { title: title.trim() } : {}),
+    ...(category ? { category } : {}),
+    ...(categoryDescription?.trim() ? { category_description: categoryDescription.trim() } : {}),
   };
 
   const { data, error } = await supabase

@@ -26,7 +26,6 @@ import { useAgendaNotifications, useMarkNotificationsRead } from "@/hooks/useAge
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { ChildFormSheet } from "@/components/children/ChildFormSheet";
-import { ChildDocumentsDialog } from "@/components/attachments/ChildDocumentsDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
@@ -536,7 +535,6 @@ function DashboardPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [childDialogOpen, setChildDialogOpen] = useState(false);
-  const [docsChild, setDocsChild] = useState<Child | null>(null);
   const [revokedAccess, setRevokedAccess] = useState<{ childName: string } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
@@ -936,7 +934,7 @@ function DashboardPage() {
                 child={c}
                 compact={(children?.length ?? 0) >= 2}
                 onQuickRegister={handleQuickRegister}
-                onOpenDocs={(child) => setDocsChild(child)}
+                onOpenDocs={(child) => navigate({ to: "/documentos", search: { childId: child.id } })}
               />
             ))}
           </div>
@@ -1187,11 +1185,6 @@ function DashboardPage() {
         </DialogContent>
       </Dialog>
 
-      <ChildDocumentsDialog
-        open={!!docsChild}
-        onOpenChange={(o) => !o && setDocsChild(null)}
-        child={docsChild ?? ({ id: "", name: "" } as Child)}
-      />
 
       {revokedAccess && (
         <AccessRevokedOverlay

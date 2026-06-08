@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useLocation } from "@tanstack/react-router";
+import { z } from "zod";
 import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, FolderOpen, Plus } from "lucide-react";
@@ -35,6 +36,9 @@ export const Route = createFileRoute("/_auth/documentos")({
   head: () => ({
     meta: [{ title: "Documentos — TEAmo" }],
   }),
+  validateSearch: z.object({
+    childId: z.string().optional(),
+  }).parse,
   component: DocumentosPage,
 });
 
@@ -57,12 +61,27 @@ function matchesType(mime: string, type: TypeFilter): boolean {
 function DocumentosPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     track("module.open", { module: "documentos", route: "/documentos" });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [childFilter, setChildFilter] = useState<string>("all");
+  // Pré-seleciona filtro de criança quando vem do atalho do dashboard
+  const [childFilter, setChildFilter] = useState<string>(
+    () => new URLSearchParams(location.search).get("childId") ?? "all",
+  );
+  // Também abre o addOpen com aquela criança pré-selecionada
+  const [addDefaultChildId] = useState<string | undefined>(
+    () => new URLSearchParams(location.search).get("childId") ?? undefined,
+  );
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get("childId")) {
+      void navigate({ to: "/documentos", replace: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
@@ -84,8 +103,8 @@ function DocumentosPage() {
   });
 
   const addMutation = useMutation({
-    mutationFn: (vars: { childId: string; files: File[]; title?: string }) =>
-      addChildDocuments(user!.id, vars.childId, vars.files, vars.title),
+    mutationFn: (vars: { childId: string; files: File[]; title?: string; category?: string; categoryDescription?: string }) =>
+      addChildDocuments(user!.id, vars.childId, vars.files, vars.title, vars.category, vars.categoryDescription),
     onSuccess: ({ success, failed }) => {
       if (success > 0) {
         track("document.upload", {
@@ -245,8 +264,9 @@ function DocumentosPage() {
         open={addOpen}
         onOpenChange={setAddOpen}
         childrenList={childrenList}
-        onConfirm={async (childId, files, title) => {
-          await addMutation.mutateAsync({ childId, files, title });
+        defaultChildId={addDefaultChildId}
+        onConfirm={async (childId, files, title, category, categoryDescription) => {
+          await addMutation.mutateAsync({ childId, files, title, category, categoryDescription });
         }}
         submitting={addMutation.isPending}
       />

@@ -5,6 +5,7 @@ import { formatDateBR, formatFileSize } from "@/lib/formatters";
 import { getAttachmentSignedUrl } from "@/services/attachments.service";
 import { CategoryBadge } from "@/components/attendance/CategoryBadge";
 import type { UnifiedDocument } from "@/services/documents.service";
+import { CATEGORIES } from "./AddChildDocumentDialog";
 
 interface Props {
   doc: UnifiedDocument;
@@ -65,20 +66,40 @@ export function DocumentCard({ doc, onDelete, deleting }: Props) {
           disabled={opening}
           className="block w-full text-left"
         >
-          <p className="truncate text-sm font-medium text-foreground hover:underline">
+          <p className="truncate text-sm font-semibold text-foreground hover:underline">
             {doc.file_name}
           </p>
         </button>
-        <p className="truncate text-xs text-muted-foreground">
-          {formatFileSize(doc.size_bytes)} ·{" "}
-          {formatDateBR(doc.created_at.slice(0, 10))} · {doc.child_name}
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+          {doc.child_name} · {formatFileSize(doc.size_bytes)} ·{" "}
+          {formatDateBR(doc.created_at.slice(0, 10))}
         </p>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          {doc.source === "child" ? (
-            <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-              Documento da criança
-            </span>
-          ) : (
+          {/* Categoria do documento da criança */}
+          {doc.source === "child" && (() => {
+            const cat = CATEGORIES.find((c) => c.id === doc.category);
+            if (cat) {
+              const label =
+                cat.id === "outros" && doc.category_description
+                  ? doc.category_description
+                  : cat.label;
+              return (
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${cat.color}`}
+                  style={{ background: cat.activeBg }}
+                >
+                  {cat.emoji} {label}
+                </span>
+              );
+            }
+            return (
+              <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                Documento da criança
+              </span>
+            );
+          })()}
+          {/* Categoria de anexo de registro */}
+          {doc.source === "record" && (
             <>
               <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                 Anexo de registro

@@ -18,6 +18,10 @@ export interface UnifiedDocument {
   created_at: string;
   child_id: string;
   child_name: string;
+  // Documentos de criança (source === "child")
+  category?: string;
+  category_description?: string;
+  // Anexos de registro (source === "record")
   record_id?: string;
   record_category?: string;
   record_date?: string;
@@ -49,7 +53,7 @@ export async function listAllDocuments(): Promise<UnifiedDocument[]> {
   const [childRes, recordRes] = await Promise.all([
     supabase
       .from("child_attachments")
-      .select("*, child:children(id, name)")
+      .select("id, storage_path, file_name, mime_type, size_bytes, created_at, child_id, title, category, category_description, child:children(id, name)")
       .order("created_at", { ascending: false }),
     supabase
       .from("record_attachments")
@@ -68,12 +72,14 @@ export async function listAllDocuments(): Promise<UnifiedDocument[]> {
       id: row.id,
       source: "child" as const,
       storage_path: row.storage_path,
-      file_name: row.file_name,
+      file_name: (row as any).title?.trim() || row.file_name,
       mime_type: row.mime_type,
       size_bytes: row.size_bytes,
       created_at: row.created_at,
       child_id: row.child_id,
       child_name: row.child!.name,
+      category: (row as any).category ?? undefined,
+      category_description: (row as any).category_description ?? undefined,
     }));
 
   const recordDocs: UnifiedDocument[] = ((recordRes.data ?? []) as unknown as RecordAttachmentRow[])
@@ -111,12 +117,14 @@ export async function addChildDocuments(
   childId: string,
   files: File[],
   title?: string,
+  category?: string,
+  categoryDescription?: string,
 ): Promise<{ success: number; failed: { name: string; error: string }[] }> {
   let success = 0;
   const failed: { name: string; error: string }[] = [];
   for (const file of files) {
     try {
-      await uploadChildAttachment(userId, childId, file, title);
+      await uploadChildAttachment(userId, childId, file, title, category, categoryDescription);
       success++;
     } catch (e) {
       failed.push({ name: file.name, error: (e as Error).message });
