@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { z } from "zod";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ClipboardList, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
@@ -82,6 +82,9 @@ function RegistrosPage() {
   const [deletingRecord, setDeletingRecord] = useState<DiaryRecordWithRelations | null>(null);
   const [shareRecord, setShareRecord] = useState<DiaryRecordWithRelations | null>(null);
   const [typeFilter, setTypeFilter] = useState<"all" | RecordType>("all");
+
+  // Ref para distinguir fechamento do picker por seleção vs cancelamento
+  const typeJustSelectedRef = useRef(false);
 
   // Analytics: módulo aberto
   useEffect(() => {
