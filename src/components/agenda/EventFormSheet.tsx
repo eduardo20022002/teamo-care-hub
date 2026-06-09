@@ -321,9 +321,9 @@ export function EventFormSheet({
 
           {/* Data + Hora */}
           <div className="mt-3.5 grid grid-cols-2 gap-2.5">
-            <div>
+            <div className="min-w-0">
               <FieldLabel>Data</FieldLabel>
-              <div className="relative">
+              <div className="relative min-w-0">
                 <input
                   type="date"
                   value={date}
@@ -339,9 +339,9 @@ export function EventFormSheet({
                 />
               </div>
             </div>
-            <div>
+            <div className="min-w-0">
               <FieldLabel>Hora</FieldLabel>
-              <div className="relative">
+              <div className="relative min-w-0">
                 <input
                   type="time"
                   value={startTime}

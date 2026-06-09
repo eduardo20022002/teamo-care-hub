@@ -237,7 +237,7 @@ export function MedicacaoFields({ data, onChange, disabled }: Props) {
         ) : (
           <div className="flex flex-col gap-2.5">
             <div className="grid grid-cols-2 gap-2">
-              <div>
+              <div className="min-w-0">
                 <FieldLabel>Primeira dose</FieldLabel>
                 <input
                   type="time"
@@ -248,7 +248,7 @@ export function MedicacaoFields({ data, onChange, disabled }: Props) {
                   style={{ color: "#0F172A", colorScheme: "light" }}
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <FieldLabel>A cada</FieldLabel>
                 <select
                   value={everyHours}

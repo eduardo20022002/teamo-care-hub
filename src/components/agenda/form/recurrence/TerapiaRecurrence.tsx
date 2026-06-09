@@ -124,7 +124,7 @@ export function TerapiaRecurrence({ value, onChange, disabled }: Props) {
             </div>
             <div>
               <FieldLabel>Horário</FieldLabel>
-              <div className="relative">
+              <div className="relative min-w-0">
                 <input
                   type="time"
                   value={value.time}
@@ -311,7 +311,7 @@ export function TerapiaRecurrence({ value, onChange, disabled }: Props) {
             </div>
             <div>
               <FieldLabel>Horário</FieldLabel>
-              <div className="relative">
+              <div className="relative min-w-0">
                 <input
                   type="time"
                   value={value.time}

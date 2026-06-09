@@ -11,7 +11,7 @@ interface Props {
 export function DateRangePicker({ from, to, onChange, disabled }: Props) {
   return (
     <div className="grid grid-cols-2 gap-2.5">
-      <div className="relative">
+      <div className="relative min-w-0">
         <input
           type="date"
           value={from}
@@ -27,7 +27,7 @@ export function DateRangePicker({ from, to, onChange, disabled }: Props) {
           className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]"
         />
       </div>
-      <div className="relative">
+      <div className="relative min-w-0">
         <input
           type="date"
           value={to}

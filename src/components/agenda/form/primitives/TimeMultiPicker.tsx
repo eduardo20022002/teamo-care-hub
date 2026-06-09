@@ -29,7 +29,7 @@ export function TimeMultiPicker({
     <div className="flex flex-col gap-2">
       {items.map((t, idx) => (
         <div key={`time-${idx}`} className="flex items-center gap-2">
-          <div className="relative flex-1">
+          <div className="relative min-w-0 flex-1">
             <input
               type="time"
               value={t}

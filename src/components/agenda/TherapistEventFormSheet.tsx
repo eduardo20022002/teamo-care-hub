@@ -236,7 +236,7 @@ export function TherapistEventFormSheet({
 
           {/* Data + Hora */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
+            <div className="min-w-0">
               <label className="block text-[13px] font-bold text-[#374151] mb-2">
                 Data de início
               </label>
@@ -244,10 +244,10 @@ export function TherapistEventFormSheet({
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="h-11 w-full rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm text-[#374151] focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
+                className="h-11 w-full min-w-0 max-w-full rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm text-[#374151] focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="block text-[13px] font-bold text-[#374151] mb-2">
                 Hora de início
               </label>
@@ -255,7 +255,7 @@ export function TherapistEventFormSheet({
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="h-11 w-full rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm text-[#374151] focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
+                className="h-11 w-full min-w-0 max-w-full rounded-xl border border-[#E5E7EB] bg-white px-3 text-sm text-[#374151] focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
               />
             </div>
           </div>

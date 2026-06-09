@@ -23,7 +23,7 @@ export function FieldLabel({ children, optional, className = "" }: Props) {
 }
 
 export function inputClasses(hasError = false) {
-  return `h-11 w-full rounded-xl border bg-[#F6F7FB] px-3.5 text-[14.5px] outline-none transition-all ${
+  return `h-11 w-full min-w-0 max-w-full rounded-xl border bg-[#F6F7FB] px-3.5 text-[14.5px] outline-none transition-all ${
     hasError
       ? "border-red-400 focus:border-red-500 focus:shadow-[0_0_0_4px_rgba(239,68,68,0.10)]"
       : "border-[#E5E7EB] focus:border-[#4F46E5] focus:shadow-[0_0_0_4px_rgba(79,70,229,0.10)]"

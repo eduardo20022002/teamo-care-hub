@@ -107,9 +107,9 @@ export function ConsultaFields({ data, onChange, disabled }: Props) {
         </div>
         <AnimatedReveal show={data.returnScheduled}>
           <div className="mt-2.5 grid grid-cols-2 gap-2.5">
-            <div>
+            <div className="min-w-0">
               <FieldLabel>Data do retorno</FieldLabel>
-              <div className="relative">
+              <div className="relative min-w-0">
                 <input
                   type="date"
                   value={data.returnDate ?? ""}
@@ -127,9 +127,9 @@ export function ConsultaFields({ data, onChange, disabled }: Props) {
                 />
               </div>
             </div>
-            <div>
+            <div className="min-w-0">
               <FieldLabel>Hora do retorno</FieldLabel>
-              <div className="relative">
+              <div className="relative min-w-0">
                 <input
                   type="time"
                   value={data.returnTime ?? ""}
