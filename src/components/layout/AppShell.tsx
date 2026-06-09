@@ -173,6 +173,7 @@ export function AppShell({
                 fullName={profile?.full_name ?? null}
                 email={user?.email ?? null}
                 isAdmin={profile?.is_admin ?? false}
+                isTherapist={isTherapist}
                 firstChildId={firstChild?.id ?? null}
               />
             </div>

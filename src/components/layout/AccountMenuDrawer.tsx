@@ -30,6 +30,7 @@ interface AccountMenuDrawerProps {
   fullName: string | null;
   email: string | null;
   isAdmin?: boolean;
+  isTherapist?: boolean;
   firstChildId?: string | null;
 }
 
@@ -70,7 +71,7 @@ function SectionLabel({ children }: { children: string }) {
   );
 }
 
-export function AccountMenuDrawer({ open, onClose, fullName, email, isAdmin, firstChildId }: AccountMenuDrawerProps) {
+export function AccountMenuDrawer({ open, onClose, fullName, email, isAdmin, isTherapist, firstChildId }: AccountMenuDrawerProps) {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -162,7 +163,7 @@ export function AccountMenuDrawer({ open, onClose, fullName, email, isAdmin, fir
             subtitle="Notificações, aparência, segurança"
             onClick={() => go("/configuracoes")}
           />
-          {firstChildId && (
+          {!isTherapist && firstChildId && (
             <MenuRow
               icon={<HandHeart className="h-5 w-5 text-[#0D9488]" strokeWidth={1.75} />}
               iconBg="bg-[#0D9488]/10"
