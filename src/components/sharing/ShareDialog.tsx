@@ -14,7 +14,7 @@ import { ShareProfessionalStep } from "./ShareProfessionalStep";
 import { ShareExpiryStep, type ExpiryHours } from "./ShareExpiryStep";
 import { ShareConfirmationStep } from "./ShareConfirmationStep";
 import { track } from "@/lib/analytics";
-import { listAttendanceRecords } from "@/services/attendance.service";
+import { listDiaryRecords } from "@/services/attendance.service";
 import { listAllDocuments, type UnifiedDocument } from "@/services/documents.service";
 import { listProfessionals, createProfessional } from "@/services/professionals.service";
 import { useCreateShare, buildPublicShareUrl } from "@/services/sharing.service";
@@ -75,8 +75,8 @@ export function ShareDialog({
   ]);
 
   const recordsQuery = useQuery({
-    queryKey: ["attendance"],
-    queryFn: () => listAttendanceRecords(),
+    queryKey: ["diary-records"],
+    queryFn: () => listDiaryRecords(),
     enabled: open,
   });
   const docsQuery = useQuery({

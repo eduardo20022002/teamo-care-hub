@@ -18,6 +18,8 @@ interface Props {
   onEdit: (record: DiaryRecordWithRelations) => void;
   onShare: (record: DiaryRecordWithRelations) => void;
   onDelete: (record: DiaryRecordWithRelations) => void;
+  /** Quando true, oculta os botões de ação (Editar/Compartilhar/Excluir) */
+  readOnly?: boolean;
 }
 
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -198,6 +200,7 @@ export function RecordDetailSheet({
   onEdit,
   onShare,
   onDelete,
+  readOnly = false,
 }: Props) {
   if (!record) return null;
 
@@ -280,38 +283,40 @@ export function RecordDetailSheet({
             <RecordAttachmentsSection recordId={record.id} />
           </div>
 
-          {/* Actions */}
-          <div>
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Ações
-            </p>
-            <div className="grid grid-cols-2 gap-2">
+          {/* Actions — ocultas em modo readOnly */}
+          {!readOnly && (
+            <div>
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Ações
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => { onOpenChange(false); onEdit(record); }}
+                  className="flex items-center justify-center gap-2 rounded-[12px] border border-[#EEF0F4] bg-white py-3 text-sm font-semibold text-foreground hover:bg-[#F6F7FB]"
+                >
+                  <Pencil className="h-4 w-4" style={{ color: "#4F46E5" }} strokeWidth={1.75} />
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { onOpenChange(false); onShare(record); }}
+                  className="flex items-center justify-center gap-2 rounded-[12px] border border-[#EEF0F4] bg-white py-3 text-sm font-semibold text-foreground hover:bg-[#F6F7FB]"
+                >
+                  <Share2 className="h-4 w-4" style={{ color: "#F97316" }} strokeWidth={1.75} />
+                  Compartilhar
+                </button>
+              </div>
               <button
                 type="button"
-                onClick={() => { onOpenChange(false); onEdit(record); }}
-                className="flex items-center justify-center gap-2 rounded-[12px] border border-[#EEF0F4] bg-white py-3 text-sm font-semibold text-foreground hover:bg-[#F6F7FB]"
+                onClick={() => { onOpenChange(false); onDelete(record); }}
+                className="mt-2 w-full rounded-[12px] border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-600 hover:bg-red-100"
               >
-                <Pencil className="h-4 w-4" style={{ color: "#4F46E5" }} strokeWidth={1.75} />
-                Editar
-              </button>
-              <button
-                type="button"
-                onClick={() => { onOpenChange(false); onShare(record); }}
-                className="flex items-center justify-center gap-2 rounded-[12px] border border-[#EEF0F4] bg-white py-3 text-sm font-semibold text-foreground hover:bg-[#F6F7FB]"
-              >
-                <Share2 className="h-4 w-4" style={{ color: "#F97316" }} strokeWidth={1.75} />
-                Compartilhar
+                <Trash2 className="mr-2 inline h-4 w-4" strokeWidth={1.75} />
+                Excluir registro
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => { onOpenChange(false); onDelete(record); }}
-              className="mt-2 w-full rounded-[12px] border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-600 hover:bg-red-100"
-            >
-              <Trash2 className="mr-2 inline h-4 w-4" strokeWidth={1.75} />
-              Excluir registro
-            </button>
-          </div>
+          )}
         </div>
 
         <div className="h-8" />
