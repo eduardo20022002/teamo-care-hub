@@ -4,6 +4,7 @@ import {
   Stethoscope, Loader2, CalendarDays, ChevronDown, ChevronUp,
   Target, Trophy, Clock, CheckCircle2, MinusCircle, XCircle, MessageSquare,
   Share2, MessageCircle, Users2, Star, Heart, Lightbulb, PersonStanding, Flag, X,
+  TrendingUp,
 } from "lucide-react";
 import {
   Sheet,
@@ -918,6 +919,40 @@ function PortalPage() {
                 </div>
               </div>
             </div>
+
+            {/* ═══ Card — Ver evolução ═══ */}
+            <button
+              type="button"
+              onClick={() =>
+                navigate({
+                  to: "/meu-terapeuta/$accessId/evolucao" as any,
+                  params: { accessId } as any,
+                })
+              }
+              className="mb-5 flex w-full items-center gap-3 rounded-[14px] border px-4 py-3.5 text-left transition-colors hover:bg-[#F0FDFA]"
+              style={{ borderColor: TEAL_BORDER, background: TEAL_SOFT }}
+            >
+              <div
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl"
+                style={{ background: TEAL + "20" }}
+              >
+                <TrendingUp size={17} strokeWidth={1.8} color={TEAL} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[14px] font-bold" style={{ color: "#0F172A" }}>
+                  Ver evolução do tratamento
+                </p>
+                <p className="text-[12px]" style={{ color: "#6B7280" }}>
+                  Gráficos de progresso, marcos e comparecimento
+                </p>
+              </div>
+              <ChevronDown
+                size={16}
+                strokeWidth={2}
+                color="#9CA3AF"
+                className="flex-shrink-0 -rotate-90"
+              />
+            </button>
 
             {/* ═══ Sessões ═══ */}
             <div className="mb-8">

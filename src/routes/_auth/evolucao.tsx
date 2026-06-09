@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, TrendingUp, ChevronRight, UserPlus, Flag } from "lucide-react";
+import { ArrowLeft, TrendingUp, UserPlus, Flag, BarChart2 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { usePatients } from "@/services/therapist.service";
@@ -91,7 +91,13 @@ function EvolucaoPage() {
               <EvolutionPatientCard
                 key={patient.id}
                 patient={patient}
-                onOpen={() =>
+                onDashboard={() =>
+                  navigate({
+                    to: "/evolucao/$childId" as any,
+                    params: { childId: patient.id } as any,
+                  })
+                }
+                onMarcos={() =>
                   navigate({
                     to: "/paciente/$childId/marcos" as any,
                     params: { childId: patient.id } as any,
@@ -110,46 +116,65 @@ function EvolucaoPage() {
 
 function EvolutionPatientCard({
   patient,
-  onOpen,
+  onDashboard,
+  onMarcos,
 }: {
   patient: Child;
-  onOpen: () => void;
+  onDashboard: () => void;
+  onMarcos: () => void;
 }) {
   const { col } = getPatientColor(patient.id);
 
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="flex items-center gap-3.5 rounded-[18px] border bg-white p-4 text-left transition-shadow hover:shadow-md w-full"
+    <div
+      className="overflow-hidden rounded-[18px] border bg-white"
       style={{
         borderColor: "#EEF0F4",
         boxShadow: "0 1px 2px rgba(15,23,42,0.03), 0 4px 12px rgba(15,23,42,0.04)",
       }}
     >
-      {/* Avatar */}
+      {/* Header do card */}
+      <div className="flex items-center gap-3.5 p-4">
+        <div
+          className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-[18px] font-extrabold text-white"
+          style={{ background: col }}
+        >
+          {patient.name.charAt(0).toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[15px] font-bold leading-tight" style={{ color: "#0F172A" }}>
+            {patient.name}
+          </div>
+          <div className="mt-0.5 text-[12.5px]" style={{ color: "#6B7280" }}>
+            {formatAge(patient.birth_date)}
+          </div>
+        </div>
+      </div>
+
+      {/* Ações */}
       <div
-        className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-[18px] font-extrabold text-white"
-        style={{ background: col }}
+        className="grid grid-cols-2 divide-x border-t"
+        style={{ borderColor: "#F3F4F6", divideColor: "#F3F4F6" }}
       >
-        {patient.name.charAt(0).toUpperCase()}
+        <button
+          type="button"
+          onClick={onDashboard}
+          className="flex items-center justify-center gap-1.5 py-2.5 text-[12.5px] font-bold transition-colors hover:bg-[#F0FDFA]"
+          style={{ color: TEAL }}
+        >
+          <BarChart2 size={13} strokeWidth={2} />
+          Dashboard
+        </button>
+        <button
+          type="button"
+          onClick={onMarcos}
+          className="flex items-center justify-center gap-1.5 py-2.5 text-[12.5px] font-semibold transition-colors hover:bg-[#F9FAFB]"
+          style={{ color: "#374151", borderColor: "#F3F4F6" }}
+        >
+          <Flag size={13} strokeWidth={2} />
+          Marcos
+        </button>
       </div>
-
-      {/* Info */}
-      <div className="min-w-0 flex-1">
-        <div className="text-[15px] font-bold leading-tight" style={{ color: "#0F172A" }}>
-          {patient.name}
-        </div>
-        <div className="mt-0.5 flex items-center gap-2 text-[12.5px]" style={{ color: "#6B7280" }}>
-          <span>{formatAge(patient.birth_date)}</span>
-          <span className="inline-flex items-center gap-1" style={{ color: TEAL }}>
-            <Flag size={11} strokeWidth={2} />
-            <span className="font-semibold text-[11px]">Ver marcos</span>
-          </span>
-        </div>
-      </div>
-
-      <ChevronRight size={18} strokeWidth={1.8} color="#9CA3AF" className="flex-shrink-0" />
-    </button>
+    </div>
   );
 }
