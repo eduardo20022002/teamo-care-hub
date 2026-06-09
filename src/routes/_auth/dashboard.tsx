@@ -800,9 +800,9 @@ function DashboardPage() {
             <div className="grid grid-cols-2 gap-3">
               {[
                 { to: "/agenda" as const, tint: "#F3E8FF", color: "#7C3AED", icon: Calendar, title: "Agenda", desc: "Sessões e compromissos." },
-                { to: "/evolucao" as any, tint: "#F0FDFA", color: "#0D9488", icon: BarChart2, title: "Dashboard", desc: "Gráficos de progresso e evolução." },
                 { to: "/evolucao" as any, tint: "#F0FDF4", color: "#10B981", icon: TrendingUp, title: "Evolução", desc: "Marcos de desenvolvimento e metas." },
                 { to: "/pais-responsaveis" as any, tint: "#F5F3FF", color: "#7C3AED", icon: Users, title: "Pais e Responsáveis", desc: "Vínculos, compartilhamentos e recados." },
+                { to: "/dashboards" as any, tint: "#F0FDFA", color: "#0D9488", icon: BarChart2, title: "Dashboard", desc: "Gráficos de progresso e evolução." },
               ].map(({ to, tint, color, icon: Icon, title, desc }) => (
                 <button
                   key={title}
