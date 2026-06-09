@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Baby,
+  BarChart2,
   Calendar,
   ClipboardList,
   Compass,
@@ -493,17 +494,16 @@ function TherapistAccessCard({
   if (!child) return null;
 
   return (
-    <button
-      type="button"
-      onClick={() => navigate({ to: "/meu-terapeuta/$accessId" as any, params: { accessId: access.id } as any })}
-      className="w-full rounded-[18px] border p-4 text-left transition-all hover:shadow-md active:scale-[0.99]"
+    <div
+      className="w-full overflow-hidden rounded-[18px] border"
       style={{
         borderColor: TEAL_BORDER,
         background: "linear-gradient(135deg, #F0FDFA 0%, #ECFDF5 100%)",
         boxShadow: "0 2px 8px rgba(13,148,136,0.08)",
       }}
     >
-      <div className="flex items-center gap-3 mb-3">
+      {/* Cabeçalho do card */}
+      <div className="flex items-center gap-3 px-4 pt-4 pb-3">
         <div
           className="flex h-12 w-12 items-center justify-center rounded-full font-bold text-[18px] flex-shrink-0"
           style={{ background: TEAL_BORDER, color: TEAL_CARE }}
@@ -516,17 +516,40 @@ function TherapistAccessCard({
             <p className="text-xs text-[#6B7280] mt-0.5">{formatAge(child.birth_date)}</p>
           )}
         </div>
-        <ChevronRight size={16} strokeWidth={2} color="#9CA3AF" className="flex-shrink-0" />
       </div>
+      {/* Badge do terapeuta */}
       <div
-        className="rounded-lg px-3 py-2 text-xs leading-relaxed"
+        className="mx-4 mb-3 rounded-lg px-3 py-2 text-xs leading-relaxed"
         style={{ background: "rgba(13,148,136,0.08)", color: "#0F766E" }}
       >
         <span className="font-semibold">{access.therapistName}</span>
         {access.therapistSpecialty ? ` · ${access.therapistSpecialty}` : ""}
-        {" — toque para ver o acompanhamento"}
       </div>
-    </button>
+      {/* Ações */}
+      <div
+        className="grid grid-cols-2 divide-x border-t"
+        style={{ borderColor: TEAL_BORDER }}
+      >
+        <button
+          type="button"
+          onClick={() => navigate({ to: "/meu-terapeuta/$accessId" as any, params: { accessId: access.id } as any })}
+          className="flex items-center justify-center gap-1.5 py-2.5 text-[12.5px] font-semibold transition-colors hover:bg-[#E6FFFB]"
+          style={{ color: "#0F766E" }}
+        >
+          <Stethoscope size={13} strokeWidth={2} />
+          Acompanhamento
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate({ to: "/meu-terapeuta/$accessId/evolucao" as any, params: { accessId: access.id } as any })}
+          className="flex items-center justify-center gap-1.5 py-2.5 text-[12.5px] font-bold transition-colors hover:bg-[#E6FFFB]"
+          style={{ color: TEAL_CARE }}
+        >
+          <BarChart2 size={13} strokeWidth={2} />
+          Dashboard
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -631,15 +654,26 @@ function DashboardPage() {
   }, [user, careAccesses, qc]);
 
   // Redireciona responsável sem filhos para o onboarding.
-  // Só quando o papel ativo é explicitamente 'parent' (não dispara enquanto
-  // um usuário dual ainda não escolheu o perfil).
+  // Aguarda TODOS os dados de acesso (próprios, via terapeuta, co-cuidador) antes de
+  // decidir — um pai vinculado via terapeuta não tem filhos próprios mas não deve
+  // ser enviado ao onboarding.
   useEffect(() => {
     if (profileQuery.isLoading || isLoading) return;
-    if (!profileQuery.data) return; // perfil ainda não carregou (evita redirect prematuro)
-    if (!isTherapist && children && children.length === 0) {
+    if (!profileQuery.data) return;
+    // Aguarda dados de acesso via terapeuta e co-cuidador resolverem
+    if (therapistAccessData === undefined || careAccessQuery.isLoading) return;
+
+    const hasAnyAccess = therapistAccesses.length > 0 || careAccesses.length > 0;
+    if (!isTherapist && children && children.length === 0 && !hasAnyAccess) {
       navigate({ to: "/onboarding" });
     }
-  }, [profileQuery.isLoading, profileQuery.data, isLoading, isTherapist, children, navigate]);
+  }, [
+    profileQuery.isLoading, profileQuery.data,
+    isLoading, isTherapist, children,
+    therapistAccesses, therapistAccessData,
+    careAccesses, careAccessQuery.isLoading,
+    navigate,
+  ]);
 
   const createChildMutation = useMutation({
     mutationFn: (input: ChildInput) => createChild(user!.id, input),
@@ -766,6 +800,7 @@ function DashboardPage() {
             <div className="grid grid-cols-2 gap-3">
               {[
                 { to: "/agenda" as const, tint: "#F3E8FF", color: "#7C3AED", icon: Calendar, title: "Agenda", desc: "Sessões e compromissos." },
+                { to: "/evolucao" as any, tint: "#F0FDFA", color: "#0D9488", icon: BarChart2, title: "Dashboard", desc: "Gráficos de progresso e evolução." },
                 { to: "/evolucao" as any, tint: "#F0FDF4", color: "#10B981", icon: TrendingUp, title: "Evolução", desc: "Marcos de desenvolvimento e metas." },
                 { to: "/pais-responsaveis" as any, tint: "#F5F3FF", color: "#7C3AED", icon: Users, title: "Pais e Responsáveis", desc: "Vínculos, compartilhamentos e recados." },
               ].map(({ to, tint, color, icon: Icon, title, desc }) => (
