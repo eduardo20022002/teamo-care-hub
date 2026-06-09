@@ -170,7 +170,7 @@ export function EventFormSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="event-sheet-title"
-        className="relative max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white px-5 pb-6 pt-3 shadow-[0_-8px_32px_rgba(15,23,42,0.16)] sm:max-w-md sm:rounded-3xl sm:shadow-[0_20px_60px_rgba(15,23,42,0.2)]"
+        className="relative max-h-[92vh] w-full overflow-x-hidden overflow-y-auto rounded-t-3xl bg-white px-5 pb-6 pt-3 shadow-[0_-8px_32px_rgba(15,23,42,0.16)] sm:max-w-md sm:rounded-3xl sm:shadow-[0_20px_60px_rgba(15,23,42,0.2)]"
       >
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#E5E7EB] sm:hidden" />
 
@@ -499,7 +499,7 @@ export function EventFormSheet({
                     onClick={() =>
                       setReminders((r) => ({ ...r, [key]: !r[key] }))
                     }
-                    className="flex items-center justify-between rounded-xl border px-3.5 py-2.5 text-[13.5px] font-semibold transition-colors disabled:opacity-60"
+                    className="flex w-full min-w-0 items-center justify-between rounded-xl border px-3.5 py-2.5 text-[13.5px] font-semibold transition-colors disabled:opacity-60"
                     style={{
                       borderColor: checked ? TYPE_STYLES[type].col : "#E5E7EB",
                       background: checked ? TYPE_STYLES[type].tint : "#F6F7FB",

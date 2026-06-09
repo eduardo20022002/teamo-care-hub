@@ -151,7 +151,7 @@ export function TherapistEventFormSheet({
       {/* Sheet */}
       <div
         className="fixed inset-x-0 bottom-0 z-50 rounded-t-[24px] bg-white shadow-2xl"
-        style={{ maxHeight: "92dvh", overflowY: "auto" }}
+        style={{ maxHeight: "92dvh", overflowY: "auto", overflowX: "hidden" }}
       >
         {/* Handle */}
         <div className="flex justify-center pt-3 pb-1">
