@@ -309,7 +309,7 @@ export interface UpcomingSession {
 export interface SessionRecordQueryData {
   event:         Record<string, unknown>;
   sessionRecord: Record<string, unknown> | null;
-  child:         { name: string; birth_date: string } | null;
+  child:         { id: string; name: string; birth_date: string } | null;
   previousPoints: string | null;
   upcomingSessions: UpcomingSession[];
 }

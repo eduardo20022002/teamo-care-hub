@@ -203,7 +203,8 @@ function SessionPlanPage() {
   // Picker state: index of objective being linked, or null
   const [pickerForIndex, setPickerForIndex] = useState<number | null>(null);
 
-  const childId = (data?.child as any)?.id as string | undefined;
+  // child_id vem direto do event (child só tem name/birth_date no servidor)
+  const childId = (data?.event as any)?.child_id as string | undefined;
   const allGoalsQuery = useAllGoalsForChild(childId);
   const allGoals = allGoalsQuery.data ?? [];
 

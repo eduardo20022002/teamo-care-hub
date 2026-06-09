@@ -817,10 +817,10 @@ export const getSessionRecordServer = createServerFn({ method: "POST" })
       .eq("event_id", data.eventId)
       .maybeSingle();
 
-    // Busca nome do paciente
+    // Busca dados do paciente (inclui id para uso no picker de metas)
     const { data: child } = await (supabaseAdmin as any)
       .from("children")
-      .select("name, birth_date")
+      .select("id, name, birth_date")
       .eq("id", (event as any).child_id)
       .maybeSingle();
 
