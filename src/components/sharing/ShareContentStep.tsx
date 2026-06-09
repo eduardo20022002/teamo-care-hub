@@ -249,7 +249,7 @@ export function ShareContentStep({
   onToggleRecord,
   onToggleDoc,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<"records" | "documents">("records");
+  const [activeTab, setActiveTab] = useState<"records" | "documents">("documents");
   const [recordViewMode, setRecordViewMode] = useState<"lista" | "calendario">("lista");
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
