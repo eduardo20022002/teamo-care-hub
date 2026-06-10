@@ -3,7 +3,7 @@
 // O papel é sempre profiles.user_type — nunca sessionStorage.
 // NUNCA é usado em RLS: toda autorização no banco é por auth.uid().
 
-export type Role = "parent" | "therapist";
+export type Role = "parent" | "therapist" | "clinic_coordinator";
 
 /** Retorna o papel do usuário a partir do perfil. */
 export function getRole(p: { user_type: Role }): Role {

@@ -72,13 +72,15 @@ function OnboardingPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
 
-  // Redireciona terapeutas para o onboarding correto
+  // Redireciona terapeutas e coordenadores de clínica para o onboarding correto
   useEffect(() => {
     if (!user) return;
     getProfile(user.id)
       .then((profile) => {
         if (profile.user_type === "therapist") {
           navigate({ to: "/onboarding/terapeuta" });
+        } else if (profile.user_type === "clinic_coordinator") {
+          navigate({ to: "/clinica/onboarding" });
         }
       })
       .catch(() => { /* silencia — continua fluxo normal */ });

@@ -23,6 +23,7 @@ export const Route = createFileRoute("/login")({
   validateSearch: z.object({
     invite:          z.string().optional(),
     therapistInvite: z.string().optional(),
+    clinicInvite:    z.string().optional(),
   }).parse,
   component: LoginPage,
 });
@@ -55,7 +56,7 @@ function InviteBanner({ ownerName }: { ownerName?: string }) {
 function LoginPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
-  const { invite, therapistInvite } = Route.useSearch();
+  const { invite, therapistInvite, clinicInvite } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -91,11 +92,13 @@ function LoginPage() {
         navigate({ to: "/convite-terapeuta/$token/aceitar", params: { token: therapistInvite } });
       } else if (invite) {
         navigate({ to: "/convite/$token/aceitar", params: { token: invite } });
+      } else if (clinicInvite) {
+        navigate({ to: "/convite-clinica/$token/aceitar", params: { token: clinicInvite } });
       } else {
         navigate({ to: "/dashboard" });
       }
     }
-  }, [loading, user, navigate, invite, therapistInvite]);
+  }, [loading, user, navigate, invite, therapistInvite, clinicInvite]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();

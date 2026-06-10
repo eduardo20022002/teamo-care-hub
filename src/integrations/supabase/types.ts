@@ -1100,6 +1100,140 @@ export type Database = {
           },
         ]
       }
+      clinics: {
+        Row: {
+          id: string
+          name: string
+          cnpj: string | null
+          address: Json
+          services: string[]
+          owner_id: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          cnpj?: string | null
+          address?: Json
+          services?: string[]
+          owner_id: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          cnpj?: string | null
+          address?: Json
+          services?: string[]
+          owner_id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinics_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clinic_members: {
+        Row: {
+          id: string
+          clinic_id: string
+          user_id: string
+          role: string
+          invited_at: string
+          joined_at: string | null
+        }
+        Insert: {
+          id?: string
+          clinic_id: string
+          user_id: string
+          role: string
+          invited_at?: string
+          joined_at?: string | null
+        }
+        Update: {
+          id?: string
+          clinic_id?: string
+          user_id?: string
+          role?: string
+          invited_at?: string
+          joined_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinic_members_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clinic_invites: {
+        Row: {
+          id: string
+          clinic_id: string
+          token: string
+          role: string
+          email: string
+          expires_at: string
+          used_at: string | null
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          clinic_id: string
+          token?: string
+          role: string
+          email: string
+          expires_at?: string
+          used_at?: string | null
+          created_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          clinic_id?: string
+          token?: string
+          role?: string
+          email?: string
+          expires_at?: string
+          used_at?: string | null
+          created_by?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinic_invites_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_invites_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       therapist_profiles: {
         Row: {
           attendance_modality: string | null
@@ -1158,6 +1292,8 @@ export type Database = {
         Args: { p_child_id: string }
         Returns: boolean
       }
+      is_clinic_member: { Args: { p_clinic_id: string }; Returns: boolean }
+      is_clinic_coordinator: { Args: { p_clinic_id: string }; Returns: boolean }
       schedule_agenda_notifications: { Args: never; Returns: undefined }
     }
     Enums: {

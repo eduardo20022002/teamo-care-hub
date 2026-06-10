@@ -472,7 +472,7 @@ export function checkPassword(password: string): PasswordChecks {
 
 // ===== Terapeuta / Profissional de saúde =====
 
-export const USER_TYPES = ['parent', 'therapist'] as const;
+export const USER_TYPES = ['parent', 'therapist', 'clinic_coordinator'] as const;
 export type UserType = typeof USER_TYPES[number];
 
 export const THERAPIST_SPECIALTIES = [

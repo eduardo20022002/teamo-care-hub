@@ -6,6 +6,9 @@ ALTER TABLE therapeutic_milestones
 
 -- Política de UPDATE para que o pai possa marcar a coluna parent_celebrated_at
 -- (apenas para marcos de crianças às quais tem acesso ativo)
+-- DROP IF EXISTS torna a migração idempotente: o conteúdo já pode existir no remoto
+-- (a feature foi implementada em jun/2026) e o registro de migração ficou dessincronizado.
+DROP POLICY IF EXISTS "parent can mark celebration seen" ON therapeutic_milestones;
 CREATE POLICY "parent can mark celebration seen"
   ON therapeutic_milestones
   FOR UPDATE

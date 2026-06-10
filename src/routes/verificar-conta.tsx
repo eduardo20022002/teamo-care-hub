@@ -64,6 +64,8 @@ function VerifyAccountPage() {
       navigate({ to: "/convite/$token/aceitar", params: { token: pendingInvite } });
     } else if (pendingUserType === "therapist") {
       navigate({ to: "/onboarding/terapeuta" });
+    } else if (pendingUserType === "clinic_coordinator") {
+      navigate({ to: "/clinica/onboarding" });
     } else {
       navigate({ to: "/onboarding" });
     }

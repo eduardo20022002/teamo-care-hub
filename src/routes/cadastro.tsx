@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
-import { Loader2, Mail, Lock, Eye, EyeOff, User, Baby, Stethoscope } from "lucide-react";
+import { useEffect, useState, type FormEvent, type FC } from "react";
+import { Loader2, Mail, Lock, Eye, EyeOff, User, Baby, Stethoscope, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { AuthShell } from "@/components/auth/AuthShell";
@@ -55,6 +55,13 @@ function InviteBanner({ therapistName }: { therapistName?: string }) {
   );
 }
 
+type IconComponent = FC<{ size: number; color: string; strokeWidth: number }>;
+const USER_TYPE_OPTIONS: Array<{ type: UserType; icon: IconComponent; label: string; desc: string }> = [
+  { type: "parent",             icon: Baby,        label: "Responsável / Familiar",    desc: "Pai, mãe, cuidador" },
+  { type: "therapist",          icon: Stethoscope, label: "Terapeuta / Profissional",  desc: "Psicólogo, fonoaudiólogo…" },
+  { type: "clinic_coordinator", icon: Building2,   label: "Clínica / Coordenador",     desc: "Clínica ABA, coordenador" },
+];
+
 function UserTypeSelector({
   value,
   onChange,
@@ -67,13 +74,8 @@ function UserTypeSelector({
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-sm font-medium text-foreground">Você é:</label>
-      <div className="grid grid-cols-2 gap-3">
-        {(
-          [
-            { type: "parent" as UserType, icon: Baby, label: "Responsável / Familiar", desc: "Pai, mãe, cuidador" },
-            { type: "therapist" as UserType, icon: Stethoscope, label: "Terapeuta / Profissional", desc: "Psicólogo, fonoaudiólogo…" },
-          ] as const
-        ).map(({ type, icon: Icon, label, desc }) => {
+      <div className="grid grid-cols-3 gap-2">
+        {USER_TYPE_OPTIONS.map(({ type, icon: Icon, label, desc }) => {
           const selected = value === type;
           return (
             <button
@@ -81,7 +83,7 @@ function UserTypeSelector({
               type="button"
               disabled={disabled}
               onClick={() => onChange(type)}
-              className="flex flex-col items-center gap-2 rounded-xl border-2 px-3 py-4 text-center transition-all"
+              className="flex flex-col items-center gap-2 rounded-xl border-2 px-2 py-4 text-center transition-all"
               style={{
                 borderColor: selected ? TEAL : "#E5E7EB",
                 background:  selected ? "#F0FDFA" : "#FAFAFA",
@@ -95,7 +97,7 @@ function UserTypeSelector({
                 <Icon size={20} color={selected ? TEAL : "#9CA3AF"} strokeWidth={1.7} />
               </div>
               <div>
-                <p className="text-sm font-semibold leading-tight" style={{ color: selected ? "#0F766E" : "#374151" }}>
+                <p className="text-xs font-semibold leading-tight" style={{ color: selected ? "#0F766E" : "#374151" }}>
                   {label}
                 </p>
                 <p className="text-xs mt-0.5" style={{ color: "#9CA3AF" }}>{desc}</p>
@@ -216,6 +218,8 @@ function SignupPage() {
       }
       if (userType === "therapist") {
         try { sessionStorage.setItem("teamo:pendingUserType", "therapist"); } catch { /* não crítico */ }
+      } else if (userType === "clinic_coordinator") {
+        try { sessionStorage.setItem("teamo:pendingUserType", "clinic_coordinator"); } catch { /* não crítico */ }
       }
       toast.success("Conta criada! Verifique seu e-mail para confirmar.");
       navigate({ to: "/verificar-conta" });
@@ -227,6 +231,8 @@ function SignupPage() {
         navigate({ to: "/convite/$token/aceitar", params: { token: invite } });
       } else if (userType === "therapist") {
         navigate({ to: "/onboarding/terapeuta" });
+      } else if (userType === "clinic_coordinator") {
+        navigate({ to: "/clinica/onboarding" });
       } else {
         navigate({ to: "/onboarding" });
       }

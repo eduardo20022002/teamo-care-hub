@@ -9,7 +9,7 @@ export interface ProfileData {
   birth_date: string | null;
   created_at: string;
   is_admin: boolean;
-  user_type: "parent" | "therapist";
+  user_type: "parent" | "therapist" | "clinic_coordinator";
 }
 
 export interface ChildWithCounts {

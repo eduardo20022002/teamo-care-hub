@@ -74,7 +74,7 @@ export async function signUp(
   email: string,
   password: string,
   displayName?: string,
-  options?: { userType?: "parent" | "therapist" },
+  options?: { userType?: "parent" | "therapist" | "clinic_coordinator" },
 ): Promise<AuthResult> {
   const userType = options?.userType ?? "parent";
   // Aponta para /verificar-conta para que magic links (fallback ao OTP) redirecionem corretamente

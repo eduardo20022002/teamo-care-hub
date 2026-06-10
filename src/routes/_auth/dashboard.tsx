@@ -653,6 +653,14 @@ function DashboardPage() {
     };
   }, [user, careAccesses, qc]);
 
+  // Redireciona usuário de clínica para o portal da clínica
+  useEffect(() => {
+    if (profileQuery.isLoading) return;
+    if (profileQuery.data?.user_type === "clinic_coordinator") {
+      navigate({ to: "/clinica" });
+    }
+  }, [profileQuery.isLoading, profileQuery.data, navigate]);
+
   // Redireciona responsável sem filhos para o onboarding.
   // Aguarda TODOS os dados de acesso (próprios, via terapeuta, co-cuidador) antes de
   // decidir — um pai vinculado via terapeuta não tem filhos próprios mas não deve
@@ -660,6 +668,7 @@ function DashboardPage() {
   useEffect(() => {
     if (profileQuery.isLoading || isLoading) return;
     if (!profileQuery.data) return;
+    if (profileQuery.data.user_type === "clinic_coordinator") return;
     // Aguarda dados de acesso via terapeuta e co-cuidador resolverem
     if (therapistAccessData === undefined || careAccessQuery.isLoading) return;
 
