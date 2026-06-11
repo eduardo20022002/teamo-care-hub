@@ -413,7 +413,12 @@ function ClinicAvaliacoesEntryPage() {
             <p className="text-xs text-gray-500">Agora você pode enviar o Form 3 para a família preencher o cadastro completo.</p>
           </div>
           {clinicId && (
-            <SendForm3Button clinicId={clinicId} queueEntryId={entryId} />
+            <SendForm3Button
+              clinicId={clinicId}
+              queueEntryId={entryId}
+              responsavelEmail={entry?.responsavel_email}
+              childName={entry?.child_name}
+            />
           )}
         </div>
       )}
@@ -980,7 +985,17 @@ function Section6({ goals, setGoals }: {
 }
 
 // ─── Botão enviar Form 3 ──────────────────────────────────────────────────────
-function SendForm3Button({ clinicId, queueEntryId }: { clinicId: string; queueEntryId: string }) {
+function SendForm3Button({
+  clinicId,
+  queueEntryId,
+  responsavelEmail,
+  childName,
+}: {
+  clinicId: string;
+  queueEntryId: string;
+  responsavelEmail?: string;
+  childName?: string;
+}) {
   const [sent, setSent] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -1007,19 +1022,44 @@ function SendForm3Button({ clinicId, queueEntryId }: { clinicId: string; queueEn
     }
   };
 
+  const sendByEmail = () => {
+    if (!formUrl || !responsavelEmail) return;
+    const name = childName ?? "seu filho(a)";
+    const subject = encodeURIComponent(`TEAmo — Cadastro completo de ${name}`);
+    const body = encodeURIComponent(
+      `Olá!\n\nA avaliação de ${name} foi concluída. Por favor, acesse o link abaixo para preencher o cadastro completo:\n\n${formUrl}\n\nAtenciosamente,\nEquipe da Clínica`
+    );
+    window.open(`mailto:${responsavelEmail}?subject=${subject}&body=${body}`);
+  };
+
   if (sent && formUrl) {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-2 items-end">
         <input
           readOnly
           value={formUrl}
-          className="border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-600 w-64"
+          className="border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-600 w-64 font-mono"
         />
-        <button onClick={copyLink}
-          className="px-3 py-1.5 rounded-lg text-xs font-medium"
-          style={{ background: copied ? "#DCFCE7" : "#EDE9FE", color: copied ? "#16A34A" : "#7C3AED" }}>
-          {copied ? "Copiado!" : "Copiar"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={copyLink}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            style={{ background: copied ? "#DCFCE7" : "#EDE9FE", color: copied ? "#16A34A" : "#7C3AED" }}
+          >
+            {copied ? <CheckCircle2 size={12} /> : <FileText size={12} />}
+            {copied ? "Copiado!" : "Copiar"}
+          </button>
+          {responsavelEmail && (
+            <button
+              onClick={sendByEmail}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-700"
+              style={{ background: "#EEF2FF", border: "1px solid #C7D2FE" }}
+            >
+              <Send size={12} />
+              Enviar por e-mail
+            </button>
+          )}
+        </div>
       </div>
     );
   }

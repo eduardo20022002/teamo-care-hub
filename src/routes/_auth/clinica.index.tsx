@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import {
   Users, ClipboardCheck, Calendar, AlertCircle, RefreshCw,
   Clock, CheckCircle2, XCircle, ChevronRight, ArrowRight, Users2,
+  Link2, Copy, ExternalLink,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getMyClinicServer } from "@/lib/clinic.functions";
@@ -152,6 +154,7 @@ function EmptyState({ message, cta, ctaTo }: { message: string; cta?: string; ct
 
 function ClinicDashboard() {
   const { user } = useAuth();
+  const [linkCopied, setLinkCopied] = useState(false);
   const getClinic = useServerFn(getMyClinicServer);
   const getAlerts = useServerFn(getAuthorizationAlertsServer);
   const listGroups = useServerFn(listGroupsServer);
@@ -207,6 +210,17 @@ function ClinicDashboard() {
   const authAlerts = alertsQuery.data?.ok ? alertsQuery.data.alerts : [];
   const authorizationsExpiringCount = authAlerts.filter((a) => a.daysUntilExpiry <= 30).length;
   const renewalsDue = authAlerts.filter((a) => a.daysUntilExpiry <= 60).length;
+
+  const publicLink = clinic?.slug
+    ? `${typeof window !== "undefined" ? window.location.origin : "https://teamotech.online"}/fila-espera/${clinic.slug}`
+    : null;
+
+  const handleCopyLink = () => {
+    if (!publicLink) return;
+    navigator.clipboard.writeText(publicLink);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  };
 
   const activeGroups = groupsQuery.data?.ok ? groupsQuery.data.groups : [];
   const groupsWithVacancy = activeGroups.filter(
@@ -312,6 +326,108 @@ function ClinicDashboard() {
           iconColor="#F59E0B"
           iconBg="#FFFBEB"
         />
+      </div>
+
+      {/* Card de formulários */}
+      <div
+        className="bg-white rounded-xl p-5 flex flex-col gap-4"
+        style={{ border: "0.5px solid #E5E7EB" }}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center">
+              <Link2 size={14} color="#16A34A" />
+            </div>
+            <h2 className="text-sm font-semibold text-gray-900">Formulários públicos</h2>
+          </div>
+          <Link
+            to="/clinica/configuracoes"
+            className="text-xs font-medium text-gray-400 hover:text-gray-600"
+          >
+            Configurar →
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Form 1 */}
+          <div
+            className="rounded-xl p-4 flex flex-col gap-3"
+            style={{
+              border: `1px solid ${publicLink ? "#BBF7D0" : "#FDE68A"}`,
+              background: publicLink ? "#F0FDF4" : "#FFFBEB",
+            }}
+          >
+            <div>
+              <p className="text-xs font-bold text-gray-700">Form 1 — Fila de espera</p>
+              <p className="text-xs text-gray-500 mt-0.5">Link público para famílias solicitarem vaga</p>
+            </div>
+            {publicLink ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={handleCopyLink}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                  style={{
+                    background: linkCopied ? "#16A34A" : "white",
+                    color: linkCopied ? "white" : "#16A34A",
+                    border: "1px solid #86EFAC",
+                  }}
+                >
+                  {linkCopied ? <CheckCircle2 size={11} /> : <Copy size={11} />}
+                  {linkCopied ? "Copiado!" : "Copiar link"}
+                </button>
+                <a
+                  href={publicLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs text-green-700 font-medium hover:underline"
+                >
+                  <ExternalLink size={11} /> Abrir
+                </a>
+              </div>
+            ) : (
+              <Link
+                to="/clinica/configuracoes"
+                className="text-xs text-amber-700 font-semibold hover:underline"
+              >
+                Configurar slug →
+              </Link>
+            )}
+          </div>
+
+          {/* Form 2 */}
+          <div
+            className="rounded-xl p-4 flex flex-col gap-3"
+            style={{ border: "1px solid #E0E7FF", background: "#EEF2FF" }}
+          >
+            <div>
+              <p className="text-xs font-bold text-gray-700">Form 2 — Confirmação de horário</p>
+              <p className="text-xs text-gray-500 mt-0.5">Gerado por caso na Fila de Espera</p>
+            </div>
+            <Link
+              to="/clinica/fila"
+              className="flex items-center gap-1 text-xs text-indigo-700 font-semibold hover:underline"
+            >
+              <ChevronRight size={11} /> Ir para a Fila
+            </Link>
+          </div>
+
+          {/* Form 3 */}
+          <div
+            className="rounded-xl p-4 flex flex-col gap-3"
+            style={{ border: "1px solid #D1FAE5", background: "#ECFDF5" }}
+          >
+            <div>
+              <p className="text-xs font-bold text-gray-700">Form 3 — Cadastro completo</p>
+              <p className="text-xs text-gray-500 mt-0.5">Gerado após finalização do relatório</p>
+            </div>
+            <Link
+              to="/clinica/avaliacoes"
+              className="flex items-center gap-1 text-xs text-emerald-700 font-semibold hover:underline"
+            >
+              <ChevronRight size={11} /> Ir para Avaliações
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* Central panels */}

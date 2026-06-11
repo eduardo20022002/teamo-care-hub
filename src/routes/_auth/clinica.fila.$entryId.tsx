@@ -4,11 +4,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, User, Phone, Mail, Calendar, ClipboardList,
   BarChart3, Clock, AlertTriangle, Loader2, CheckCircle2,
-  History,
+  History, Send, Copy, X,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { getQueueEntryServer, adjustQueueTierServer } from "@/lib/queue.functions";
+import { getMyClinicServer } from "@/lib/clinic.functions";
+import { sendForm2Server } from "@/lib/clinic-evaluation.functions";
 import { authHeaders } from "@/lib/auth-headers";
 import {
   QUEUE_TIER_LABELS,
@@ -198,14 +200,239 @@ function AjustarFaixaModal({
   );
 }
 
+// ─── Modal de agendamento de avaliação (Form 2) ───────────────────────────────
+
+const SESSION_TYPES = [
+  "Avaliação inicial",
+  "ABA individual",
+  "ABA em grupo",
+  "Orientação de pais",
+  "Supervisão clínica",
+];
+
+function AgendarAvaliacaoModal({
+  clinicId,
+  queueEntryId,
+  responsavelEmail,
+  childName,
+  onClose,
+}: {
+  clinicId: string;
+  queueEntryId: string;
+  responsavelEmail: string;
+  childName: string;
+  onClose: () => void;
+}) {
+  const [days,          setDays]          = useState("");
+  const [startTime,     setStartTime]     = useState("");
+  const [endTime,       setEndTime]       = useState("");
+  const [therapistName, setTherapistName] = useState("");
+  const [sessionType,   setSessionType]   = useState(SESSION_TYPES[0]);
+  const [roomName,      setRoomName]      = useState("");
+  const [token,         setToken]         = useState<string | null>(null);
+  const [linkCopied,    setLinkCopied]    = useState(false);
+
+  const sendForm2 = useServerFn(sendForm2Server);
+
+  const mutation = useMutation({
+    mutationFn: async () =>
+      sendForm2({
+        data: {
+          clinicId,
+          queueEntryId,
+          proposedSchedule: { days, startTime, endTime, therapistName, sessionType, roomName: roomName || undefined },
+        },
+        headers: await authHeaders(),
+      }),
+    onSuccess: (res) => {
+      if (!res.ok) { toast.error(res.error || "Erro ao gerar link"); return; }
+      setToken(res.token);
+    },
+    onError: () => toast.error("Erro ao gerar link do Form 2"),
+  });
+
+  const formUrl = token ? `${window.location.origin}/avaliacao-form/${token}` : null;
+
+  const copyLink = () => {
+    if (!formUrl) return;
+    navigator.clipboard.writeText(formUrl);
+    setLinkCopied(true);
+    toast.success("Link copiado!");
+    setTimeout(() => setLinkCopied(false), 2000);
+  };
+
+  const sendByEmail = () => {
+    if (!formUrl) return;
+    const subject = encodeURIComponent(`TEAmo — Confirmação de horário para ${childName}`);
+    const body = encodeURIComponent(
+      `Olá!\n\nGostaríamos de agendar a avaliação de ${childName}.\n\nClique no link abaixo para confirmar o horário proposto:\n${formUrl}\n\nAtenciosamente,\nEquipe da Clínica`
+    );
+    window.open(`mailto:${responsavelEmail}?subject=${subject}&body=${body}`);
+  };
+
+  const canSubmit = days.trim() && startTime && endTime && therapistName.trim();
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }}>
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+        <div className="px-6 pt-6 pb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Enviar Form 2 — Proposta de horário</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{childName}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X size={18} />
+          </button>
+        </div>
+
+        {!formUrl ? (
+          <div className="px-6 pb-6 flex flex-col gap-4">
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Dia(s)</label>
+              <input
+                value={days}
+                onChange={(e) => setDays(e.target.value)}
+                placeholder="Ex: Segundas e quartas"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Início</label>
+                <input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Fim</label>
+                <input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Terapeuta</label>
+              <input
+                value={therapistName}
+                onChange={(e) => setTherapistName(e.target.value)}
+                placeholder="Nome do terapeuta"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Tipo de sessão</label>
+                <select
+                  value={sessionType}
+                  onChange={(e) => setSessionType(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500 bg-white"
+                >
+                  {SESSION_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Sala (opcional)</label>
+                <input
+                  value={roomName}
+                  onChange={(e) => setRoomName(e.target.value)}
+                  placeholder="Ex: Sala 2"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2" style={{ borderTop: "0.5px solid #E5E7EB" }}>
+              <button
+                onClick={onClose}
+                className="flex-1 py-2.5 rounded-lg text-sm font-medium text-gray-700 bg-white"
+                style={{ border: "1.5px solid #E5E7EB" }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => mutation.mutate()}
+                disabled={!canSubmit || mutation.isPending}
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2"
+                style={{ background: "#4F46E5" }}
+              >
+                {mutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                Gerar link
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="px-6 pb-6 flex flex-col gap-4">
+            <div
+              className="rounded-xl p-4 flex flex-col gap-3"
+              style={{ background: "#F0FDF4", border: "1px solid #BBF7D0" }}
+            >
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={16} color="#16A34A" />
+                <p className="text-sm font-semibold text-green-800">Link gerado com sucesso!</p>
+              </div>
+              <input
+                readOnly
+                value={formUrl}
+                className="w-full border border-green-200 rounded-lg px-3 py-2 text-xs text-gray-600 bg-white font-mono"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={copyLink}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-medium transition-colors"
+                style={{
+                  background: linkCopied ? "#DCFCE7" : "#EDE9FE",
+                  color: linkCopied ? "#16A34A" : "#7C3AED",
+                }}
+              >
+                {linkCopied ? <CheckCircle2 size={14} /> : <Copy size={14} />}
+                {linkCopied ? "Copiado!" : "Copiar link"}
+              </button>
+              <button
+                onClick={sendByEmail}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-medium text-indigo-700"
+                style={{ background: "#EEF2FF", border: "1px solid #C7D2FE" }}
+              >
+                <Mail size={14} />
+                Enviar por e-mail
+              </button>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-full py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-50 transition-colors"
+            >
+              Fechar
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 function FilaCasoPage() {
   const { entryId } = Route.useParams();
   const queryClient = useQueryClient();
-  const [showAjustar, setShowAjustar] = useState(false);
+  const [showAjustar,  setShowAjustar]  = useState(false);
+  const [showAgendar,  setShowAgendar]  = useState(false);
 
-  const getEntry = useServerFn(getQueueEntryServer);
+  const getEntry  = useServerFn(getQueueEntryServer);
+  const getClinic = useServerFn(getMyClinicServer);
+
+  const clinicQuery = useQuery({
+    queryKey: ["my-clinic"],
+    queryFn:  async () => getClinic({ headers: await authHeaders() }),
+    staleTime: 5 * 60 * 1000,
+  });
+  const clinicId = clinicQuery.data?.clinic?.id ?? "";
 
   const { data: entry, isLoading, error } = useQuery({
     queryKey: ["queue-entry", entryId],
@@ -421,24 +648,30 @@ function FilaCasoPage() {
             </div>
           </div>
 
-          {/* Histórico de avaliações — placeholder Fase 4 */}
+          {/* Avaliação — agendar e enviar Form 2 */}
           <div
             className="bg-white rounded-xl p-5"
-            style={{ border: "1.5px dashed #C4B5FD" }}
+            style={{ border: "0.5px solid #E5E7EB" }}
           >
-            <div className="flex items-center gap-2 mb-3">
-              <History size={16} className="text-violet-500" />
-              <h2 className="font-semibold text-gray-700">Histórico de avaliações</h2>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <History size={16} className="text-violet-500" />
+                <h2 className="font-semibold text-gray-700">Avaliação</h2>
+              </div>
+              {clinicId && entry && (
+                <button
+                  onClick={() => setShowAgendar(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+                  style={{ border: "1px solid #C7D2FE" }}
+                >
+                  <Send size={13} />
+                  Enviar Form 2 — propor horário
+                </button>
+              )}
             </div>
-            <p className="text-sm text-gray-500">Nenhuma avaliação registrada.</p>
-            <button
-              disabled
-              className="mt-3 px-4 py-2 rounded-lg text-sm font-medium text-indigo-600 bg-indigo-50 opacity-50 cursor-not-allowed"
-              style={{ border: "1px solid #C7D2FE" }}
-              title="Disponível na Fase 3"
-            >
-              Agendar avaliação (Fase 3)
-            </button>
+            <p className="text-sm text-gray-500">
+              Clique em "Enviar Form 2" para propor um horário de avaliação. A família receberá um link para confirmar.
+            </p>
           </div>
         </div>
 
@@ -549,7 +782,7 @@ function FilaCasoPage() {
         </div>
       </div>
 
-      {/* Modal de ajuste */}
+      {/* Modal de ajuste de faixa */}
       {showAjustar && (
         <AjustarFaixaModal
           entry={{ id: entry.id, priority_tier: entry.priority_tier, child_name: entry.child_name }}
@@ -559,6 +792,17 @@ function FilaCasoPage() {
             queryClient.invalidateQueries({ queryKey: ["queue-entry", entryId] });
             queryClient.invalidateQueries({ queryKey: ["queue-entries"] });
           }}
+        />
+      )}
+
+      {/* Modal de agendamento de avaliação (Form 2) */}
+      {showAgendar && clinicId && entry && (
+        <AgendarAvaliacaoModal
+          clinicId={clinicId}
+          queueEntryId={entry.id}
+          responsavelEmail={entry.responsavel_email}
+          childName={entry.child_name}
+          onClose={() => setShowAgendar(false)}
         />
       )}
     </div>

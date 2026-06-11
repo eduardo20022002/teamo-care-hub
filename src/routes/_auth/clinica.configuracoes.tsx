@@ -2,13 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Save, Building2, MapPin, Loader2, CheckCircle2 } from "lucide-react";
+import { Save, Building2, MapPin, Loader2, CheckCircle2, Link2, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { getMyClinicServer, updateClinicServer } from "@/lib/clinic.functions";
 import { authHeaders } from "@/lib/auth-headers";
 import { CLINIC_SERVICES } from "@/types/clinic";
 import type { ClinicAddress } from "@/types/clinic";
+
+function sanitizeSlug(v: string): string {
+  return v.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/--+/g, "-").replace(/^-+/, "");
+}
 
 export const Route = createFileRoute("/_auth/clinica/configuracoes")({
   head: () => ({
@@ -50,11 +54,13 @@ function ClinicConfigPage() {
   const myRole  = clinicQuery.data?.role ?? "therapist";
   const canEdit = myRole === "coordinator";
 
-  const [name,     setName]     = useState<string>("");
-  const [cnpj,     setCnpj]     = useState<string>("");
-  const [address,  setAddress]  = useState<ClinicAddress>({});
-  const [services, setServices] = useState<string[]>([]);
-  const [saved,    setSaved]    = useState(false);
+  const [name,      setName]      = useState<string>("");
+  const [cnpj,      setCnpj]      = useState<string>("");
+  const [address,   setAddress]   = useState<ClinicAddress>({});
+  const [services,  setServices]  = useState<string[]>([]);
+  const [slug,      setSlug]      = useState<string>("");
+  const [saved,     setSaved]     = useState(false);
+  const [slugCopied, setSlugCopied] = useState(false);
 
   // Initialize form when clinic loads
   useState(() => {
@@ -63,6 +69,7 @@ function ClinicConfigPage() {
       setCnpj(clinic.cnpj ?? "");
       setAddress(clinic.address as ClinicAddress);
       setServices(clinic.services ?? []);
+      setSlug(clinic.slug ?? "");
     }
   });
 
@@ -72,7 +79,20 @@ function ClinicConfigPage() {
     setCnpj(clinic.cnpj ?? "");
     setAddress(clinic.address as ClinicAddress);
     setServices(clinic.services ?? []);
+    setSlug(clinic.slug ?? "");
   }
+
+  const publicUrl = slug.length >= 2 && typeof window !== "undefined"
+    ? `${window.location.origin}/fila-espera/${slug}`
+    : null;
+
+  const handleCopySlugUrl = () => {
+    if (!publicUrl) return;
+    navigator.clipboard.writeText(publicUrl);
+    setSlugCopied(true);
+    toast.success("Link copiado!");
+    setTimeout(() => setSlugCopied(false), 2000);
+  };
 
   const mutation = useMutation({
     mutationFn: async () =>
@@ -84,6 +104,7 @@ function ClinicConfigPage() {
             cnpj:     cnpj.trim() || undefined,
             address,
             services,
+            slug:     slug.trim() || undefined,
           },
         },
         headers: await authHeaders(),
@@ -176,6 +197,86 @@ function ClinicConfigPage() {
               />
             </div>
           </div>
+        </div>
+
+        {/* Section: Link público — Form 1 */}
+        <div
+          className="bg-white rounded-xl p-6 flex flex-col gap-5"
+          style={{ border: "0.5px solid #E5E7EB" }}
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
+              <Link2 size={16} color="#16A34A" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Link público (Form 1)</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Compartilhe este link para receber solicitações de vaga na fila de espera</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="cfg-slug" className="text-sm font-medium text-gray-700">
+              Identificador da clínica (slug)
+            </label>
+            <p className="text-xs text-gray-400">
+              Somente letras minúsculas, números e hífen. Ex: <code className="bg-gray-100 px-1 rounded">clinica-esperanca</code>
+            </p>
+            <div className="flex items-center gap-0 mt-1">
+              <span
+                className="px-3 py-2.5 text-sm text-gray-400 rounded-l-lg flex-shrink-0"
+                style={{ border: "1px solid #E5E7EB", borderRight: "none", background: "#F9FAFB" }}
+              >
+                {typeof window !== "undefined" ? window.location.origin : "https://teamotech.online"}/fila-espera/
+              </span>
+              <input
+                id="cfg-slug"
+                type="text"
+                value={slug}
+                onChange={(e) => setSlug(sanitizeSlug(e.target.value))}
+                disabled={!canEdit}
+                maxLength={60}
+                placeholder="minha-clinica"
+                className="flex-1 rounded-r-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors disabled:bg-gray-50 disabled:text-gray-500"
+              />
+            </div>
+          </div>
+
+          {publicUrl && (
+            <div
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5"
+              style={{ background: "#F0FDF4", border: "1px solid #BBF7D0" }}
+            >
+              <span className="text-sm text-green-800 flex-1 truncate font-mono text-xs">{publicUrl}</span>
+              <button
+                type="button"
+                onClick={handleCopySlugUrl}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold flex-shrink-0 transition-colors"
+                style={{
+                  background: slugCopied ? "#16A34A" : "white",
+                  color: slugCopied ? "white" : "#16A34A",
+                  border: `1px solid ${slugCopied ? "#16A34A" : "#86EFAC"}`,
+                }}
+              >
+                {slugCopied ? <CheckCircle2 size={12} /> : <Copy size={12} />}
+                {slugCopied ? "Copiado!" : "Copiar link"}
+              </button>
+              <a
+                href={publicUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-semibold text-green-700 hover:underline flex-shrink-0"
+              >
+                Abrir →
+              </a>
+            </div>
+          )}
+
+          {!publicUrl && (
+            <p className="text-xs text-amber-600 flex items-center gap-1.5">
+              <span>⚠</span>
+              Configure o slug acima e salve para ativar o Form 1 público.
+            </p>
+          )}
         </div>
 
         {/* Section: Endereço */}

@@ -15,6 +15,7 @@ export const CLINIC_MEMBER_ROLE_LABELS: ClinicMemberRoleLabel = {
 export interface Clinic {
   id:         string;
   name:       string;
+  slug:       string | null;
   cnpj:       string | null;
   address:    ClinicAddress;
   services:   string[];

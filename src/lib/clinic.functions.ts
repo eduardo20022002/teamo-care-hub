@@ -95,12 +95,16 @@ export const createClinicServer = createServerFn({ method: "POST" })
 
 // ─── updateClinicServer ───────────────────────────────────────────────────────
 
+const updateClinicPatchSchema = createClinicSchema.partial().extend({
+  slug: z.string().min(2).max(60).regex(/^[a-z0-9][a-z0-9-]*[a-z0-9]$/, "Slug inválido.").optional().nullable(),
+});
+
 export const updateClinicServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
     z.object({
       clinicId: z.string().uuid(),
-      patch: createClinicSchema.partial(),
+      patch: updateClinicPatchSchema,
     }).parse(d),
   )
   .handler(async ({ data, context }): Promise<{ ok: true } | { ok: false; error: string }> => {
@@ -127,17 +131,31 @@ export const updateClinicServer = createServerFn({ method: "POST" })
       return { ok: false, error: "Sem permissão para editar esta clínica." };
     }
 
-    const patch: { name?: string; cnpj?: string | null; address?: Json; services?: string[] } = {};
+    const patch: { name?: string; cnpj?: string | null; address?: Json; services?: string[]; slug?: string | null } = {};
     if (data.patch.name     !== undefined) patch.name     = data.patch.name.trim();
     if (data.patch.cnpj     !== undefined) patch.cnpj     = data.patch.cnpj?.trim() || null;
     if (data.patch.address  !== undefined) patch.address  = data.patch.address as Json;
     if (data.patch.services !== undefined) patch.services = data.patch.services;
+    if (data.patch.slug     !== undefined) patch.slug     = data.patch.slug?.trim() || null;
 
     if (Object.keys(patch).length === 0) return { ok: true };
 
+    // Verificar slug único (se fornecido)
+    // Cast necessário: coluna slug adicionada via migration, tipos Supabase não regenerados
+    if (patch.slug) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: existing } = await (supabaseAdmin.from("clinics") as any)
+        .select("id")
+        .eq("slug", patch.slug)
+        .neq("id", data.clinicId)
+        .maybeSingle();
+      if (existing) return { ok: false, error: "Este slug já está em uso. Escolha outro." };
+    }
+
     const { error } = await supabaseAdmin
       .from("clinics")
-      .update(patch)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update(patch as any)
       .eq("id", data.clinicId);
 
     if (error) return { ok: false, error: "Não foi possível atualizar. Tente novamente." };
