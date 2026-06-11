@@ -1,39 +1,570 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Calendar, Clock } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { ChevronLeft, ChevronRight, Plus, X, CheckCircle, AlertCircle, XCircle, UserMinus } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { authHeaders } from "@/lib/auth-headers";
+import {
+  listClinicSessionsServer,
+  updateSessionStatusServer,
+  registerTherapistAbsenceServer,
+} from "@/lib/clinic-agenda.functions";
+import { getMyClinicServer } from "@/lib/clinic.functions";
+import type { ClinicSession, SessionStatus, AbsenceType } from "@/types/clinic-agenda";
+import {
+  SESSION_TYPE_LABELS,
+  SESSION_STATUS_LABELS,
+  DAY_NAMES,
+  DAY_NAMES_FULL,
+  ABSENCE_TYPE_LABELS,
+} from "@/types/clinic-agenda";
 
 export const Route = createFileRoute("/_auth/clinica/agenda")({
   head: () => ({ meta: [{ title: "Agenda — Clínica TEAmo" }] }),
   component: ClinicAgendaPage,
 });
 
-function ClinicAgendaPage() {
+type ViewMode = "profissional" | "sala";
+
+const SESSION_TYPE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+  terapeutica:     { bg: "#EEF2FF", border: "#4F46E5", text: "#3730A3" },
+  avaliacao:       { bg: "#EDE9FE", border: "#7C3AED", text: "#5B21B6" },
+  devolutiva:      { bg: "#FEF3C7", border: "#D97706", text: "#92400E" },
+  reposicao:       { bg: "#EEF2FF", border: "#4F46E5", text: "#3730A3" },
+  orientacao_pais: { bg: "#DCFCE7", border: "#16A34A", text: "#14532D" },
+};
+
+const STATUS_ICONS: Record<SessionStatus, React.ReactNode> = {
+  agendada:              <CheckCircle size={12} className="text-indigo-500" />,
+  realizada:             <CheckCircle size={12} className="text-green-500" />,
+  falta_justificada:     <AlertCircle size={12} className="text-yellow-500" />,
+  falta_nao_justificada: <AlertCircle size={12} className="text-red-400" />,
+  cancelada_clinica:     <XCircle size={12} className="text-gray-400" />,
+};
+
+function getMonday(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function toISO(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function formatDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}`;
+}
+
+function addDays(date: Date, n: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+export default function ClinicAgendaPage() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  const [viewMode, setViewMode] = useState<ViewMode>("profissional");
+  const [weekStart, setWeekStart] = useState<Date>(getMonday(new Date()));
+  const [selectedSession, setSelectedSession] = useState<ClinicSession | null>(null);
+  const [absenceModalOpen, setAbsenceModalOpen] = useState(false);
+
+  const getClinic  = useServerFn(getMyClinicServer);
+  const listSessions = useServerFn(listClinicSessionsServer);
+  const updateStatus = useServerFn(updateSessionStatusServer);
+  const registerAbsence = useServerFn(registerTherapistAbsenceServer);
+
+  const clinicQuery = useQuery({
+    queryKey: ["myClinic"],
+    queryFn: async () => getClinic({ headers: await authHeaders() }),
+    enabled: !!user,
+    staleTime: 30_000,
+  });
+
+  const clinicId = clinicQuery.data?.clinic?.id ?? "";
+
+  const sessionsQuery = useQuery({
+    queryKey: ["clinicSessions", clinicId, toISO(weekStart)],
+    queryFn: async () =>
+      listSessions({
+        data: { clinicId, weekStart: toISO(weekStart) },
+        headers: await authHeaders(),
+      }),
+    enabled: !!clinicId,
+    staleTime: 30_000,
+  });
+
+  const sessions: ClinicSession[] = sessionsQuery.data?.ok ? sessionsQuery.data.sessions : [];
+
+  const weekDays = useMemo(
+    () => Array.from({ length: 6 }, (_, i) => addDays(weekStart, i)),
+    [weekStart],
+  );
+
+  const sessionsByDay = useMemo(() => {
+    const map = new Map<string, ClinicSession[]>();
+    for (const d of weekDays) {
+      map.set(toISO(d), []);
+    }
+    for (const s of sessions) {
+      const arr = map.get(s.session_date);
+      if (arr) arr.push(s);
+    }
+    return map;
+  }, [sessions, weekDays]);
+
+  const statusMutation = useMutation({
+    mutationFn: async ({ sessionId, status, notes }: { sessionId: string; status: SessionStatus; notes?: string }) =>
+      updateStatus({ data: { sessionId, status, notes }, headers: await authHeaders() }),
+    onSuccess: (res) => {
+      if (!res.ok) { toast.error(res.error || "Erro ao atualizar status."); return; }
+      toast.success("Status atualizado.");
+      void queryClient.invalidateQueries({ queryKey: ["clinicSessions"] });
+      setSelectedSession(null);
+    },
+  });
+
+  const weekLabel = (() => {
+    const end = addDays(weekStart, 5);
+    return `Semana de ${formatDate(toISO(weekStart))} a ${formatDate(toISO(end))}`;
+  })();
+
+  const today = toISO(new Date());
+
   return (
-    <div className="px-6 py-6 max-w-7xl mx-auto flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">Agenda</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Grade semanal, pré-agendamento e reposições</p>
-      </div>
-      <div
-        className="bg-white rounded-xl p-12 flex flex-col items-center gap-4 text-center"
-        style={{ border: "0.5px solid #E5E7EB" }}
-      >
-        <div className="w-16 h-16 rounded-full bg-pink-50 flex items-center justify-center">
-          <Calendar size={28} color="#EC4899" />
-        </div>
+    <div className="px-6 py-6 max-w-[1400px] mx-auto flex flex-col gap-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-semibold text-gray-900">Módulo em desenvolvimento</h2>
-          <p className="text-sm text-gray-500 mt-1 max-w-md">
-            A Agenda com grade semanal, pré-agendamento recorrente, reposições automáticas e
-            integração com a fila de espera será implementada na Fase 3.
+          <h1 className="text-xl font-bold text-gray-900">Agenda</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Grade semanal de sessões</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setAbsenceModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+            style={{ border: "0.5px solid #E5E7EB" }}
+          >
+            <UserMinus size={15} />
+            Registrar ausência
+          </button>
+          <Link
+            to="/clinica/agenda/reposicoes"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+            style={{ border: "0.5px solid #E5E7EB" }}
+          >
+            Reposições
+          </Link>
+          <button
+            type="button"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
+          >
+            <Plus size={15} />
+            Novo agendamento
+          </button>
+        </div>
+      </div>
+
+      {/* Controls row */}
+      <div className="bg-white rounded-xl px-4 py-3 flex items-center gap-4" style={{ border: "0.5px solid #E5E7EB" }}>
+        {/* Week navigation */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setWeekStart((w) => addDays(w, -7))}
+            className="p-1.5 rounded hover:bg-gray-100 transition-colors"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{weekLabel}</span>
+          <button
+            type="button"
+            onClick={() => setWeekStart((w) => addDays(w, 7))}
+            className="p-1.5 rounded hover:bg-gray-100 transition-colors"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+
+        <div className="h-4 w-px bg-gray-200" />
+
+        {/* View mode toggle */}
+        <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg">
+          {(["profissional", "sala"] as ViewMode[]).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setViewMode(mode)}
+              className={[
+                "px-3 py-1 text-xs font-medium rounded-md transition-colors",
+                viewMode === mode
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700",
+              ].join(" ")}
+            >
+              {mode === "profissional" ? "Por profissional" : "Por sala"}
+            </button>
+          ))}
+          <button
+            type="button"
+            disabled
+            className="px-3 py-1 text-xs font-medium rounded-md text-gray-300 cursor-not-allowed"
+            title="Disponível na Fase 7"
+          >
+            Por grupo
+          </button>
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div className="bg-white rounded-xl overflow-hidden" style={{ border: "0.5px solid #E5E7EB" }}>
+        {/* Day headers */}
+        <div className="grid grid-cols-6 border-b border-gray-100">
+          {weekDays.map((d, i) => {
+            const iso = toISO(d);
+            const isToday = iso === today;
+            return (
+              <div key={iso} className={["px-3 py-2 text-center", i > 0 ? "border-l border-gray-100" : ""].join(" ")}>
+                <div className={["text-xs font-medium", isToday ? "text-indigo-600" : "text-gray-500"].join(" ")}>
+                  {DAY_NAMES[d.getDay()]}
+                </div>
+                <div
+                  className={[
+                    "text-lg font-bold mt-0.5 w-8 h-8 rounded-full flex items-center justify-center mx-auto",
+                    isToday ? "bg-indigo-600 text-white" : "text-gray-900",
+                  ].join(" ")}
+                >
+                  {d.getDate()}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Sessions area */}
+        <div className="grid grid-cols-6 min-h-[400px]">
+          {weekDays.map((d, i) => {
+            const iso = toISO(d);
+            const daySessions = sessionsByDay.get(iso) ?? [];
+            return (
+              <div
+                key={iso}
+                className={["p-2 flex flex-col gap-1.5 min-h-[320px]", i > 0 ? "border-l border-gray-100" : ""].join(" ")}
+              >
+                {sessionsQuery.isLoading ? (
+                  <div className="text-xs text-gray-300 text-center mt-4">Carregando…</div>
+                ) : daySessions.length === 0 ? (
+                  <div className="text-xs text-gray-300 text-center mt-6">Sem sessões</div>
+                ) : (
+                  daySessions.map((s) => {
+                    const colors = SESSION_TYPE_COLORS[s.session_type] ?? SESSION_TYPE_COLORS.terapeutica;
+                    const isReplacement = s.session_type === "reposicao";
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setSelectedSession(s)}
+                        className="w-full text-left px-2 py-1.5 rounded-lg text-xs transition-all hover:shadow-sm"
+                        style={{
+                          background: colors.bg,
+                          border: isReplacement
+                            ? `1.5px dashed ${colors.border}`
+                            : `0.5px solid ${colors.border}`,
+                        }}
+                      >
+                        <div className="flex items-center gap-1">
+                          {STATUS_ICONS[s.status]}
+                          <span className="font-semibold truncate" style={{ color: colors.text }}>
+                            {s.patient_name}
+                          </span>
+                          {isReplacement && (
+                            <span
+                              className="ml-auto text-[10px] font-bold px-1 rounded"
+                              style={{ background: colors.border, color: "white" }}
+                            >
+                              R
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-gray-500 mt-0.5 truncate">
+                          {s.start_time.slice(0, 5)} · {s.duration_minutes}min
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Session detail panel */}
+      {selectedSession && (
+        <SessionPanel
+          session={selectedSession}
+          onClose={() => setSelectedSession(null)}
+          onStatusChange={(status) =>
+            statusMutation.mutate({ sessionId: selectedSession.id, status })
+          }
+          isUpdating={statusMutation.isPending}
+        />
+      )}
+
+      {/* Absence modal */}
+      {absenceModalOpen && (
+        <AbsenceModal
+          clinicId={clinicId}
+          onClose={() => setAbsenceModalOpen(false)}
+          registerAbsence={registerAbsence}
+          onSuccess={() => {
+            void queryClient.invalidateQueries({ queryKey: ["clinicSessions"] });
+            toast.success("Ausência registrada. Sessões canceladas e reposições criadas.");
+            setAbsenceModalOpen(false);
+            void navigate({ to: "/clinica/agenda/reposicoes" });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── SessionPanel ─────────────────────────────────────────────────────────────
+
+function SessionPanel({
+  session,
+  onClose,
+  onStatusChange,
+  isUpdating,
+}: {
+  session: ClinicSession;
+  onClose: () => void;
+  onStatusChange: (s: SessionStatus) => void;
+  isUpdating: boolean;
+}) {
+  return (
+    <div
+      className="fixed right-6 top-20 w-80 bg-white rounded-xl shadow-xl z-40 flex flex-col"
+      style={{ border: "0.5px solid #E5E7EB" }}
+    >
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <div>
+          <p className="text-sm font-bold text-gray-900">{session.patient_name}</p>
+          <p className="text-xs text-gray-500">
+            {SESSION_TYPE_LABELS[session.session_type]} · {DAY_NAMES_FULL[new Date(session.session_date + "T00:00:00").getDay()]}
           </p>
         </div>
-        <div
-          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-amber-700"
-          style={{ background: "#FEF9C3", border: "0.5px solid #FDE68A" }}
+        <button type="button" onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+          <X size={16} />
+        </button>
+      </div>
+
+      <div className="px-4 py-3 flex flex-col gap-2 text-sm">
+        <Row label="Sala"      value={session.room_id} />
+        <Row label="Duração"   value={`${session.duration_minutes} minutos`} />
+        <Row label="Status"    value={SESSION_STATUS_LABELS[session.status]} />
+        {session.notes && <Row label="Notas" value={session.notes} />}
+      </div>
+
+      <div className="px-4 py-3 border-t border-gray-100 flex flex-col gap-2">
+        <button
+          type="button"
+          disabled={isUpdating || session.status === "realizada"}
+          onClick={() => onStatusChange("realizada")}
+          className="w-full px-3 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg transition-colors"
         >
-          <Clock size={14} />
-          Disponível em breve — Fase 3
+          Confirmar presença
+        </button>
+        <button
+          type="button"
+          disabled={isUpdating || session.status === "falta_justificada"}
+          onClick={() => onStatusChange("falta_justificada")}
+          className="w-full px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+          style={{ border: "0.5px solid #E5E7EB" }}
+        >
+          Falta justificada
+        </button>
+        <button
+          type="button"
+          disabled={isUpdating || session.status === "cancelada_clinica"}
+          onClick={() => onStatusChange("cancelada_clinica")}
+          className="w-full px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          style={{ border: "0.5px solid #FECACA" }}
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start gap-2">
+      <span className="text-gray-400 shrink-0 w-20">{label}</span>
+      <span className="text-gray-800">{value}</span>
+    </div>
+  );
+}
+
+// ─── AbsenceModal ─────────────────────────────────────────────────────────────
+
+function AbsenceModal({
+  clinicId,
+  onClose,
+  registerAbsence,
+  onSuccess,
+}: {
+  clinicId: string;
+  onClose: () => void;
+  registerAbsence: ReturnType<typeof useServerFn<typeof registerTherapistAbsenceServer>>;
+  onSuccess: () => void;
+}) {
+  const [therapistId, setTherapistId] = useState("");
+  const [therapistName, setTherapistName] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [absenceType, setAbsenceType] = useState<AbsenceType>("doenca");
+  const [notes, setNotes] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!therapistId.trim()) { toast.error("Informe o ID do terapeuta."); return; }
+    setLoading(true);
+    try {
+      const res = await registerAbsence({
+        data: {
+          clinicId,
+          therapistUserId: therapistId.trim(),
+          absenceType,
+          startsOn: date,
+          endsOn:   date,
+          notes:    notes || null,
+        },
+        headers: await authHeaders(),
+      });
+      if (!res.ok) { toast.error(res.error || "Erro ao registrar ausência."); return; }
+      onSuccess();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div
+        className="bg-white rounded-xl w-full max-w-lg shadow-2xl"
+        style={{ border: "0.5px solid #E5E7EB" }}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h2 className="text-base font-bold text-gray-900">
+            Registrar ausência{therapistName ? ` — ${therapistName}` : ""}
+          </h2>
+          <button type="button" onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+            <X size={16} />
+          </button>
         </div>
+
+        <form onSubmit={(e) => void handleSubmit(e)} className="px-5 py-4 flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700" htmlFor="therapistId">
+              ID do terapeuta
+            </label>
+            <input
+              id="therapistId"
+              type="text"
+              value={therapistId}
+              onChange={(e) => setTherapistId(e.target.value)}
+              placeholder="UUID do membro da clínica"
+              className="w-full px-3 py-2 rounded-lg text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              required
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700" htmlFor="absenceDate">
+              Data(s) afetada(s)
+            </label>
+            <input
+              id="absenceDate"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              required
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-gray-700">Tipo de ausência</span>
+            <div className="grid grid-cols-3 gap-2">
+              {(Object.keys(ABSENCE_TYPE_LABELS) as AbsenceType[]).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setAbsenceType(t)}
+                  className={[
+                    "px-2 py-2 text-xs font-medium rounded-lg border transition-colors text-center",
+                    absenceType === t
+                      ? "bg-indigo-50 border-indigo-500 text-indigo-700"
+                      : "border-gray-200 text-gray-600 hover:bg-gray-50",
+                  ].join(" ")}
+                >
+                  {ABSENCE_TYPE_LABELS[t]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700" htmlFor="absenceNotes">
+              Observação interna (não compartilhada com famílias)
+            </label>
+            <textarea
+              id="absenceNotes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder="Contexto interno da ausência…"
+              className="w-full px-3 py-2 rounded-lg text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
+            />
+          </div>
+
+          <div
+            className="rounded-lg px-4 py-3 text-sm text-amber-700"
+            style={{ background: "#FEF9C3", border: "0.5px solid #FDE68A" }}
+          >
+            Todas as sessões agendadas do terapeuta na(s) data(s) selecionada(s) serão
+            canceladas e reposições serão criadas automaticamente.
+          </div>
+
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg transition-colors"
+            >
+              {loading ? "Processando…" : "Confirmar e notificar famílias"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
