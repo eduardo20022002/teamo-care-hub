@@ -465,7 +465,11 @@ function FilaEsperaFormPage() {
       }),
     onSuccess: (res) => {
       if (res.ok) {
-        navigate({ to: "/fila-espera/$clinicSlug/confirmacao", params: { clinicSlug } });
+        navigate({
+          to: "/fila-espera/$clinicSlug/confirmacao",
+          params: { clinicSlug },
+          search: { protocolo: res.entryId.slice(-8).toUpperCase() },
+        });
       } else {
         setFieldError(res.error || "Erro ao enviar. Tente novamente.");
       }

@@ -283,13 +283,15 @@ function ClinicFilaPage() {
             </a>
           )}
           {!clinic.slug && (
-            <div
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-amber-700"
+            <Link
+              to="/clinica/configuracoes"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-amber-700 hover:bg-amber-100 transition-colors"
               style={{ background: "#FEF9C3", border: "1px solid #FDE68A" }}
             >
-              <AlertTriangle size={14} />
-              Configure um slug nas configurações para ativar o Form 1 público
-            </div>
+              <AlertTriangle size={14} className="shrink-0" />
+              Configure um slug para ativar o Form 1 público
+              <span className="ml-auto font-semibold underline whitespace-nowrap">→ Configurações</span>
+            </Link>
           )}
         </div>
       </div>

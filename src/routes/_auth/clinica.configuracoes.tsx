@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { getMyClinicServer, updateClinicServer } from "@/lib/clinic.functions";
 import { authHeaders } from "@/lib/auth-headers";
+import { nameToSlug } from "@/lib/slugify";
 import { CLINIC_SERVICES } from "@/types/clinic";
 import type { ClinicAddress } from "@/types/clinic";
 
@@ -79,7 +80,7 @@ function ClinicConfigPage() {
     setCnpj(clinic.cnpj ?? "");
     setAddress(clinic.address as ClinicAddress);
     setServices(clinic.services ?? []);
-    setSlug(clinic.slug ?? "");
+    setSlug(clinic.slug ?? nameToSlug(clinic.name));
   }
 
   const publicUrl = slug.length >= 2 && typeof window !== "undefined"
@@ -239,6 +240,11 @@ function ClinicConfigPage() {
                 className="flex-1 rounded-r-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors disabled:bg-gray-50 disabled:text-gray-500"
               />
             </div>
+            {!clinic?.slug && slug.length >= 2 && (
+              <p className="text-xs text-amber-600 mt-1">
+                Sugerido a partir do nome da clínica · pode editar
+              </p>
+            )}
           </div>
 
           {publicUrl && (

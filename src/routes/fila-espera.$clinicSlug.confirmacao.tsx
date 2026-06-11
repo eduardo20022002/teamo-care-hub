@@ -1,7 +1,11 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { CheckCircle2, Heart, ArrowRight } from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { z } from "zod";
+import { CheckCircle2, Heart, Hash } from "lucide-react";
+import { getPublicClinicBySlugServer } from "@/lib/queue.functions";
 
 export const Route = createFileRoute("/fila-espera/$clinicSlug/confirmacao")({
+  validateSearch: z.object({ protocolo: z.string().optional() }),
   head: () => ({
     meta: [{ title: "Solicitação enviada — TEAmo" }],
   }),
@@ -9,6 +13,17 @@ export const Route = createFileRoute("/fila-espera/$clinicSlug/confirmacao")({
 });
 
 function ConfirmacaoPage() {
+  const { clinicSlug } = Route.useParams();
+  const { protocolo } = Route.useSearch();
+
+  const { data } = useQuery({
+    queryKey: ["publicClinic", clinicSlug],
+    queryFn: () => getPublicClinicBySlugServer({ data: { slug: clinicSlug } }),
+    staleTime: 60_000,
+  });
+
+  const clinicName = data?.name ?? null;
+
   return (
     <div className="min-h-screen" style={{ background: "#F6F7FB" }}>
       {/* Header */}
@@ -18,7 +33,9 @@ function ConfirmacaoPage() {
       >
         <div className="flex items-center gap-2">
           <Heart size={18} className="text-white" />
-          <span className="text-white font-semibold text-sm">TEAmo</span>
+          <span className="text-white font-semibold text-sm">
+            {clinicName ? `${clinicName} · TEAmo` : "TEAmo"}
+          </span>
         </div>
       </header>
 
@@ -31,53 +48,58 @@ function ConfirmacaoPage() {
           <CheckCircle2 size={40} className="text-green-500" />
         </div>
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-3">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">
           Solicitação enviada!
         </h1>
+        {clinicName && (
+          <p className="text-sm text-indigo-600 font-medium mb-3">{clinicName}</p>
+        )}
         <p className="text-sm text-gray-600 leading-relaxed mb-6">
-          Recebemos as informações e sua criança está na fila de espera da clínica.
-          A equipe entrará em contato pelo e-mail informado para confirmar a vaga
-          e combinar os próximos passos.
+          Recebemos as informações e sua criança está na fila de espera.
+          A equipe entrará em contato pelo e-mail informado quando houver uma vaga disponível.
         </p>
 
+        {/* Número de protocolo */}
+        {protocolo && (
+          <div
+            className="w-full rounded-xl p-4 mb-6 flex items-center gap-3"
+            style={{ background: "#EEF2FF", border: "1.5px solid #C7D2FE" }}
+          >
+            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+              <Hash size={18} className="text-indigo-600" />
+            </div>
+            <div className="text-left">
+              <p className="text-xs text-indigo-500 font-medium">Número de protocolo</p>
+              <p className="text-lg font-bold text-indigo-800 tracking-widest">{protocolo}</p>
+              <p className="text-xs text-indigo-500 mt-0.5">Guarde este número para acompanhar seu caso</p>
+            </div>
+          </div>
+        )}
+
+        {/* Checklist */}
         <div
           className="w-full rounded-xl p-5 text-left mb-8"
-          style={{ background: "#EEF2FF", border: "1.5px solid #C7D2FE" }}
+          style={{ background: "#F9FAFB", border: "1px solid #E5E7EB" }}
         >
-          <p className="text-sm font-semibold text-indigo-700 mb-2">O que acontece agora?</p>
+          <p className="text-sm font-semibold text-gray-700 mb-3">O que acontece agora?</p>
           <ol className="text-sm text-gray-700 space-y-2">
             <li className="flex items-start gap-2">
               <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
-              A clínica analisará as informações e definirá a prioridade do caso.
+              {clinicName
+                ? `A ${clinicName} analisará seu caso e definirá a prioridade.`
+                : "A clínica analisará as informações e definirá a prioridade do caso."}
             </li>
             <li className="flex items-start gap-2">
               <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
-              Você receberá um e-mail de confirmação com o número de protocolo.
+              Você receberá contato quando surgir uma vaga disponível para agendar a avaliação.
             </li>
             <li className="flex items-start gap-2">
               <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
-              Quando surgir uma vaga, a equipe entrará em contato para agendar a avaliação.
+              Se precisar atualizar informações, entre em contato com a clínica informando
+              {protocolo ? ` o protocolo ${protocolo}.` : " seu e-mail de cadastro."}
             </li>
           </ol>
         </div>
-
-        <div
-          className="w-full rounded-xl p-4 text-sm text-gray-600 mb-8"
-          style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}
-        >
-          <p className="font-medium text-amber-800 mb-1">Dúvidas?</p>
-          <p className="text-xs">
-            Se precisar atualizar as informações ou tiver perguntas, entre em contato
-            diretamente com a clínica informando seu e-mail de cadastro.
-          </p>
-        </div>
-
-        <a
-          href="https://teamotech.online"
-          className="flex items-center gap-2 text-sm font-medium text-indigo-600"
-        >
-          Conheça o TEAmo <ArrowRight size={14} />
-        </a>
       </main>
     </div>
   );

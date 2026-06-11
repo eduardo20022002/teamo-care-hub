@@ -3,7 +3,7 @@ import { useState, type FormEvent } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
-  Building2, MapPin, Users, CheckCircle2, ArrowRight, ArrowLeft, Loader2,
+  Building2, MapPin, Users, CheckCircle2, ArrowRight, ArrowLeft, Loader2, Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -222,7 +222,19 @@ function Step2({
 }
 
 // ─── Step 3: Success ──────────────────────────────────────────────────────────
-function Step3({ clinicName }: { clinicName: string }) {
+function Step3({ clinicName, clinicSlug }: { clinicName: string; clinicSlug: string | null }) {
+  const [copied, setCopied] = useState(false);
+  const form1Url = clinicSlug && typeof window !== "undefined"
+    ? `${window.location.origin}/fila-espera/${clinicSlug}`
+    : null;
+
+  const handleCopy = () => {
+    if (!form1Url) return;
+    navigator.clipboard.writeText(form1Url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className="flex flex-col items-center gap-5 py-4 text-center">
       <div
@@ -234,10 +246,33 @@ function Step3({ clinicName }: { clinicName: string }) {
       <div>
         <h3 className="text-xl font-bold text-gray-900">{clinicName} está pronta!</h3>
         <p className="text-sm text-gray-500 mt-2 max-w-sm">
-          Sua clínica foi configurada com sucesso. Agora você pode convidar sua equipe e começar
-          a receber pacientes na fila de espera.
+          Sua clínica foi configurada com sucesso. Compartilhe o link abaixo para que as famílias
+          possam entrar na fila de espera.
         </p>
       </div>
+
+      {form1Url && (
+        <div className="w-full rounded-lg p-3 text-left" style={{ background: "#F0FDF4", border: "1px solid #BBF7D0" }}>
+          <p className="text-xs font-semibold text-green-700 mb-1.5">Link do Form 1 — Fila de Espera</p>
+          <div className="flex items-center gap-2">
+            <span className="flex-1 text-xs text-green-900 font-mono truncate">{form1Url}</span>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold flex-shrink-0 transition-colors"
+              style={{
+                background: copied ? "#16A34A" : "white",
+                color: copied ? "white" : "#16A34A",
+                border: `1px solid ${copied ? "#16A34A" : "#86EFAC"}`,
+              }}
+            >
+              {copied ? <CheckCircle2 size={12} /> : <Copy size={12} />}
+              {copied ? "Copiado!" : "Copiar"}
+            </button>
+          </div>
+        </div>
+      )}
+
       <ul className="text-sm text-gray-600 flex flex-col gap-1.5">
         <li className="flex items-center gap-2">
           <CheckCircle2 size={14} color="#16A34A" />
@@ -265,6 +300,7 @@ function ClinicOnboardingPage() {
   const createClinic = useServerFn(createClinicServer);
 
   const [step, setStep] = useState(0);
+  const [createdSlug, setCreatedSlug] = useState<string | null>(null);
 
   // Step 1 state
   const [name, setName]       = useState("");
@@ -298,6 +334,7 @@ function ClinicOnboardingPage() {
         toast.error(res.error || "Não foi possível criar a clínica. Tente novamente.");
         return;
       }
+      setCreatedSlug(res.slug ?? null);
       setStep(2);
     },
     onError: () => {
@@ -397,7 +434,7 @@ function ClinicOnboardingPage() {
               <Step2 services={services} setServices={setServices} />
             )}
             {step === 2 && (
-              <Step3 clinicName={name} />
+              <Step3 clinicName={name} clinicSlug={createdSlug} />
             )}
 
             {/* Navigation */}

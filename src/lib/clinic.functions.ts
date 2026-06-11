@@ -7,6 +7,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { nameToSlug } from "@/lib/slugify";
 import type { Clinic, ClinicMember, ClinicInvite } from "@/types/clinic";
 import type { Json } from "@/integrations/supabase/types";
 
@@ -90,7 +91,21 @@ export const createClinicServer = createServerFn({ method: "POST" })
       return { ok: false, error: "Não foi possível configurar a clínica. Tente novamente." };
     }
 
-    return { ok: true, clinicId: clinic.id };
+    // Tentar atribuir slug derivado do nome (até 5 tentativas para unicidade)
+    const baseSlug = nameToSlug(data.name.trim());
+    let assignedSlug: string | null = null;
+    for (let i = 1; i <= 5; i++) {
+      const candidate = i === 1 ? baseSlug : `${baseSlug}-${i}`;
+      const { error: slugErr } = await (supabaseAdmin.from("clinics") as any)
+        .update({ slug: candidate })
+        .eq("id", clinic.id);
+      if (!slugErr) {
+        assignedSlug = candidate;
+        break;
+      }
+    }
+
+    return { ok: true, clinicId: clinic.id, slug: assignedSlug };
   });
 
 // ─── updateClinicServer ───────────────────────────────────────────────────────
