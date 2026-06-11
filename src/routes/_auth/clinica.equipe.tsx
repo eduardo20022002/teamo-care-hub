@@ -12,6 +12,7 @@ import {
   getMyClinicServer, listClinicMembersServer, createClinicInviteServer,
   listClinicInvitesServer, removeClinicMemberServer,
 } from "@/lib/clinic.functions";
+import { authHeaders } from "@/lib/auth-headers";
 import { CLINIC_MEMBER_ROLE_LABELS } from "@/types/clinic";
 import type { ClinicMemberRole } from "@/types/clinic";
 
@@ -56,11 +57,11 @@ function InviteModal({
   const [error, setError]  = useState<string | null>(null);
 
   const mutation = useMutation({
-    mutationFn: () =>
-      createInvite({ data: { clinicId, email: email.trim(), role } }),
+    mutationFn: async () =>
+      createInvite({ data: { clinicId, email: email.trim(), role }, headers: await authHeaders() }),
     onSuccess: (res) => {
       if (!res.ok) {
-        setError(res.error);
+        setError(res.error || "Não foi possível criar o convite. Tente novamente.");
         return;
       }
       onInvited(res.token);
@@ -312,7 +313,7 @@ function ClinicEquipePage() {
 
   const clinicQuery = useQuery({
     queryKey: ["myClinic"],
-    queryFn: () => getClinic({}),
+    queryFn: async () => getClinic({ headers: await authHeaders() }),
     enabled: !!user,
     staleTime: 30_000,
   });
@@ -321,19 +322,19 @@ function ClinicEquipePage() {
 
   const membersQuery = useQuery({
     queryKey: ["clinicMembers", clinicId],
-    queryFn: () => listMembers({ data: { clinicId } }),
+    queryFn: async () => listMembers({ data: { clinicId }, headers: await authHeaders() }),
     enabled: !!clinicId,
   });
 
   const invitesQuery = useQuery({
     queryKey: ["clinicInvites", clinicId],
-    queryFn: () => listInvites({ data: { clinicId } }),
+    queryFn: async () => listInvites({ data: { clinicId }, headers: await authHeaders() }),
     enabled: !!clinicId,
   });
 
   const removeMutation = useMutation({
-    mutationFn: (memberId: string) =>
-      removeMember({ data: { clinicId, memberId } }),
+    mutationFn: async (memberId: string) =>
+      removeMember({ data: { clinicId, memberId }, headers: await authHeaders() }),
     onSuccess: (res) => {
       if (!res.ok) {
         toast.error(res.error);

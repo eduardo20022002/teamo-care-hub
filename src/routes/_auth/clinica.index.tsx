@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getMyClinicServer } from "@/lib/clinic.functions";
+import { authHeaders } from "@/lib/auth-headers";
 import { useServerFn } from "@tanstack/react-start";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { formatAge } from "@/lib/formatters";
@@ -153,7 +154,7 @@ function ClinicDashboard() {
 
   const clinicQuery = useQuery({
     queryKey: ["myClinic"],
-    queryFn: () => getClinic({}),
+    queryFn: async () => getClinic({ headers: await authHeaders() }),
     enabled: !!user,
     staleTime: 30_000,
   });

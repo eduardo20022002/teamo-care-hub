@@ -8,6 +8,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { getMyClinicServer, createClinicServer } from "@/lib/clinic.functions";
+import { authHeaders } from "@/lib/auth-headers";
 import { CLINIC_SERVICES } from "@/types/clinic";
 import type { ClinicAddress } from "@/types/clinic";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
@@ -276,13 +277,13 @@ function ClinicOnboardingPage() {
   // Check if already has clinic
   const clinicQuery = useQuery({
     queryKey: ["myClinic"],
-    queryFn: () => getClinic({}),
+    queryFn: async () => getClinic({ headers: await authHeaders() }),
     enabled: !!user,
     staleTime: 30_000,
   });
 
   const createMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: async () =>
       createClinic({
         data: {
           name:     name.trim(),
@@ -290,10 +291,11 @@ function ClinicOnboardingPage() {
           address,
           services,
         },
+        headers: await authHeaders(),
       }),
     onSuccess: (res) => {
       if (!res.ok) {
-        toast.error(res.error);
+        toast.error(res.error || "Não foi possível criar a clínica. Tente novamente.");
         return;
       }
       setStep(2);

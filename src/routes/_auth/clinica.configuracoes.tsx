@@ -6,6 +6,7 @@ import { Save, Building2, MapPin, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { getMyClinicServer, updateClinicServer } from "@/lib/clinic.functions";
+import { authHeaders } from "@/lib/auth-headers";
 import { CLINIC_SERVICES } from "@/types/clinic";
 import type { ClinicAddress } from "@/types/clinic";
 
@@ -40,7 +41,7 @@ function ClinicConfigPage() {
 
   const clinicQuery = useQuery({
     queryKey: ["myClinic"],
-    queryFn: () => getClinic({}),
+    queryFn: async () => getClinic({ headers: await authHeaders() }),
     enabled: !!user,
     staleTime: 30_000,
   });
@@ -74,7 +75,7 @@ function ClinicConfigPage() {
   }
 
   const mutation = useMutation({
-    mutationFn: () =>
+    mutationFn: async () =>
       updateClinic({
         data: {
           clinicId: clinic!.id,
@@ -85,10 +86,11 @@ function ClinicConfigPage() {
             services,
           },
         },
+        headers: await authHeaders(),
       }),
     onSuccess: (res) => {
       if (!res.ok) {
-        toast.error(res.error);
+        toast.error(res.error || "Não foi possível salvar. Tente novamente.");
         return;
       }
       toast.success("Configurações salvas.");

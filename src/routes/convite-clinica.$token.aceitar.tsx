@@ -8,6 +8,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { getClinicInviteServer, acceptClinicInviteServer } from "@/lib/clinic.functions";
+import { authHeaders } from "@/lib/auth-headers";
 import { CLINIC_MEMBER_ROLE_LABELS } from "@/types/clinic";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 
@@ -32,15 +33,15 @@ function AcceptClinicInvitePage() {
   // Load invite info
   const inviteQuery = useQuery({
     queryKey: ["clinicInvite", token],
-    queryFn: () => getInvite({ data: { token } }),
+    queryFn: async () => getInvite({ data: { token }, headers: await authHeaders() }),
     enabled: !!user && !loading,
   });
 
   const acceptMutation = useMutation({
-    mutationFn: () => acceptInvite({ data: { token } }),
+    mutationFn: async () => acceptInvite({ data: { token }, headers: await authHeaders() }),
     onSuccess: (res) => {
       if (!res.ok) {
-        toast.error(res.error);
+        toast.error(res.error || "Não foi possível aceitar o convite. Tente novamente.");
         return;
       }
       setAccepted(true);

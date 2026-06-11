@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { getProfile } from "@/services/profile.service";
 import { getMyClinicServer } from "@/lib/clinic.functions";
+import { authHeaders } from "@/lib/auth-headers";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { signOut } from "@/services/auth.service";
 import { toast } from "sonner";
@@ -48,7 +49,7 @@ function ClinicLayout() {
 
   const clinicQuery = useQuery({
     queryKey: ["myClinic"],
-    queryFn: () => getClinic({}),
+    queryFn: async () => getClinic({ headers: await authHeaders() }),
     enabled: !!user,
     staleTime: 30_000,
   });
