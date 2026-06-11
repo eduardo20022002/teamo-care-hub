@@ -2,11 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   Users, ClipboardCheck, Calendar, AlertCircle, RefreshCw,
-  Clock, CheckCircle2, XCircle, ChevronRight, ArrowRight,
+  Clock, CheckCircle2, XCircle, ChevronRight, ArrowRight, Users2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getMyClinicServer } from "@/lib/clinic.functions";
 import { getAuthorizationAlertsServer } from "@/lib/clinic-financial.functions";
+import { listGroupsServer } from "@/lib/clinic-groups.functions";
 import { authHeaders } from "@/lib/auth-headers";
 import { useServerFn } from "@tanstack/react-start";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
@@ -153,6 +154,7 @@ function ClinicDashboard() {
   const { user } = useAuth();
   const getClinic = useServerFn(getMyClinicServer);
   const getAlerts = useServerFn(getAuthorizationAlertsServer);
+  const listGroups = useServerFn(listGroupsServer);
 
   const clinicQuery = useQuery({
     queryKey: ["myClinic"],
@@ -166,6 +168,13 @@ function ClinicDashboard() {
   const alertsQuery = useQuery({
     queryKey: ["authorizationAlerts", clinicId],
     queryFn: async () => getAlerts({ data: { clinicId }, headers: await authHeaders() }),
+    enabled: !!clinicId,
+    staleTime: 60_000,
+  });
+
+  const groupsQuery = useQuery({
+    queryKey: ["clinicGroupsDashboard", clinicId],
+    queryFn: async () => listGroups({ data: { clinicId, status: "ativo" }, headers: await authHeaders() }),
     enabled: !!clinicId,
     staleTime: 60_000,
   });
@@ -199,20 +208,35 @@ function ClinicDashboard() {
   const authorizationsExpiringCount = authAlerts.filter((a) => a.daysUntilExpiry <= 30).length;
   const renewalsDue = authAlerts.filter((a) => a.daysUntilExpiry <= 60).length;
 
+  const activeGroups = groupsQuery.data?.ok ? groupsQuery.data.groups : [];
+  const groupsWithVacancy = activeGroups.filter(
+    (g) => (g.member_count ?? 0) < g.capacity_max
+  );
+
   // Build pending actions from real authorization alerts
-  const pendingActions: PendingAction[] = authAlerts
-    .filter((a) => a.daysUntilExpiry <= 30 || a.sessionsRemaining <= 10)
-    .slice(0, 5)
-    .map((a) => ({
-      id:      a.authorizationId,
-      type:    "authorization" as const,
-      message: a.sessionsRemaining <= 10
-        ? `Cota crítica — ${a.patientName}, ${a.sessionsRemaining} sessões restantes`
-        : `Autorização vencendo — ${a.patientName}, ${a.daysUntilExpiry}d restantes`,
-      cta:     "Renovar",
-      ctaTo:   "/clinica/financeiro",
-      urgent:  a.alertLevel === "critical",
-    }));
+  const pendingActions: PendingAction[] = [
+    ...authAlerts
+      .filter((a) => a.daysUntilExpiry <= 30 || a.sessionsRemaining <= 10)
+      .slice(0, 3)
+      .map((a) => ({
+        id:      a.authorizationId,
+        type:    "authorization" as const,
+        message: a.sessionsRemaining <= 10
+          ? `Cota crítica — ${a.patientName}, ${a.sessionsRemaining} sessões restantes`
+          : `Autorização vencendo — ${a.patientName}, ${a.daysUntilExpiry}d restantes`,
+        cta:     "Renovar",
+        ctaTo:   "/clinica/financeiro",
+        urgent:  a.alertLevel === "critical",
+      })),
+    ...groupsWithVacancy.slice(0, 2).map((g) => ({
+      id:      g.id,
+      type:    "evaluation" as const,
+      message: `Vaga disponível em ${g.name} — ${g.capacity_max - (g.member_count ?? 0)} candidato${g.capacity_max - (g.member_count ?? 0) > 1 ? "s" : ""} elegível${g.capacity_max - (g.member_count ?? 0) > 1 ? "is" : ""}`,
+      cta:     "Ver candidatos",
+      ctaTo:   `/clinica/grupos/${g.id}`,
+      urgent:  false,
+    })),
+  ];
 
   return (
     <div className="px-6 py-6 max-w-[1440px] mx-auto flex flex-col gap-6">
@@ -407,17 +431,21 @@ function ClinicDashboard() {
                   border: `0.5px solid ${action.urgent ? "#FCA5A5" : "#E5E7EB"}`,
                 }}
               >
-                <AlertCircle
-                  size={16}
-                  color={action.urgent ? "#EF4444" : "#9CA3AF"}
-                />
+                {action.type === "evaluation" ? (
+                  <Users2 size={16} color="#4F46E5" />
+                ) : (
+                  <AlertCircle
+                    size={16}
+                    color={action.urgent ? "#EF4444" : "#9CA3AF"}
+                  />
+                )}
                 <p className="text-sm text-gray-700 flex-1">{action.message}</p>
-                <Link
-                  to={action.ctaTo as "/clinica"}
+                <a
+                  href={action.ctaTo}
                   className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 shrink-0"
                 >
                   {action.cta}
-                </Link>
+                </a>
               </div>
             ))}
           </div>

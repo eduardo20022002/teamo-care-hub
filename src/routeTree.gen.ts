@@ -77,6 +77,7 @@ import { Route as AuthOnboardingTerapeutaConclusaoRouteImport } from './routes/_
 import { Route as AuthMeuTerapeutaAccessIdEvolucaoRouteImport } from './routes/_auth/meu-terapeuta_.$accessId_.evolucao'
 import { Route as AuthConviteTokenAceitarRouteImport } from './routes/_auth/convite_.$token.aceitar'
 import { Route as AuthConviteTerapeutaTokenAceitarRouteImport } from './routes/_auth/convite-terapeuta_.$token.aceitar'
+import { Route as AuthClinicaGruposGroupIdRouteImport } from './routes/_auth/clinica.grupos.$groupId'
 import { Route as AuthClinicaFilaEntryIdRouteImport } from './routes/_auth/clinica.fila.$entryId'
 import { Route as AuthClinicaAvaliacoesEntryIdRouteImport } from './routes/_auth/clinica.avaliacoes.$entryId'
 import { Route as AuthClinicaAgendaReposicoesRouteImport } from './routes/_auth/clinica.agenda.reposicoes'
@@ -442,6 +443,12 @@ const AuthConviteTerapeutaTokenAceitarRoute =
     path: '/convite-terapeuta/$token/aceitar',
     getParentRoute: () => AuthRoute,
   } as any)
+const AuthClinicaGruposGroupIdRoute =
+  AuthClinicaGruposGroupIdRouteImport.update({
+    id: '/$groupId',
+    path: '/$groupId',
+    getParentRoute: () => AuthClinicaGruposRoute,
+  } as any)
 const AuthClinicaFilaEntryIdRoute = AuthClinicaFilaEntryIdRouteImport.update({
   id: '/$entryId',
   path: '/$entryId',
@@ -541,7 +548,7 @@ export interface FileRoutesByFullPath {
   '/clinica/equipe': typeof AuthClinicaEquipeRoute
   '/clinica/fila': typeof AuthClinicaFilaRouteWithChildren
   '/clinica/financeiro': typeof AuthClinicaFinanceiroRoute
-  '/clinica/grupos': typeof AuthClinicaGruposRoute
+  '/clinica/grupos': typeof AuthClinicaGruposRouteWithChildren
   '/clinica/onboarding': typeof AuthClinicaOnboardingRoute
   '/cuidado-compartilhado/$childId': typeof AuthCuidadoCompartilhadoChildIdRoute
   '/evolucao/$childId': typeof AuthEvolucaoChildIdRoute
@@ -557,6 +564,7 @@ export interface FileRoutesByFullPath {
   '/clinica/agenda/reposicoes': typeof AuthClinicaAgendaReposicoesRoute
   '/clinica/avaliacoes/$entryId': typeof AuthClinicaAvaliacoesEntryIdRoute
   '/clinica/fila/$entryId': typeof AuthClinicaFilaEntryIdRoute
+  '/clinica/grupos/$groupId': typeof AuthClinicaGruposGroupIdRoute
   '/convite-terapeuta/$token/aceitar': typeof AuthConviteTerapeutaTokenAceitarRoute
   '/convite/$token/aceitar': typeof AuthConviteTokenAceitarRoute
   '/meu-terapeuta/$accessId/evolucao': typeof AuthMeuTerapeutaAccessIdEvolucaoRoute
@@ -618,7 +626,7 @@ export interface FileRoutesByTo {
   '/clinica/equipe': typeof AuthClinicaEquipeRoute
   '/clinica/fila': typeof AuthClinicaFilaRouteWithChildren
   '/clinica/financeiro': typeof AuthClinicaFinanceiroRoute
-  '/clinica/grupos': typeof AuthClinicaGruposRoute
+  '/clinica/grupos': typeof AuthClinicaGruposRouteWithChildren
   '/clinica/onboarding': typeof AuthClinicaOnboardingRoute
   '/cuidado-compartilhado/$childId': typeof AuthCuidadoCompartilhadoChildIdRoute
   '/evolucao/$childId': typeof AuthEvolucaoChildIdRoute
@@ -634,6 +642,7 @@ export interface FileRoutesByTo {
   '/clinica/agenda/reposicoes': typeof AuthClinicaAgendaReposicoesRoute
   '/clinica/avaliacoes/$entryId': typeof AuthClinicaAvaliacoesEntryIdRoute
   '/clinica/fila/$entryId': typeof AuthClinicaFilaEntryIdRoute
+  '/clinica/grupos/$groupId': typeof AuthClinicaGruposGroupIdRoute
   '/convite-terapeuta/$token/aceitar': typeof AuthConviteTerapeutaTokenAceitarRoute
   '/convite/$token/aceitar': typeof AuthConviteTokenAceitarRoute
   '/meu-terapeuta/$accessId/evolucao': typeof AuthMeuTerapeutaAccessIdEvolucaoRoute
@@ -698,7 +707,7 @@ export interface FileRoutesById {
   '/_auth/clinica/equipe': typeof AuthClinicaEquipeRoute
   '/_auth/clinica/fila': typeof AuthClinicaFilaRouteWithChildren
   '/_auth/clinica/financeiro': typeof AuthClinicaFinanceiroRoute
-  '/_auth/clinica/grupos': typeof AuthClinicaGruposRoute
+  '/_auth/clinica/grupos': typeof AuthClinicaGruposRouteWithChildren
   '/_auth/clinica_/onboarding': typeof AuthClinicaOnboardingRoute
   '/_auth/cuidado-compartilhado/$childId': typeof AuthCuidadoCompartilhadoChildIdRoute
   '/_auth/evolucao_/$childId': typeof AuthEvolucaoChildIdRoute
@@ -714,6 +723,7 @@ export interface FileRoutesById {
   '/_auth/clinica/agenda/reposicoes': typeof AuthClinicaAgendaReposicoesRoute
   '/_auth/clinica/avaliacoes/$entryId': typeof AuthClinicaAvaliacoesEntryIdRoute
   '/_auth/clinica/fila/$entryId': typeof AuthClinicaFilaEntryIdRoute
+  '/_auth/clinica/grupos/$groupId': typeof AuthClinicaGruposGroupIdRoute
   '/_auth/convite-terapeuta_/$token/aceitar': typeof AuthConviteTerapeutaTokenAceitarRoute
   '/_auth/convite_/$token/aceitar': typeof AuthConviteTokenAceitarRoute
   '/_auth/meu-terapeuta_/$accessId_/evolucao': typeof AuthMeuTerapeutaAccessIdEvolucaoRoute
@@ -794,6 +804,7 @@ export interface FileRouteTypes {
     | '/clinica/agenda/reposicoes'
     | '/clinica/avaliacoes/$entryId'
     | '/clinica/fila/$entryId'
+    | '/clinica/grupos/$groupId'
     | '/convite-terapeuta/$token/aceitar'
     | '/convite/$token/aceitar'
     | '/meu-terapeuta/$accessId/evolucao'
@@ -871,6 +882,7 @@ export interface FileRouteTypes {
     | '/clinica/agenda/reposicoes'
     | '/clinica/avaliacoes/$entryId'
     | '/clinica/fila/$entryId'
+    | '/clinica/grupos/$groupId'
     | '/convite-terapeuta/$token/aceitar'
     | '/convite/$token/aceitar'
     | '/meu-terapeuta/$accessId/evolucao'
@@ -950,6 +962,7 @@ export interface FileRouteTypes {
     | '/_auth/clinica/agenda/reposicoes'
     | '/_auth/clinica/avaliacoes/$entryId'
     | '/_auth/clinica/fila/$entryId'
+    | '/_auth/clinica/grupos/$groupId'
     | '/_auth/convite-terapeuta_/$token/aceitar'
     | '/_auth/convite_/$token/aceitar'
     | '/_auth/meu-terapeuta_/$accessId_/evolucao'
@@ -1469,6 +1482,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthConviteTerapeutaTokenAceitarRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/clinica/grupos/$groupId': {
+      id: '/_auth/clinica/grupos/$groupId'
+      path: '/$groupId'
+      fullPath: '/clinica/grupos/$groupId'
+      preLoaderRoute: typeof AuthClinicaGruposGroupIdRouteImport
+      parentRoute: typeof AuthClinicaGruposRoute
+    }
     '/_auth/clinica/fila/$entryId': {
       id: '/_auth/clinica/fila/$entryId'
       path: '/$entryId'
@@ -1571,6 +1591,17 @@ const AuthClinicaFilaRouteWithChildren = AuthClinicaFilaRoute._addFileChildren(
   AuthClinicaFilaRouteChildren,
 )
 
+interface AuthClinicaGruposRouteChildren {
+  AuthClinicaGruposGroupIdRoute: typeof AuthClinicaGruposGroupIdRoute
+}
+
+const AuthClinicaGruposRouteChildren: AuthClinicaGruposRouteChildren = {
+  AuthClinicaGruposGroupIdRoute: AuthClinicaGruposGroupIdRoute,
+}
+
+const AuthClinicaGruposRouteWithChildren =
+  AuthClinicaGruposRoute._addFileChildren(AuthClinicaGruposRouteChildren)
+
 interface AuthClinicaRouteChildren {
   AuthClinicaAgendaRoute: typeof AuthClinicaAgendaRouteWithChildren
   AuthClinicaAvaliacoesRoute: typeof AuthClinicaAvaliacoesRouteWithChildren
@@ -1578,7 +1609,7 @@ interface AuthClinicaRouteChildren {
   AuthClinicaEquipeRoute: typeof AuthClinicaEquipeRoute
   AuthClinicaFilaRoute: typeof AuthClinicaFilaRouteWithChildren
   AuthClinicaFinanceiroRoute: typeof AuthClinicaFinanceiroRoute
-  AuthClinicaGruposRoute: typeof AuthClinicaGruposRoute
+  AuthClinicaGruposRoute: typeof AuthClinicaGruposRouteWithChildren
   AuthClinicaIndexRoute: typeof AuthClinicaIndexRoute
 }
 
@@ -1589,7 +1620,7 @@ const AuthClinicaRouteChildren: AuthClinicaRouteChildren = {
   AuthClinicaEquipeRoute: AuthClinicaEquipeRoute,
   AuthClinicaFilaRoute: AuthClinicaFilaRouteWithChildren,
   AuthClinicaFinanceiroRoute: AuthClinicaFinanceiroRoute,
-  AuthClinicaGruposRoute: AuthClinicaGruposRoute,
+  AuthClinicaGruposRoute: AuthClinicaGruposRouteWithChildren,
   AuthClinicaIndexRoute: AuthClinicaIndexRoute,
 }
 

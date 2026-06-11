@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronLeft, ChevronRight, Plus, X, CheckCircle, AlertCircle, XCircle, UserMinus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, CheckCircle, AlertCircle, XCircle, UserMinus, Users2, Clock, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { authHeaders } from "@/lib/auth-headers";
@@ -11,6 +11,7 @@ import {
   updateSessionStatusServer,
   registerTherapistAbsenceServer,
 } from "@/lib/clinic-agenda.functions";
+import { listGroupsServer } from "@/lib/clinic-groups.functions";
 import { getMyClinicServer } from "@/lib/clinic.functions";
 import type { ClinicSession, SessionStatus, AbsenceType } from "@/types/clinic-agenda";
 import {
@@ -20,13 +21,15 @@ import {
   DAY_NAMES_FULL,
   ABSENCE_TYPE_LABELS,
 } from "@/types/clinic-agenda";
+import type { ClinicGroup } from "@/types/clinic-groups";
+import { GROUP_STATUS_COLORS, DAY_NAMES_SHORT } from "@/types/clinic-groups";
 
 export const Route = createFileRoute("/_auth/clinica/agenda")({
   head: () => ({ meta: [{ title: "Agenda — Clínica TEAmo" }] }),
   component: ClinicAgendaPage,
 });
 
-type ViewMode = "profissional" | "sala";
+type ViewMode = "profissional" | "sala" | "grupo";
 
 const SESSION_TYPE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
   terapeutica:     { bg: "#EEF2FF", border: "#4F46E5", text: "#3730A3" },
@@ -82,6 +85,7 @@ export default function ClinicAgendaPage() {
   const listSessions = useServerFn(listClinicSessionsServer);
   const updateStatus = useServerFn(updateSessionStatusServer);
   const registerAbsence = useServerFn(registerTherapistAbsenceServer);
+  const listGroups = useServerFn(listGroupsServer);
 
   const clinicQuery = useQuery({
     queryKey: ["myClinic"],
@@ -103,7 +107,15 @@ export default function ClinicAgendaPage() {
     staleTime: 30_000,
   });
 
+  const groupsQuery = useQuery({
+    queryKey: ["clinicGroupsAgenda", clinicId],
+    queryFn: async () => listGroups({ data: { clinicId, status: "ativo" }, headers: await authHeaders() }),
+    enabled: !!clinicId && viewMode === "grupo",
+    staleTime: 30_000,
+  });
+
   const sessions: ClinicSession[] = sessionsQuery.data?.ok ? sessionsQuery.data.sessions : [];
+  const groups: ClinicGroup[] = groupsQuery.data?.ok ? groupsQuery.data.groups : [];
 
   const weekDays = useMemo(
     () => Array.from({ length: 6 }, (_, i) => addDays(weekStart, i)),
@@ -200,7 +212,7 @@ export default function ClinicAgendaPage() {
 
         {/* View mode toggle */}
         <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg">
-          {(["profissional", "sala"] as ViewMode[]).map((mode) => (
+          {(["profissional", "sala", "grupo"] as ViewMode[]).map((mode) => (
             <button
               key={mode}
               type="button"
@@ -212,21 +224,83 @@ export default function ClinicAgendaPage() {
                   : "text-gray-500 hover:text-gray-700",
               ].join(" ")}
             >
-              {mode === "profissional" ? "Por profissional" : "Por sala"}
+              {mode === "profissional" ? "Por profissional" : mode === "sala" ? "Por sala" : "Por grupo"}
             </button>
           ))}
-          <button
-            type="button"
-            disabled
-            className="px-3 py-1 text-xs font-medium rounded-md text-gray-300 cursor-not-allowed"
-            title="Disponível na Fase 7"
-          >
-            Por grupo
-          </button>
         </div>
       </div>
 
-      {/* Grid */}
+      {/* Grid — Por grupo */}
+      {viewMode === "grupo" && (
+        <div className="flex flex-col gap-4">
+          {groupsQuery.isLoading ? (
+            <div className="text-center py-12 text-sm text-gray-400">Carregando grupos...</div>
+          ) : groups.length === 0 ? (
+            <div
+              className="bg-white rounded-xl p-10 flex flex-col items-center gap-3 text-center"
+              style={{ border: "0.5px solid #E5E7EB" }}
+            >
+              <Users2 size={24} className="text-gray-300" />
+              <p className="text-sm text-gray-500">Nenhum grupo ativo encontrado.</p>
+              <Link to="/clinica/grupos" className="text-indigo-600 text-sm font-medium hover:underline">
+                Gerenciar grupos →
+              </Link>
+            </div>
+          ) : (
+            groups.map((group) => {
+              const statusColor = GROUP_STATUS_COLORS[group.status];
+              const scheduleText = `${DAY_NAMES_SHORT[group.day_of_week]} · ${group.start_time.slice(0, 5)}h`;
+              const activeCount = group.member_count ?? 0;
+              const memberColors = ["bg-indigo-100 text-indigo-700","bg-pink-100 text-pink-700","bg-green-100 text-green-700","bg-amber-100 text-amber-700"];
+              return (
+                <div key={group.id} className="bg-white rounded-xl p-5" style={{ border: "0.5px solid #E5E7EB" }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-sm font-semibold text-gray-900">{group.name}</h3>
+                      <span
+                        className="text-xs font-medium px-2 py-0.5 rounded-full"
+                        style={{ background: statusColor.bg, color: statusColor.color, border: `1px solid ${statusColor.border}` }}
+                      >
+                        {activeCount}/{group.capacity_max}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-gray-400">
+                      <span className="flex items-center gap-1"><Clock size={11} /> {scheduleText}</span>
+                      <span className="flex items-center gap-1"><MapPin size={11} /> {group.room_name}</span>
+                      <Link
+                        to="/clinica/grupos/$groupId"
+                        params={{ groupId: group.id }}
+                        className="text-indigo-600 hover:underline"
+                      >
+                        Ver grupo →
+                      </Link>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400">{group.therapist_name}</span>
+                    <div className="flex -space-x-1.5 ml-2">
+                      {Array.from({ length: activeCount }).map((_, i) => (
+                        <div
+                          key={i}
+                          className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-semibold ${memberColors[i % memberColors.length]} ring-2 ring-white`}
+                        >
+                          {String.fromCharCode(65 + i)}
+                        </div>
+                      ))}
+                    </div>
+                    {activeCount === 0 && (
+                      <span className="text-xs text-gray-400 italic">Sem membros ativos</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* Grid — Por profissional / sala */}
+      {viewMode !== "grupo" && (
       <div className="bg-white rounded-xl overflow-hidden" style={{ border: "0.5px solid #E5E7EB" }}>
         {/* Day headers */}
         <div className="grid grid-cols-6 border-b border-gray-100">
@@ -308,6 +382,8 @@ export default function ClinicAgendaPage() {
           })}
         </div>
       </div>
+
+      )} {/* end viewMode !== "grupo" */}
 
       {/* Session detail panel */}
       {selectedSession && (
