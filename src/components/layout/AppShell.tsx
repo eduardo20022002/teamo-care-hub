@@ -91,7 +91,11 @@ export function AppShell({
     staleTime: 5 * 60 * 1000,
   });
 
-  const userType = (profile?.user_type ?? "parent") as "parent" | "therapist";
+  // clinic_coordinator passa brevemente pelo /dashboard (que usa o AppShell) antes de
+  // ser redirecionado para /clinica. ROLE_THEME só tem parent/therapist, então usamos
+  // fallback para "parent" e evitamos crash de tema indefinido nesse render intermediário.
+  const rawUserType = profile?.user_type ?? "parent";
+  const userType: "parent" | "therapist" = rawUserType === "therapist" ? "therapist" : "parent";
   const isTherapist = userType === "therapist";
   const theme = ROLE_THEME[userType];
 

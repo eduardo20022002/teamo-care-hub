@@ -694,8 +694,9 @@ function DashboardPage() {
     onError: (e: Error) => toast.error(e.message || "Não foi possível cadastrar."),
   });
 
-  // Mostra skeleton enquanto carrega tipo de usuário
-  if (isLoading || profileQuery.isLoading) {
+  // Mostra skeleton enquanto carrega tipo de usuário, ou enquanto o coordenador de
+  // clínica está sendo redirecionado para /clinica (evita flash do dashboard de pai).
+  if (isLoading || profileQuery.isLoading || profileQuery.data?.user_type === "clinic_coordinator") {
     return (
       <AppShell>
         <DashboardSkeleton />
