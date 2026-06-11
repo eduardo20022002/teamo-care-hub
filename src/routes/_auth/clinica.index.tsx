@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getMyClinicServer } from "@/lib/clinic.functions";
+import { getAuthorizationAlertsServer } from "@/lib/clinic-financial.functions";
 import { authHeaders } from "@/lib/auth-headers";
 import { useServerFn } from "@tanstack/react-start";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
@@ -151,12 +152,22 @@ function EmptyState({ message, cta, ctaTo }: { message: string; cta?: string; ct
 function ClinicDashboard() {
   const { user } = useAuth();
   const getClinic = useServerFn(getMyClinicServer);
+  const getAlerts = useServerFn(getAuthorizationAlertsServer);
 
   const clinicQuery = useQuery({
     queryKey: ["myClinic"],
     queryFn: async () => getClinic({ headers: await authHeaders() }),
     enabled: !!user,
     staleTime: 30_000,
+  });
+
+  const clinicId = clinicQuery.data?.clinic?.id ?? "";
+
+  const alertsQuery = useQuery({
+    queryKey: ["authorizationAlerts", clinicId],
+    queryFn: async () => getAlerts({ data: { clinicId }, headers: await authHeaders() }),
+    enabled: !!clinicId,
+    staleTime: 60_000,
   });
 
   if (clinicQuery.isLoading) {
@@ -183,7 +194,25 @@ function ClinicDashboard() {
   const queueSummary: QueueSummary = { total: 0, alta: 0, moderada: 0, rotina: 0 };
   const todaySessions: TodaySession[] = [];
   const priorityQueue: PriorityQueueEntry[] = [];
-  const pendingActions: PendingAction[] = [];
+
+  const authAlerts = alertsQuery.data?.ok ? alertsQuery.data.alerts : [];
+  const authorizationsExpiringCount = authAlerts.filter((a) => a.daysUntilExpiry <= 30).length;
+  const renewalsDue = authAlerts.filter((a) => a.daysUntilExpiry <= 60).length;
+
+  // Build pending actions from real authorization alerts
+  const pendingActions: PendingAction[] = authAlerts
+    .filter((a) => a.daysUntilExpiry <= 30 || a.sessionsRemaining <= 10)
+    .slice(0, 5)
+    .map((a) => ({
+      id:      a.authorizationId,
+      type:    "authorization" as const,
+      message: a.sessionsRemaining <= 10
+        ? `Cota crítica — ${a.patientName}, ${a.sessionsRemaining} sessões restantes`
+        : `Autorização vencendo — ${a.patientName}, ${a.daysUntilExpiry}d restantes`,
+      cta:     "Renovar",
+      ctaTo:   "/clinica/financeiro",
+      urgent:  a.alertLevel === "critical",
+    }));
 
   return (
     <div className="px-6 py-6 max-w-[1440px] mx-auto flex flex-col gap-6">
@@ -245,7 +274,7 @@ function ClinicDashboard() {
         />
         <MetricCard
           title="Autorizações"
-          value={0}
+          value={authorizationsExpiringCount}
           subtitle="Vencendo em menos de 30 dias"
           icon={AlertCircle}
           iconColor="#EF4444"
@@ -253,7 +282,7 @@ function ClinicDashboard() {
         />
         <MetricCard
           title="Renovações"
-          value={0}
+          value={renewalsDue}
           subtitle="Próximos 60 dias"
           icon={RefreshCw}
           iconColor="#F59E0B"

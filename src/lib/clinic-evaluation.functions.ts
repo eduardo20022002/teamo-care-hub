@@ -616,7 +616,7 @@ export const approvePatientProfileServer = createServerFn({ method: "POST" })
 
     const { data: profile } = await supabaseAdmin
       .from("patient_profiles")
-      .select("clinic_id, payment_type, status")
+      .select("clinic_id, payment_type, status, insurance_data")
       .eq("id", data.profileId)
       .single();
 
@@ -645,7 +645,24 @@ export const approvePatientProfileServer = createServerFn({ method: "POST" })
 
     if (error) return { ok: false, error: error.message };
 
-    // TODO Fase 5: criar insurance_authorization se payment_type === 'convenio'
+    // Fase 5: cria insurance_authorization inicial se aprovado e payment_type inclui convênio
+    if (data.action === "aprovado" && (profile.payment_type === "convenio" || profile.payment_type === "misto")) {
+      const insuranceData = (profile.insurance_data ?? {}) as {
+        plano?: string;
+        autorizacao?: string;
+      };
+      await supabaseAdmin.from("insurance_authorizations").insert({
+        clinic_id:            profile.clinic_id,
+        patient_profile_id:   data.profileId,
+        insurance_plan:       insuranceData.plano ?? "A definir",
+        authorization_number: insuranceData.autorizacao ?? "Pendente",
+        valid_from:           new Date().toISOString().split("T")[0],
+        valid_until:          new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        sessions_authorized:  96,
+        status:               "ativa",
+        created_by:           userId,
+      });
+    }
 
     return { ok: true };
   });
