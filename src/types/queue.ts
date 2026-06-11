@@ -37,6 +37,60 @@ export interface QueueDisponibilidade {
   turnos?: string[]; // ["manha","tarde"]
 }
 
+// ─── Form 1 (payload rico, armazenado em queue_entries.form_payload) ──────────
+
+export type CondicaoStatus = "sim" | "nao" | "investigacao";
+
+export interface FormResponsavel {
+  nome: string;
+  parentesco: string;          // valores de PARENTESCO_OPCOES
+  parentesco_outro?: string;   // preenchido quando parentesco === "outro"
+  telefone: string;
+  email: string;
+}
+
+export interface FormCondicoes {
+  tea?: CondicaoStatus;
+  tdah?: CondicaoStatus;
+  deficiencia_intelectual?: CondicaoStatus;
+  atraso_desenvolvimento?: CondicaoStatus;
+  transtorno_linguagem?: CondicaoStatus;
+  transtorno_sensorial?: CondicaoStatus;
+  outra?: CondicaoStatus;
+  outra_qual?: string;
+}
+
+export interface FormComportamentos {
+  autolesao?: boolean;
+  agressividade?: boolean;
+  nenhum?: boolean;
+}
+
+export interface FormHorarioEspecifico {
+  dia: string;       // valor de QUEUE_DIAS
+  inicio: string;    // "HH:MM"
+  fim: string;       // "HH:MM"
+}
+
+export interface FormDisponibilidade {
+  modo: "turno" | "horario";
+  grade?: Record<string, string[]>;        // modo "turno": dia -> turnos (inclui "integral")
+  horarios?: FormHorarioEspecifico[];      // modo "horario"
+  restricoes?: string;
+}
+
+export interface QueueFormPayload {
+  protocol?: string;
+  responsaveis?: FormResponsavel[];
+  condicoes?: FormCondicoes;
+  comportamentos?: FormComportamentos;
+  terapia_aba_atual?: boolean;
+  terapia_aba_horas?: number;
+  como_soube?: string;
+  observacoes?: string;
+  disponibilidade?: FormDisponibilidade;
+}
+
 export interface QueueEntry {
   id: string;
   clinic_id: string;
@@ -52,6 +106,7 @@ export interface QueueEntry {
   responsavel_nome: string;
   responsavel_email: string;
   responsavel_telefone: string | null;
+  form_payload?: QueueFormPayload;
   priority_score: number;
   priority_tier: QueueTier;
   status: QueueStatus;
@@ -118,4 +173,40 @@ export const QUEUE_TURNOS = [
   { value: "manha",  label: "Manhã (até 12h)" },
   { value: "tarde",  label: "Tarde (12h–18h)" },
   { value: "noite",  label: "Noite (após 18h)" },
+] as const;
+
+// ─── Form 1 — opções de UI ───────────────────────────────────────────────────
+
+export const PARENTESCO_OPCOES = [
+  { value: "mae",               label: "Mãe" },
+  { value: "pai",               label: "Pai" },
+  { value: "avo_f",             label: "Avó" },
+  { value: "avo_m",             label: "Avô" },
+  { value: "tio_tia",           label: "Tio/Tia" },
+  { value: "responsavel_legal", label: "Responsável legal" },
+  { value: "outro",             label: "Outro" },
+] as const;
+
+// Turnos do Form 1 incluem "integral" (cobre todos os outros turnos do dia)
+export const FORM_TURNOS = [
+  { value: "manha",    label: "Manhã" },
+  { value: "tarde",    label: "Tarde" },
+  { value: "noite",    label: "Noite" },
+  { value: "integral", label: "Integral" },
+] as const;
+
+export const FORM_CONDICOES = [
+  { key: "tea",                     label: "Transtorno do Espectro Autista (TEA)" },
+  { key: "tdah",                    label: "TDAH" },
+  { key: "deficiencia_intelectual", label: "Deficiência Intelectual" },
+  { key: "atraso_desenvolvimento",  label: "Atraso no desenvolvimento" },
+  { key: "transtorno_linguagem",    label: "Transtorno de linguagem / comunicação" },
+  { key: "transtorno_sensorial",    label: "Transtorno sensorial" },
+  { key: "outra",                   label: "Outra condição" },
+] as const;
+
+export const CONDICAO_STATUS_OPCOES = [
+  { value: "sim",          label: "Sim" },
+  { value: "nao",          label: "Não" },
+  { value: "investigacao", label: "Em investigação" },
 ] as const;

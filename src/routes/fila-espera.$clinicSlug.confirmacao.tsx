@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
-import { CheckCircle2, Heart, Hash } from "lucide-react";
+import { CheckCircle2, Heart, Hash, Contact } from "lucide-react";
 import { getPublicClinicBySlugServer } from "@/lib/queue.functions";
 
 export const Route = createFileRoute("/fila-espera/$clinicSlug/confirmacao")({
@@ -23,6 +23,26 @@ function ConfirmacaoPage() {
   });
 
   const clinicName = data?.name ?? null;
+
+  const salvarContato = () => {
+    if (!clinicName) return;
+    const url = typeof window !== "undefined" ? `${window.location.origin}/fila-espera/${clinicSlug}` : "";
+    const vcard = [
+      "BEGIN:VCARD",
+      "VERSION:3.0",
+      `FN:${clinicName}`,
+      `ORG:${clinicName}`,
+      url ? `URL:${url}` : "",
+      "END:VCARD",
+    ].filter(Boolean).join("\n");
+    const blob = new Blob([vcard], { type: "text/vcard" });
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = href;
+    a.download = `${clinicName.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.vcf`;
+    a.click();
+    URL.revokeObjectURL(href);
+  };
 
   return (
     <div className="min-h-screen" style={{ background: "#F6F7FB" }}>
@@ -100,6 +120,18 @@ function ConfirmacaoPage() {
             </li>
           </ol>
         </div>
+
+        {/* Salvar contato da clínica */}
+        {clinicName && (
+          <button
+            type="button"
+            onClick={salvarContato}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold text-indigo-600 bg-white transition-colors hover:bg-indigo-50"
+            style={{ border: "1.5px solid #C7D2FE" }}
+          >
+            <Contact size={16} /> Salvar contato da clínica
+          </button>
+        )}
       </main>
     </div>
   );

@@ -19,43 +19,57 @@ import type {
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
-const factorASchema = z.object({
-  sem_servico_atual: z.boolean().optional(),
-  diagnose_recente:  z.boolean().optional(),
-  idade_critica:     z.boolean().optional(),
+const condicaoStatus = z.enum(["sim", "nao", "investigacao"]);
+
+const responsavelSchema = z.object({
+  nome:             z.string().trim().min(1).max(200),
+  parentesco:       z.string().trim().min(1).max(40),
+  parentesco_outro: z.string().trim().max(120).optional(),
+  telefone:         z.string().trim().min(10).max(30),
+  email:            z.string().email("E-mail inválido.").max(255),
+});
+
+const condicoesSchema = z.object({
+  tea:                     condicaoStatus.optional(),
+  tdah:                    condicaoStatus.optional(),
+  deficiencia_intelectual: condicaoStatus.optional(),
+  atraso_desenvolvimento:  condicaoStatus.optional(),
+  transtorno_linguagem:    condicaoStatus.optional(),
+  transtorno_sensorial:    condicaoStatus.optional(),
+  outra:                   condicaoStatus.optional(),
+  outra_qual:              z.string().trim().max(200).optional(),
 }).optional();
 
-const factorBSchema = z.object({
-  comportamento_desafio: z.boolean().optional(),
-  gravidade:             z.enum(["leve","moderado","grave"]).optional(),
-  descricao:             z.string().max(1000).optional(),
+const comportamentosSchema = z.object({
+  autolesao:     z.boolean().optional(),
+  agressividade: z.boolean().optional(),
+  nenhum:        z.boolean().optional(),
 }).optional();
 
-const factorCSchema = z.object({
-  renda_baixa:     z.boolean().optional(),
-  responsavel_solo: z.boolean().optional(),
-  distancia_km:    z.number().int().min(0).max(9999).optional(),
-}).optional();
-
-const disponibilidadeSchema = z.object({
-  dias:   z.array(z.string()).optional(),
-  turnos: z.array(z.string()).optional(),
+const formDisponibilidadeSchema = z.object({
+  modo:       z.enum(["turno", "horario"]),
+  grade:      z.record(z.string(), z.array(z.string())).optional(),
+  horarios:   z.array(z.object({
+    dia:    z.string(),
+    inicio: z.string().regex(/^\d{2}:\d{2}$/),
+    fim:    z.string().regex(/^\d{2}:\d{2}$/),
+  })).optional(),
+  restricoes: z.string().trim().max(500).optional(),
 }).optional();
 
 const submitQueueEntrySchema = z.object({
-  clinicSlug:           z.string().min(1).max(120),
-  child_name:           z.string().trim().min(1).max(200),
-  child_birthdate:      z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida."),
-  child_diagnosis:      z.string().max(500).optional(),
-  child_cid:            z.string().max(20).optional(),
-  factor_a:             factorASchema,
-  factor_b:             factorBSchema,
-  factor_c:             factorCSchema,
-  modalidades:          z.array(z.enum(["avaliacao","aba_individual","aba_grupo","orientacao_pais"])).min(1),
-  disponibilidade:      disponibilidadeSchema,
-  responsavel_nome:     z.string().trim().min(1).max(200),
-  responsavel_email:    z.string().email("E-mail inválido.").max(255),
-  responsavel_telefone: z.string().max(30).optional(),
+  clinicSlug:        z.string().min(1).max(120),
+  child_name:        z.string().trim().min(3).max(200),
+  child_birthdate:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida."),
+  responsaveis:      z.array(responsavelSchema).min(1).max(10),
+  condicoes:         condicoesSchema,
+  comportamentos:    comportamentosSchema,
+  terapia_aba_atual: z.boolean().optional(),
+  terapia_aba_horas: z.number().int().min(1).max(60).optional(),
+  como_soube:        z.string().trim().max(300).optional(),
+  observacoes:       z.string().trim().max(1000).optional(),
+  disponibilidade:   formDisponibilidadeSchema,
+  consentimento:     z.literal(true),
 });
 
 // ─── getPublicClinicBySlugServer ──────────────────────────────────────────────
@@ -78,9 +92,29 @@ export const getPublicClinicBySlugServer = createServerFn({ method: "GET" })
 // Pública (sem auth), rate-limited por IP.
 // Família submete Form 1.
 
+// Idade em anos completos a partir da data de nascimento (YYYY-MM-DD).
+function idadeEmAnos(birthdate: string): number {
+  const b = new Date(birthdate + "T00:00:00");
+  const now = new Date();
+  let anos = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) anos--;
+  return anos;
+}
+
+// Resumo legível das condições marcadas (para exibição no painel via child_diagnosis).
+const CONDICAO_LABELS: Record<string, string> = {
+  tea: "TEA", tdah: "TDAH", deficiencia_intelectual: "Def. Intelectual",
+  atraso_desenvolvimento: "Atraso no desenvolvimento", transtorno_linguagem: "Transtorno de linguagem",
+  transtorno_sensorial: "Transtorno sensorial", outra: "Outra",
+};
+const STATUS_LABELS: Record<string, string> = {
+  sim: "sim", nao: "não", investigacao: "em investigação",
+};
+
 export const submitQueueEntryServer = createServerFn({ method: "POST" })
   .inputValidator((d) => submitQueueEntrySchema.parse(d))
-  .handler(async ({ data }): Promise<{ ok: true; entryId: string } | { ok: false; error: string }> => {
+  .handler(async ({ data }): Promise<{ ok: true; entryId: string; protocol: string } | { ok: false; error: string; protocol?: string }> => {
     // Rate limiting: 5 submissões por IP a cada 30 minutos
     const request = getRequest();
     const ip = request ? getClientIp(request) : "unknown";
@@ -101,38 +135,107 @@ export const submitQueueEntryServer = createServerFn({ method: "POST" })
 
     if (!clinic) return { ok: false, error: "Clínica não encontrada." };
 
-    // Verificar duplicata recente (mesmo e-mail + clínica nas últimas 24h)
-    const { data: duplicate } = await supabaseAdmin
-      .from("queue_entries")
-      .select("id")
+    const childName = data.child_name.trim();
+
+    // Duplicata: mesma criança (nome + data de nascimento) já ativa nesta clínica
+    const { data: duplicate } = await (supabaseAdmin.from("queue_entries") as any)
+      .select("id, form_payload")
       .eq("clinic_id", clinic.id)
-      .eq("responsavel_email", data.responsavel_email.toLowerCase().trim())
+      .ilike("child_name", childName)
+      .eq("child_birthdate", data.child_birthdate)
       .neq("status", "inativo")
       .maybeSingle();
 
     if (duplicate) {
+      const existingProtocol = (duplicate.form_payload?.protocol as string) ?? undefined;
       return {
         ok: false,
-        error: "Já existe uma solicitação ativa para este e-mail nesta clínica.",
+        error: existingProtocol
+          ? `Já existe uma solicitação ativa para esta criança. O protocolo é ${existingProtocol}.`
+          : "Já existe uma solicitação ativa para esta criança.",
+        protocol: existingProtocol,
       };
     }
 
-    const { data: entry, error } = await supabaseAdmin
+    // ── Derivar fatores de priorização a partir do payload ──
+    const comp = data.comportamentos ?? {};
+    const temComportamento = !!(comp.autolesao || comp.agressividade);
+
+    const factor_a = {
+      // Não está em terapia ABA → sem serviço especializado atual
+      sem_servico_atual: data.terapia_aba_atual === false ? true : undefined,
+      // Faixa de maior plasticidade (intervenção precoce)
+      idade_critica: idadeEmAnos(data.child_birthdate) < 6 ? true : undefined,
+    };
+    const factor_b = temComportamento
+      ? {
+          comportamento_desafio: true,
+          // Autolesão visível é mais grave; agressividade isolada = moderado
+          gravidade: comp.autolesao ? ("grave" as const) : ("moderado" as const),
+        }
+      : { comportamento_desafio: false };
+    const factor_c = {}; // Vulnerabilidade socioeconômica não é coletada no Form 1 público
+
+    // ── Resumo de diagnóstico (para exibição no painel) ──
+    const cond = data.condicoes ?? {};
+    const diagnosisParts: string[] = [];
+    for (const [key, label] of Object.entries(CONDICAO_LABELS)) {
+      const status = (cond as Record<string, string | undefined>)[key];
+      if (status && status !== "nao") {
+        const extra = key === "outra" && cond.outra_qual ? ` (${cond.outra_qual})` : "";
+        diagnosisParts.push(`${label}: ${STATUS_LABELS[status]}${extra}`);
+      }
+    }
+    const childDiagnosis = diagnosisParts.length > 0 ? diagnosisParts.join("; ") : null;
+
+    // ── Disponibilidade para retrocompatibilidade do painel (dias/turnos) ──
+    const disp = data.disponibilidade;
+    let dias: string[] = [];
+    let turnos: string[] = [];
+    if (disp?.modo === "turno" && disp.grade) {
+      dias = Object.keys(disp.grade).filter((d) => (disp.grade![d] ?? []).length > 0);
+      turnos = [...new Set(Object.values(disp.grade).flat())];
+    } else if (disp?.modo === "horario" && disp.horarios) {
+      dias = [...new Set(disp.horarios.map((h) => h.dia))];
+    }
+
+    // ── Protocolo: AAAA-NNNN sequencial por clínica ──
+    const { count } = await supabaseAdmin
       .from("queue_entries")
+      .select("id", { count: "exact", head: true })
+      .eq("clinic_id", clinic.id);
+    const year = new Date().getFullYear();
+    const protocol = `${year}-${String((count ?? 0) + 1).padStart(4, "0")}`;
+
+    const primeiro = data.responsaveis[0];
+    const formPayload = {
+      protocol,
+      responsaveis:      data.responsaveis,
+      condicoes:         data.condicoes ?? {},
+      comportamentos:    data.comportamentos ?? {},
+      terapia_aba_atual: data.terapia_aba_atual,
+      terapia_aba_horas: data.terapia_aba_horas,
+      como_soube:        data.como_soube,
+      observacoes:       data.observacoes,
+      disponibilidade:   data.disponibilidade,
+    };
+
+    const { data: entry, error } = await (supabaseAdmin.from("queue_entries") as any)
       .insert({
         clinic_id:            clinic.id,
-        child_name:           data.child_name.trim(),
+        child_name:           childName,
         child_birthdate:      data.child_birthdate,
-        child_diagnosis:      data.child_diagnosis?.trim() || null,
-        child_cid:            data.child_cid?.trim() || null,
-        factor_a:             data.factor_a ?? {},
-        factor_b:             data.factor_b ?? {},
-        factor_c:             data.factor_c ?? {},
-        modalidades:          data.modalidades,
-        disponibilidade:      data.disponibilidade ?? {},
-        responsavel_nome:     data.responsavel_nome.trim(),
-        responsavel_email:    data.responsavel_email.toLowerCase().trim(),
-        responsavel_telefone: data.responsavel_telefone?.trim() || null,
+        child_diagnosis:      childDiagnosis,
+        child_cid:            null,
+        factor_a,
+        factor_b,
+        factor_c,
+        modalidades:          ["avaliacao"], // avaliação inicial é o primeiro passo padrão
+        disponibilidade:      { dias, turnos },
+        responsavel_nome:     primeiro.nome.trim(),
+        responsavel_email:    primeiro.email.toLowerCase().trim(),
+        responsavel_telefone: primeiro.telefone.trim() || null,
+        form_payload:         formPayload,
       })
       .select("id")
       .single();
@@ -141,7 +244,7 @@ export const submitQueueEntryServer = createServerFn({ method: "POST" })
       return { ok: false, error: "Não foi possível enviar. Tente novamente." };
     }
 
-    return { ok: true, entryId: entry.id };
+    return { ok: true, entryId: entry.id, protocol };
   });
 
 // ─── listQueueEntriesServer ───────────────────────────────────────────────────
