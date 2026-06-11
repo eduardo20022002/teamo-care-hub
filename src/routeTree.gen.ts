@@ -21,6 +21,7 @@ import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as FilaEsperaClinicSlugRouteImport } from './routes/fila-espera.$clinicSlug'
 import { Route as ConviteTokenRouteImport } from './routes/convite.$token'
+import { Route as ConfirmacaoClinicaTokenRouteImport } from './routes/confirmacao-clinica.$token'
 import { Route as CompartilhamentoTokenRouteImport } from './routes/compartilhamento.$token'
 import { Route as CadastroCompletoTokenRouteImport } from './routes/cadastro-completo.$token'
 import { Route as AvaliacaoFormTokenRouteImport } from './routes/avaliacao-form.$token'
@@ -143,6 +144,11 @@ const FilaEsperaClinicSlugRoute = FilaEsperaClinicSlugRouteImport.update({
 const ConviteTokenRoute = ConviteTokenRouteImport.update({
   id: '/convite/$token',
   path: '/convite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfirmacaoClinicaTokenRoute = ConfirmacaoClinicaTokenRouteImport.update({
+  id: '/confirmacao-clinica/$token',
+  path: '/confirmacao-clinica/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompartilhamentoTokenRoute = CompartilhamentoTokenRouteImport.update({
@@ -523,6 +529,7 @@ export interface FileRoutesByFullPath {
   '/avaliacao-form/$token': typeof AvaliacaoFormTokenRoute
   '/cadastro-completo/$token': typeof CadastroCompletoTokenRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
+  '/confirmacao-clinica/$token': typeof ConfirmacaoClinicaTokenRoute
   '/convite/$token': typeof ConviteTokenRoute
   '/fila-espera/$clinicSlug': typeof FilaEsperaClinicSlugRouteWithChildren
   '/agenda/$eventId': typeof AuthAgendaEventIdRoute
@@ -599,6 +606,7 @@ export interface FileRoutesByTo {
   '/avaliacao-form/$token': typeof AvaliacaoFormTokenRoute
   '/cadastro-completo/$token': typeof CadastroCompletoTokenRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
+  '/confirmacao-clinica/$token': typeof ConfirmacaoClinicaTokenRoute
   '/convite/$token': typeof ConviteTokenRoute
   '/fila-espera/$clinicSlug': typeof FilaEsperaClinicSlugRouteWithChildren
   '/agenda/$eventId': typeof AuthAgendaEventIdRoute
@@ -678,6 +686,7 @@ export interface FileRoutesById {
   '/avaliacao-form/$token': typeof AvaliacaoFormTokenRoute
   '/cadastro-completo/$token': typeof CadastroCompletoTokenRoute
   '/compartilhamento/$token': typeof CompartilhamentoTokenRoute
+  '/confirmacao-clinica/$token': typeof ConfirmacaoClinicaTokenRoute
   '/convite/$token': typeof ConviteTokenRoute
   '/fila-espera/$clinicSlug': typeof FilaEsperaClinicSlugRouteWithChildren
   '/_auth/agenda_/$eventId': typeof AuthAgendaEventIdRoute
@@ -757,6 +766,7 @@ export interface FileRouteTypes {
     | '/avaliacao-form/$token'
     | '/cadastro-completo/$token'
     | '/compartilhamento/$token'
+    | '/confirmacao-clinica/$token'
     | '/convite/$token'
     | '/fila-espera/$clinicSlug'
     | '/agenda/$eventId'
@@ -833,6 +843,7 @@ export interface FileRouteTypes {
     | '/avaliacao-form/$token'
     | '/cadastro-completo/$token'
     | '/compartilhamento/$token'
+    | '/confirmacao-clinica/$token'
     | '/convite/$token'
     | '/fila-espera/$clinicSlug'
     | '/agenda/$eventId'
@@ -911,6 +922,7 @@ export interface FileRouteTypes {
     | '/avaliacao-form/$token'
     | '/cadastro-completo/$token'
     | '/compartilhamento/$token'
+    | '/confirmacao-clinica/$token'
     | '/convite/$token'
     | '/fila-espera/$clinicSlug'
     | '/_auth/agenda_/$eventId'
@@ -970,6 +982,7 @@ export interface RootRouteChildren {
   AvaliacaoFormTokenRoute: typeof AvaliacaoFormTokenRoute
   CadastroCompletoTokenRoute: typeof CadastroCompletoTokenRoute
   CompartilhamentoTokenRoute: typeof CompartilhamentoTokenRoute
+  ConfirmacaoClinicaTokenRoute: typeof ConfirmacaoClinicaTokenRoute
   ConviteTokenRoute: typeof ConviteTokenRoute
   FilaEsperaClinicSlugRoute: typeof FilaEsperaClinicSlugRouteWithChildren
   ConviteClinicaTokenAceitarRoute: typeof ConviteClinicaTokenAceitarRoute
@@ -1062,6 +1075,13 @@ declare module '@tanstack/react-router' {
       path: '/convite/$token'
       fullPath: '/convite/$token'
       preLoaderRoute: typeof ConviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/confirmacao-clinica/$token': {
+      id: '/confirmacao-clinica/$token'
+      path: '/confirmacao-clinica/$token'
+      fullPath: '/confirmacao-clinica/$token'
+      preLoaderRoute: typeof ConfirmacaoClinicaTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/compartilhamento/$token': {
@@ -1713,6 +1733,7 @@ const rootRouteChildren: RootRouteChildren = {
   AvaliacaoFormTokenRoute: AvaliacaoFormTokenRoute,
   CadastroCompletoTokenRoute: CadastroCompletoTokenRoute,
   CompartilhamentoTokenRoute: CompartilhamentoTokenRoute,
+  ConfirmacaoClinicaTokenRoute: ConfirmacaoClinicaTokenRoute,
   ConviteTokenRoute: ConviteTokenRoute,
   FilaEsperaClinicSlugRoute: FilaEsperaClinicSlugRouteWithChildren,
   ConviteClinicaTokenAceitarRoute: ConviteClinicaTokenAceitarRoute,

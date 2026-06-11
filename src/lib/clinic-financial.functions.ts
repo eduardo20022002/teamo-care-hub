@@ -6,6 +6,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
 import type {
   InsuranceAuthorization,
   ClinicPaymentRecord,
@@ -380,8 +381,39 @@ export const getAuthorizationAlertsServer = createServerFn({ method: "GET" })
       };
     }).filter((a) => a.daysUntilExpiry <= 60 || a.sessionsRemaining <= 10);
 
-    // TODO Fase 6: createCommunicationServer quando days_until_expiry <= 30
-    // Para cada alerta com daysUntilExpiry <= 30, registrar comm_type='autorizacao_vencendo'
+    // Fase 6: registrar comunicação para autorizações vencendo em 30 dias
+    for (const alert of alerts) {
+      if (alert.daysUntilExpiry <= 30) {
+        const authDeadline = new Date();
+        authDeadline.setDate(authDeadline.getDate() + 5);
+        const { data: authTokenRow } = await supabaseAdmin
+          .from("clinic_form_tokens")
+          .insert({
+            clinic_id:  data.clinicId,
+            form_type:  "confirmacao_clinica",
+            payload: {
+              patient_name:         alert.patientName,
+              insurance_plan:       alert.insurancePlan,
+              authorization_number: alert.authorizationNumber,
+              valid_until:          "",
+              days_until_expiry:    alert.daysUntilExpiry,
+              authorization_id:     alert.authorizationId,
+            },
+            expires_at:  authDeadline.toISOString(),
+            created_by:  userId,
+          })
+          .select("id")
+          .single();
+        await supabaseAdmin.from("clinic_communications").insert({
+          clinic_id:          data.clinicId,
+          patient_profile_id: alert.patientProfileId,
+          comm_type:          "autorizacao_vencendo",
+          token_id:           (authTokenRow as { id: string } | null)?.id ?? null,
+          status:             "enviado",
+          response_deadline:  authDeadline.toISOString(),
+        });
+      }
+    }
 
     return { ok: true, alerts };
   });

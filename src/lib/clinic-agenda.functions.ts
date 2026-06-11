@@ -14,6 +14,7 @@ import type {
   ClinicReplacement,
 } from "@/types/clinic-agenda";
 
+
 // ─── listClinicRoomsServer ───────────────────────────────────────────────────
 
 export const listClinicRoomsServer = createServerFn({ method: "GET" })
@@ -367,8 +368,35 @@ export const registerTherapistAbsenceServer = createServerFn({ method: "POST" })
 
     if (absErr) return { ok: false, error: absErr.message };
 
-    // TODO Fase 6: para cada família afetada, chamar createCommunicationServer
-    // com comm_type = 'cancelamento_ausencia_terapeuta'.
+    // Fase 6: notificar cada família afetada
+    const cancelDeadline = new Date();
+    cancelDeadline.setDate(cancelDeadline.getDate() + 2);
+    for (const session of sessions) {
+      const { data: tokenRow } = await supabaseAdmin
+        .from("clinic_form_tokens")
+        .insert({
+          clinic_id:  data.clinicId,
+          form_type:  "confirmacao_clinica",
+          payload: {
+            patient_name:   session.patient_name,
+            session_date:   data.startsOn,
+            start_time:     "",
+            therapist_name: "",
+          },
+          expires_at:  cancelDeadline.toISOString(),
+          created_by:  userId,
+        })
+        .select("id")
+        .single();
+      await supabaseAdmin.from("clinic_communications").insert({
+        clinic_id:         data.clinicId,
+        patient_profile_id: (session as Record<string, unknown>).patient_profile_id as string ?? null,
+        comm_type:         "cancelamento_ausencia_terapeuta",
+        token_id:          (tokenRow as { id: string } | null)?.id ?? null,
+        status:            "enviado",
+        response_deadline: cancelDeadline.toISOString(),
+      });
+    }
 
     return { ok: true, cancelledCount: sessions.length, replacementsCreated };
   });
@@ -454,7 +482,47 @@ export const proposeReplacementSlotServer = createServerFn({ method: "POST" })
 
     if (updErr) return { ok: false, error: updErr.message };
 
-    // TODO Fase 6: chamar createCommunicationServer com comm_type = 'proposta_reposicao'.
+    // Fase 6: notificar família da proposta de reposição
+    const repDeadline = new Date();
+    repDeadline.setDate(repDeadline.getDate() + 3);
+    const { data: repTokenRow } = await supabaseAdmin
+      .from("clinic_form_tokens")
+      .insert({
+        clinic_id:  rep.clinic_id as string,
+        form_type:  "confirmacao_clinica",
+        payload: {
+          patient_name:   rep.patient_name as string,
+          proposed_date:  data.proposedDate,
+          proposed_time:  data.proposedTime,
+          replacement_id: data.replacementId,
+        },
+        expires_at:  repDeadline.toISOString(),
+        created_by:  rep.therapist_user_id as string,
+      })
+      .select("id")
+      .single();
+    await supabaseAdmin.from("clinic_communications").insert({
+      clinic_id:         rep.clinic_id as string,
+      comm_type:         "proposta_reposicao",
+      token_id:          (repTokenRow as { id: string } | null)?.id ?? null,
+      status:            "enviado",
+      response_deadline: repDeadline.toISOString(),
+    });
+
+    // Vincular communication_id ao replacement (via token_id do token recém-criado)
+    if (repTokenRow) {
+      const { data: newComm } = await supabaseAdmin
+        .from("clinic_communications")
+        .select("id")
+        .eq("token_id", (repTokenRow as { id: string }).id)
+        .single();
+      if (newComm) {
+        await supabaseAdmin
+          .from("clinic_replacements")
+          .update({ communication_id: (newComm as { id: string }).id })
+          .eq("id", data.replacementId);
+      }
+    }
 
     return { ok: true, sessionId: newSession.id };
   });
