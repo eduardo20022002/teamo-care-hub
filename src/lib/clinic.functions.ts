@@ -105,6 +105,10 @@ export const createClinicServer = createServerFn({ method: "POST" })
       }
     }
 
+    if (!assignedSlug) {
+      console.warn("[createClinicServer] slug não pôde ser atribuído para clinicId:", clinic.id);
+    }
+
     return { ok: true, clinicId: clinic.id, slug: assignedSlug };
   });
 

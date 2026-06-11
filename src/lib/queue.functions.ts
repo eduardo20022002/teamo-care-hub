@@ -64,8 +64,8 @@ const submitQueueEntrySchema = z.object({
 export const getPublicClinicBySlugServer = createServerFn({ method: "GET" })
   .inputValidator((d) => z.object({ slug: z.string().min(1) }).parse(d))
   .handler(async ({ data }): Promise<{ id: string; name: string; slug: string } | null> => {
-    const { data: clinic } = await supabaseAdmin
-      .from("clinics")
+    // Cast necessário: coluna slug adicionada via migration, tipos Supabase não regenerados
+    const { data: clinic } = await (supabaseAdmin.from("clinics") as any)
       .select("id, name, slug")
       .eq("slug", data.slug)
       .maybeSingle();
@@ -93,8 +93,8 @@ export const submitQueueEntryServer = createServerFn({ method: "POST" })
     }
 
     // Buscar clínica pelo slug
-    const { data: clinic } = await supabaseAdmin
-      .from("clinics")
+    // Cast necessário: coluna slug adicionada via migration, tipos Supabase não regenerados
+    const { data: clinic } = await (supabaseAdmin.from("clinics") as any)
       .select("id")
       .eq("slug", data.clinicSlug)
       .maybeSingle();
