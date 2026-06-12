@@ -180,7 +180,7 @@ function ClinicAvaliacoesPage() {
                         className="px-3 py-1.5 rounded-lg text-sm font-medium text-indigo-600 hover:bg-indigo-50 transition-colors whitespace-nowrap"
                         style={{ border: "1px solid #4F46E5" }}
                       >
-                        Ver na agenda
+                        Ver avaliação
                       </Link>
                     </div>
                   );

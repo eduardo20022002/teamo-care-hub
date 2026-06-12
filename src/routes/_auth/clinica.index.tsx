@@ -10,6 +10,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { getMyClinicServer } from "@/lib/clinic.functions";
 import { getAuthorizationAlertsServer } from "@/lib/clinic-financial.functions";
 import { listGroupsServer } from "@/lib/clinic-groups.functions";
+import { listQueueEntriesServer } from "@/lib/queue.functions";
+import { listClinicSessionsServer } from "@/lib/clinic-agenda.functions";
 import { authHeaders } from "@/lib/auth-headers";
 import { useServerFn } from "@tanstack/react-start";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
@@ -31,12 +33,12 @@ interface QueueSummary {
 }
 
 interface TodaySession {
-  id:           string;
-  patientName:  string;
-  therapistName: string;
-  room:         string;
-  time:         string;
-  status:       "realizada" | "confirmada" | "aguardando" | "falta";
+  id:            string;
+  patientName:   string;
+  therapistName?: string;
+  room?:         string;
+  time:          string;
+  status:        "realizada" | "confirmada" | "aguardando" | "falta";
 }
 
 interface PriorityQueueEntry {
@@ -159,6 +161,9 @@ function ClinicDashboard() {
   const getAlerts = useServerFn(getAuthorizationAlertsServer);
   const listGroups = useServerFn(listGroupsServer);
 
+  const listQueue = useServerFn(listQueueEntriesServer);
+  const listSessions = useServerFn(listClinicSessionsServer);
+
   const clinicQuery = useQuery({
     queryKey: ["myClinic"],
     queryFn: async () => getClinic({ headers: await authHeaders() }),
@@ -182,6 +187,21 @@ function ClinicDashboard() {
     staleTime: 60_000,
   });
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const queueQuery = useQuery({
+    queryKey: ["dashboardQueue", clinicId],
+    queryFn: async () => listQueue({ data: { clinicId }, headers: await authHeaders() }),
+    enabled: !!clinicId,
+    staleTime: 60_000,
+  });
+
+  const sessionsQuery = useQuery({
+    queryKey: ["dashboardSessionsToday", clinicId, todayStr],
+    queryFn: async () => listSessions({ data: { clinicId, weekStart: todayStr }, headers: await authHeaders() }),
+    enabled: !!clinicId,
+    staleTime: 30_000,
+  });
+
   if (clinicQuery.isLoading) {
     return <LoadingSpinner label="Carregando dashboard..." />;
   }
@@ -202,10 +222,48 @@ function ClinicDashboard() {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
 
-  // Placeholder metrics — Phase 2+ will populate with real data
-  const queueSummary: QueueSummary = { total: 0, alta: 0, moderada: 0, rotina: 0 };
-  const todaySessions: TodaySession[] = [];
-  const priorityQueue: PriorityQueueEntry[] = [];
+  // Real queue metrics
+  const allQueueEntries = Array.isArray(queueQuery.data) ? queueQuery.data : [];
+  const activeQueueEntries = allQueueEntries.filter(
+    (e) => e.status === "aguardando" || e.status === "em_avaliacao",
+  );
+  const queueSummary: QueueSummary = {
+    total: activeQueueEntries.length,
+    alta:     activeQueueEntries.filter((e) => e.priority_tier === "alta").length,
+    moderada: activeQueueEntries.filter((e) => e.priority_tier === "moderada").length,
+    rotina:   activeQueueEntries.filter((e) => e.priority_tier === "rotina").length,
+  };
+
+  const avaliacoesCount = allQueueEntries.filter((e) => e.status === "em_avaliacao").length;
+
+  const priorityQueue: PriorityQueueEntry[] = activeQueueEntries.slice(0, 5).map((e) => ({
+    id:          e.id,
+    name:        e.child_name,
+    ageText:     formatAge(e.child_birthdate),
+    tier:        e.priority_tier === "triagem" ? "rotina" : e.priority_tier,
+    daysInQueue: Math.floor((Date.now() - new Date(e.created_at).getTime()) / 86_400_000),
+  }));
+
+  // Real sessions today
+  const rawSessions =
+    sessionsQuery.data?.ok
+      ? sessionsQuery.data.sessions.filter((s) => s.session_date === todayStr)
+      : [];
+
+  const SESSION_STATUS_MAP: Record<string, TodaySession["status"]> = {
+    realizada:               "realizada",
+    agendada:                "confirmada",
+    falta_justificada:       "falta",
+    falta_nao_justificada:   "falta",
+    cancelada_clinica:       "falta",
+  };
+
+  const todaySessions: TodaySession[] = rawSessions.map((s) => ({
+    id:          s.id,
+    patientName: s.patient_name,
+    time:        s.start_time.slice(0, 5),
+    status:      SESSION_STATUS_MAP[s.status] ?? "aguardando",
+  }));
 
   const authAlerts = alertsQuery.data?.ok ? alertsQuery.data.alerts : [];
   const authorizationsExpiringCount = authAlerts.filter((a) => a.daysUntilExpiry <= 30).length;
@@ -287,7 +345,7 @@ function ClinicDashboard() {
         />
         <MetricCard
           title="Avaliações"
-          value={0}
+          value={avaliacoesCount}
           subtitle="Em sessão ou aguardando relatório"
           icon={ClipboardCheck}
           iconColor="#7C3AED"
@@ -460,7 +518,11 @@ function ClinicDashboard() {
                   <span className="text-xs font-mono text-gray-400 w-12 shrink-0">{session.time}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{session.patientName}</p>
-                    <p className="text-xs text-gray-500 truncate">{session.therapistName} · {session.room}</p>
+                    {(session.therapistName || session.room) && (
+                      <p className="text-xs text-gray-500 truncate">
+                        {[session.therapistName, session.room].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
                   </div>
                   <StatusBadge status={session.status} />
                 </div>
