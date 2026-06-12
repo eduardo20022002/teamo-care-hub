@@ -61,7 +61,7 @@ export const createCommunicationServer = createServerFn({ method: "POST" })
         resolvedQueueEntryId = (profile as { queue_entry_id: string | null } | null)?.queue_entry_id ?? null;
       }
 
-      const { data: tokenRow, error: tokenErr } = await supabaseAdmin
+      const { data: tokenRow, error: tokenErr } = await (supabaseAdmin as any)
         .from("clinic_form_tokens")
         .insert({
           clinic_id:      data.clinicId,
@@ -82,7 +82,7 @@ export const createCommunicationServer = createServerFn({ method: "POST" })
       tokenValue = (tokenRow as { id: string; token: string }).token;
     }
 
-    const { data: comm, error: commErr } = await supabaseAdmin
+    const { data: comm, error: commErr } = await (supabaseAdmin as any)
       .from("clinic_communications")
       .insert({
         clinic_id:          data.clinicId,
@@ -117,7 +117,7 @@ export const getCommunicationByTokenServer = createServerFn({ method: "GET" })
     expired: boolean;
     confirmed: boolean;
   } | { ok: false; error: string }> => {
-    const { data: tokenRow, error: tokenErr } = await supabaseAdmin
+    const { data: tokenRow, error: tokenErr } = await (supabaseAdmin as any)
       .from("clinic_form_tokens")
       .select("id, clinic_id, expires_at, used_at, payload")
       .eq("token", data.token)
@@ -132,7 +132,7 @@ export const getCommunicationByTokenServer = createServerFn({ method: "GET" })
     const expired = new Date(tr.expires_at) < new Date();
     const confirmed = tr.used_at != null;
 
-    const { data: comm, error: commErr } = await supabaseAdmin
+    const { data: comm, error: commErr } = await (supabaseAdmin as any)
       .from("clinic_communications")
       .select("*")
       .eq("token_id", tr.id)
@@ -164,7 +164,7 @@ export const confirmCommunicationServer = createServerFn({ method: "POST" })
     }).parse(d)
   )
   .handler(async ({ data }): Promise<{ ok: true; alreadyConfirmed: boolean } | { ok: false; error: string }> => {
-    const { data: tokenRow, error: tokenErr } = await supabaseAdmin
+    const { data: tokenRow, error: tokenErr } = await (supabaseAdmin as any)
       .from("clinic_form_tokens")
       .select("id, expires_at, used_at")
       .eq("token", data.token)
@@ -194,14 +194,14 @@ export const confirmCommunicationServer = createServerFn({ method: "POST" })
 
     const now = new Date().toISOString();
 
-    const { error: tokenUpdateErr } = await supabaseAdmin
+    const { error: tokenUpdateErr } = await (supabaseAdmin as any)
       .from("clinic_form_tokens")
       .update({ used_at: now })
       .eq("id", tr.id);
 
     if (tokenUpdateErr) return { ok: false, error: tokenUpdateErr.message };
 
-    const { error: commUpdateErr } = await supabaseAdmin
+    const { error: commUpdateErr } = await (supabaseAdmin as any)
       .from("clinic_communications")
       .update({
         status:               "confirmado",
@@ -226,7 +226,7 @@ export const listPatientCommunicationsServer = createServerFn({ method: "GET" })
     }).parse(d)
   )
   .handler(async ({ data }): Promise<{ ok: true; communications: ClinicCommunication[] } | { ok: false; error: string }> => {
-    const { data: rows, error } = await supabaseAdmin
+    const { data: rows, error } = await (supabaseAdmin as any)
       .from("clinic_communications")
       .select("*")
       .eq("clinic_id", data.clinicId)
@@ -251,7 +251,7 @@ export const escalateCommunicationServer = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ ok: true } | { ok: false; error: string }> => {
     const userId = context.user.id;
 
-    const { error } = await supabaseAdmin
+    const { error } = await (supabaseAdmin as any)
       .from("clinic_communications")
       .update({
         status:       "sem_resposta",
