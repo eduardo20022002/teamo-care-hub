@@ -31,7 +31,7 @@ export const createInsuranceAuthorizationServer = createServerFn({ method: "POST
     }).parse(d)
   )
   .handler(async ({ data, context }): Promise<{ ok: true; authorizationId: string } | { ok: false; error: string }> => {
-    const userId = context.user.id;
+    const userId = context.userId;
 
     const { data: member } = await supabaseAdmin
       .from("clinic_members")
@@ -78,7 +78,7 @@ export const listInsuranceAuthorizationsServer = createServerFn({ method: "GET" 
     }).parse(d)
   )
   .handler(async ({ data, context }): Promise<{ ok: true; authorizations: InsuranceAuthorization[] } | { ok: false; error: string }> => {
-    const userId = context.user.id;
+    const userId = context.userId;
 
     const { data: member } = await supabaseAdmin
       .from("clinic_members")
@@ -99,6 +99,7 @@ export const listInsuranceAuthorizationsServer = createServerFn({ method: "GET" 
         patient_profiles!inner(child_full_name)
       `)
       .eq("clinic_id", data.clinicId)
+      .filter("deleted_at", "is", null)
       .order("valid_until", { ascending: true });
 
     if (data.status) {
@@ -127,7 +128,7 @@ export const getAuthorizationDetailServer = createServerFn({ method: "GET" })
     }).parse(d)
   )
   .handler(async ({ data, context }): Promise<{ ok: true; authorizations: InsuranceAuthorization[] } | { ok: false; error: string }> => {
-    const userId = context.user.id;
+    const userId = context.userId;
 
     const { data: member } = await supabaseAdmin
       .from("clinic_members")
@@ -163,7 +164,7 @@ export const startAuthorizationRenewalServer = createServerFn({ method: "POST" }
     }).parse(d)
   )
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
-    const userId = context.user.id;
+    const userId = context.userId;
 
     const { data: member } = await supabaseAdmin
       .from("clinic_members")
@@ -201,7 +202,7 @@ export const completeAuthorizationRenewalServer = createServerFn({ method: "POST
     }).parse(d)
   )
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
-    const userId = context.user.id;
+    const userId = context.userId;
 
     const { data: member } = await supabaseAdmin
       .from("clinic_members")
@@ -248,7 +249,7 @@ export const createPaymentRecordServer = createServerFn({ method: "POST" })
     }).parse(d)
   )
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
-    const userId = context.user.id;
+    const userId = context.userId;
 
     const { data: member } = await supabaseAdmin
       .from("clinic_members")
@@ -290,7 +291,7 @@ export const listPaymentRecordsServer = createServerFn({ method: "GET" })
     }).parse(d)
   )
   .handler(async ({ data, context }): Promise<{ ok: true; records: ClinicPaymentRecord[] } | { ok: false; error: string }> => {
-    const userId = context.user.id;
+    const userId = context.userId;
 
     const { data: member } = await supabaseAdmin
       .from("clinic_members")
@@ -308,6 +309,7 @@ export const listPaymentRecordsServer = createServerFn({ method: "GET" })
       .from("clinic_payment_records")
       .select("*")
       .eq("clinic_id", data.clinicId)
+      .filter("deleted_at", "is", null)
       .order("reference_month", { ascending: false });
 
     if (data.patientProfileId) q = q.eq("patient_profile_id", data.patientProfileId);
@@ -329,7 +331,7 @@ export const getAuthorizationAlertsServer = createServerFn({ method: "GET" })
     }).parse(d)
   )
   .handler(async ({ data, context }): Promise<{ ok: true; alerts: AuthorizationAlert[] } | { ok: false; error: string }> => {
-    const userId = context.user.id;
+    const userId = context.userId;
 
     const { data: member } = await supabaseAdmin
       .from("clinic_members")
@@ -416,4 +418,41 @@ export const getAuthorizationAlertsServer = createServerFn({ method: "GET" })
     }
 
     return { ok: true, alerts };
+  });
+
+// ─── listClinicPatientsServer ─────────────────────────────────────────────────
+// Retorna pacientes aprovados da clínica para busca no modal de autorização.
+
+export const listClinicPatientsServer = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ clinicId: z.string().uuid() }).parse(d)
+  )
+  .handler(async ({ data, context }): Promise<{ ok: true; patients: { id: string; name: string }[] } | { ok: false; error: string }> => {
+    const userId = context.userId;
+
+    const { data: member } = await supabaseAdmin
+      .from("clinic_members")
+      .select("role")
+      .eq("clinic_id", data.clinicId)
+      .eq("user_id", userId)
+      .not("joined_at", "is", null)
+      .single();
+    if (!member) return { ok: false, error: "Acesso negado." };
+
+    const { data: rows, error } = await (supabaseAdmin as any)
+      .from("patient_profiles")
+      .select("id, child_full_name, queue_entry_id, queue_entries!inner(clinic_id)")
+      .eq("queue_entries.clinic_id", data.clinicId)
+      .order("child_full_name");
+
+    if (error) return { ok: false, error: error.message };
+
+    return {
+      ok: true,
+      patients: (rows ?? []).map((r: { id: string; child_full_name: string }) => ({
+        id: r.id,
+        name: r.child_full_name,
+      })),
+    };
   });

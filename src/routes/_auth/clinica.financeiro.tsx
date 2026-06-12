@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,6 +9,7 @@ import {
   startAuthorizationRenewalServer,
   completeAuthorizationRenewalServer,
   createInsuranceAuthorizationServer,
+  listClinicPatientsServer,
 } from "@/lib/clinic-financial.functions";
 import { authHeaders } from "@/lib/auth-headers";
 import {
@@ -19,7 +20,7 @@ import {
   type AuthorizationStatus,
 } from "@/types/clinic-financial";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
-import { AlertTriangle, CreditCard, RefreshCw, ChevronRight, Plus, X } from "lucide-react";
+import { AlertTriangle, CreditCard, RefreshCw, ChevronRight, Plus, X, Search } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_auth/clinica/financeiro")({
@@ -90,8 +91,10 @@ interface NewAuthModalProps {
 function NewAuthModal({ clinicId, onSuccess, onClose }: NewAuthModalProps) {
   const qc = useQueryClient();
   const createAuth = useServerFn(createInsuranceAuthorizationServer);
+  const listPatients = useServerFn(listClinicPatientsServer);
   const [form, setForm] = useState({
     patientProfileId:    "",
+    patientName:         "",
     insurancePlan:       "",
     authorizationNumber: "",
     validFrom:           "",
@@ -100,10 +103,28 @@ function NewAuthModal({ clinicId, onSuccess, onClose }: NewAuthModalProps) {
     notes:               "",
   });
   const [loading, setLoading] = useState(false);
+  const [patientSearch, setPatientSearch] = useState("");
+  const [patients, setPatients] = useState<{ id: string; name: string }[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const loadedRef = useRef(false);
+
+  useEffect(() => {
+    if (loadedRef.current) return;
+    loadedRef.current = true;
+    authHeaders().then((headers) =>
+      listPatients({ data: { clinicId }, headers }).then((res) => {
+        if (res.ok) setPatients(res.patients);
+      })
+    ).catch(() => null);
+  }, [clinicId]);
+
+  const filteredPatients = patientSearch.length >= 2
+    ? patients.filter((p) => p.name.toLowerCase().includes(patientSearch.toLowerCase())).slice(0, 6)
+    : [];
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.patientProfileId) { toast.error("Informe o ID do perfil do paciente"); return; }
+    if (!form.patientProfileId) { toast.error("Selecione o paciente"); return; }
     setLoading(true);
     try {
       const res = await createAuth({
@@ -143,16 +164,54 @@ function NewAuthModal({ clinicId, onSuccess, onClose }: NewAuthModalProps) {
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-700">ID do perfil do paciente *</label>
-            <input
-              className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-              value={form.patientProfileId}
-              onChange={(e) => setForm((f) => ({ ...f, patientProfileId: e.target.value }))}
-              placeholder="UUID do patient_profile"
-              required
-            />
-            <p className="text-xs text-gray-400">Disponível na ficha do paciente aprovado</p>
+          <div className="flex flex-col gap-1 relative">
+            <label className="text-xs font-medium text-gray-700">Paciente *</label>
+            {form.patientProfileId ? (
+              <div className="flex items-center justify-between px-3 py-2 rounded-lg border border-indigo-300 bg-indigo-50 text-sm">
+                <span className="font-medium text-indigo-700">{form.patientName}</span>
+                <button
+                  type="button"
+                  onClick={() => { setForm((f) => ({ ...f, patientProfileId: "", patientName: "" })); setPatientSearch(""); }}
+                  className="text-indigo-400 hover:text-indigo-600 ml-2"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    className="pl-8 pr-3 py-2 rounded-lg border border-gray-200 text-sm w-full focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    value={patientSearch}
+                    onChange={(e) => { setPatientSearch(e.target.value); setShowDropdown(true); }}
+                    onFocus={() => setShowDropdown(true)}
+                    placeholder="Digite o nome do paciente..."
+                  />
+                </div>
+                {showDropdown && filteredPatients.length > 0 && (
+                  <div className="absolute top-full mt-1 w-full bg-white rounded-lg shadow-lg border border-gray-100 z-10 max-h-48 overflow-y-auto">
+                    {filteredPatients.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          setForm((f) => ({ ...f, patientProfileId: p.id, patientName: p.name }));
+                          setShowDropdown(false);
+                          setPatientSearch("");
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700"
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {patientSearch.length >= 2 && filteredPatients.length === 0 && (
+                  <p className="text-xs text-gray-400 mt-0.5">Nenhum paciente encontrado com esse nome.</p>
+                )}
+              </>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">

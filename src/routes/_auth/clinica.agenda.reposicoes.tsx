@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertCircle, Clock, Calendar, ChevronLeft, X } from "lucide-react";
+import { AlertCircle, Clock, Calendar, ChevronLeft, X, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { authHeaders } from "@/lib/auth-headers";
@@ -10,13 +10,16 @@ import {
   listClinicReplacementsServer,
   proposeReplacementSlotServer,
   listClinicRoomsServer,
+  registerTherapistAbsenceServer,
 } from "@/lib/clinic-agenda.functions";
-import { getMyClinicServer } from "@/lib/clinic.functions";
-import type { ClinicReplacement, ReplacementStatus } from "@/types/clinic-agenda";
+import { getMyClinicServer, listClinicMembersServer } from "@/lib/clinic.functions";
+import type { ClinicReplacement, ReplacementStatus, AbsenceType } from "@/types/clinic-agenda";
 import {
   REPLACEMENT_STATUS_LABELS,
   REPLACEMENT_EVENT_TYPE_LABELS,
+  ABSENCE_TYPE_LABELS,
 } from "@/types/clinic-agenda";
+import type { ClinicMember } from "@/types/clinic";
 import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_auth/clinica/agenda/reposicoes")({
@@ -73,15 +76,162 @@ function DeadlineBadge({ deadline }: { deadline: string }) {
   );
 }
 
+// ─── Modal de ausência de terapeuta ─────────────────────────────────────────
+
+function AbsenceModal({
+  clinicId,
+  members,
+  onSuccess,
+  onClose,
+}: {
+  clinicId: string;
+  members: ClinicMember[];
+  onSuccess: () => void;
+  onClose: () => void;
+}) {
+  const registerAbsence = useServerFn(registerTherapistAbsenceServer);
+  const [form, setForm] = useState({
+    therapistUserId: "",
+    absenceType: "doenca" as AbsenceType,
+    startsOn: "",
+    endsOn: "",
+    notes: "",
+  });
+  const [loading, setLoading] = useState(false);
+
+  const therapists = members.filter((m) => m.joined_at);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.therapistUserId) { toast.error("Selecione o terapeuta"); return; }
+    if (!form.startsOn || !form.endsOn) { toast.error("Informe o período de ausência"); return; }
+    if (form.startsOn > form.endsOn) { toast.error("Data de início deve ser anterior ao fim"); return; }
+    setLoading(true);
+    try {
+      const res = await registerAbsence({
+        data: {
+          clinicId,
+          therapistUserId: form.therapistUserId,
+          absenceType: form.absenceType,
+          startsOn: form.startsOn,
+          endsOn: form.endsOn,
+          notes: form.notes || undefined,
+        },
+        headers: await authHeaders(),
+      });
+      if (!res.ok) throw new Error((res as { ok: false; error: string }).error);
+      toast.success(`Ausência registrada — ${res.cancelledCount} sessão(ões) cancelada(s), ${res.replacementsCreated} reposição(ões) criada(s)`);
+      onSuccess();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao registrar ausência");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-md flex flex-col" style={{ border: "0.5px solid #E5E7EB" }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h2 className="text-base font-semibold text-gray-900">Registrar ausência de terapeuta</h2>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">Terapeuta *</label>
+            <select
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              value={form.therapistUserId}
+              onChange={(e) => setForm((f) => ({ ...f, therapistUserId: e.target.value }))}
+              required
+            >
+              <option value="">Selecione...</option>
+              {therapists.map((m) => (
+                <option key={m.user_id} value={m.user_id}>
+                  {(m as unknown as { profile?: { full_name?: string | null } }).profile?.full_name ?? m.user_id.slice(0, 8)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">Tipo de ausência *</label>
+            <select
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              value={form.absenceType}
+              onChange={(e) => setForm((f) => ({ ...f, absenceType: e.target.value as AbsenceType }))}
+            >
+              {(Object.entries(ABSENCE_TYPE_LABELS) as [AbsenceType, string][]).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-700">De *</label>
+              <input
+                type="date"
+                className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                value={form.startsOn}
+                onChange={(e) => setForm((f) => ({ ...f, startsOn: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-700">Até *</label>
+              <input
+                type="date"
+                className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                value={form.endsOn}
+                onChange={(e) => setForm((f) => ({ ...f, endsOn: e.target.value }))}
+                required
+              />
+            </div>
+          </div>
+          {form.startsOn && form.endsOn && form.startsOn > form.endsOn && (
+            <p className="text-xs text-red-500">Data de início deve ser anterior ao fim.</p>
+          )}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">Observações</label>
+            <textarea
+              rows={2}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
+              value={form.notes}
+              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+              placeholder="Contexto adicional (opcional)..."
+            />
+          </div>
+          <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+            Sessões agendadas no período serão canceladas e reposições criadas automaticamente.
+          </p>
+          <div className="flex gap-3 justify-end pt-1">
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold disabled:opacity-60"
+            >
+              {loading ? "Registrando..." : "Registrar ausência"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function ClinicReposicoesPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const [statusFilter, setStatusFilter] = useState<ReplacementStatus | "todos">("todos");
   const [proposeTarget, setProposeTarget] = useState<ClinicReplacement | null>(null);
+  const [showAbsenceModal, setShowAbsenceModal] = useState(false);
 
   const getClinic = useServerFn(getMyClinicServer);
   const listReplacements = useServerFn(listClinicReplacementsServer);
+  const listMembers = useServerFn(listClinicMembersServer);
 
   const clinicQuery = useQuery({
     queryKey: ["myClinic"],
@@ -91,6 +241,13 @@ export default function ClinicReposicoesPage() {
   });
 
   const clinicId = clinicQuery.data?.clinic?.id ?? "";
+
+  const membersQuery = useQuery({
+    queryKey: ["clinicMembers", clinicId],
+    queryFn: async () => listMembers({ data: { clinicId }, headers: await authHeaders() }),
+    enabled: !!clinicId,
+    staleTime: 60_000,
+  });
 
   const replacementsQuery = useQuery({
     queryKey: ["clinicReplacements", clinicId, statusFilter],
@@ -163,6 +320,14 @@ export default function ClinicReposicoesPage() {
             </button>
           ))}
         </div>
+        <button
+          type="button"
+          onClick={() => setShowAbsenceModal(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors"
+        >
+          <UserX size={13} />
+          Registrar ausência
+        </button>
       </div>
 
       {/* Table */}
@@ -255,7 +420,7 @@ export default function ClinicReposicoesPage() {
                     className="grid grid-cols-[1fr_1fr_120px_130px_80px_100px_100px] px-4 py-3 border-b border-gray-50 items-center text-sm text-gray-400"
                   >
                     <span className="truncate">{r.patient_name}</span>
-                    <span className="truncate">{r.therapist_user_id.slice(0, 8)}…</span>
+                    <span className="truncate">{r.therapist_name || r.therapist_user_id.slice(0, 8)}</span>
                     <span className="text-xs">{formatDate(r.created_at.slice(0, 10))}</span>
                     <span className="text-xs">{REPLACEMENT_EVENT_TYPE_LABELS[r.event_type]}</span>
                     <span>—</span>
@@ -284,6 +449,19 @@ export default function ClinicReposicoesPage() {
             void queryClient.invalidateQueries({ queryKey: ["clinicReplacements"] });
             toast.success("Reposição agendada com sucesso.");
             setProposeTarget(null);
+          }}
+        />
+      )}
+
+      {/* Absence modal */}
+      {showAbsenceModal && (
+        <AbsenceModal
+          clinicId={clinicId}
+          members={Array.isArray(membersQuery.data) ? (membersQuery.data as ClinicMember[]) : []}
+          onClose={() => setShowAbsenceModal(false)}
+          onSuccess={() => {
+            void queryClient.invalidateQueries({ queryKey: ["clinicReplacements"] });
+            setShowAbsenceModal(false);
           }}
         />
       )}
