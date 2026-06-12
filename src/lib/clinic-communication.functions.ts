@@ -34,7 +34,7 @@ export const createCommunicationServer = createServerFn({ method: "POST" })
       ]),
       patientProfileId:  z.string().uuid().optional().nullable(),
       queueEntryId:      z.string().uuid().optional().nullable(),
-      payload:           z.record(z.unknown()).optional().nullable(),
+      payload:           z.record(z.string(), z.unknown()).optional().nullable(),
       deadlineDays:      z.number().int().min(1).max(90).optional().nullable(),
     }).parse(d)
   )
@@ -65,7 +65,7 @@ export const createCommunicationServer = createServerFn({ method: "POST" })
     if (needsToken) {
       let resolvedQueueEntryId = data.queueEntryId ?? null;
       if (!resolvedQueueEntryId && data.patientProfileId) {
-        const { data: profile } = await supabaseAdmin
+        const { data: profile } = await (supabaseAdmin as any)
           .from("patient_profiles")
           .select("queue_entry_id")
           .eq("id", data.patientProfileId)

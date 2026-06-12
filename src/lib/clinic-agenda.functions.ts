@@ -509,7 +509,19 @@ export const listClinicReplacementsServer = createServerFn({ method: "GET" })
 
     const { data: rows, error } = await query;
     if (error) return { ok: false, error: error.message };
-    return { ok: true, replacements: (rows ?? []) as ClinicReplacement[] };
+
+    const rawRows = (rows ?? []) as ClinicReplacement[];
+    const therapistIds = [...new Set(rawRows.map((r) => r.therapist_user_id))];
+    const { data: profileRows } = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", therapistIds);
+    const nameMap = new Map((profileRows ?? []).map((p) => [p.id, p.full_name ?? ""]));
+
+    return {
+      ok: true,
+      replacements: rawRows.map((r) => ({ ...r, therapist_name: nameMap.get(r.therapist_user_id) })),
+    };
   });
 
 // ─── proposeReplacementSlotServer ───────────────────────────────────────────

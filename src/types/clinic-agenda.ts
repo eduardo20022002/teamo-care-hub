@@ -87,6 +87,7 @@ export interface ClinicReplacement {
   clinic_id: string;
   original_session_id: string;
   therapist_user_id: string;
+  therapist_name?: string;
   patient_name: string;
   event_type: ReplacementEventType;
   status: ReplacementStatus;

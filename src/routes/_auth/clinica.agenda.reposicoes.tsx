@@ -206,7 +206,7 @@ export default function ClinicReposicoesPage() {
                     }}
                   >
                     <span className="font-medium text-gray-900 truncate">{r.patient_name}</span>
-                    <span className="text-gray-500 truncate">{r.therapist_user_id.slice(0, 8)}…</span>
+                    <span className="text-gray-500 truncate">{r.therapist_name || r.therapist_user_id.slice(0, 8)}</span>
                     <span className="text-gray-500 text-xs">{formatDate(r.created_at.slice(0, 10))}</span>
                     <span className="text-xs">
                       <span
