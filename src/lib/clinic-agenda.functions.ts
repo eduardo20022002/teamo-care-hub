@@ -307,7 +307,7 @@ export const updateSessionStatusServer = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<{ ok: true } | { ok: false; error: string }> => {
     const { userId } = context as { userId: string };
-    const { data: sessionRow } = await supabaseAdmin
+    const { data: sessionRow } = await (supabaseAdmin as any)
       .from("clinic_sessions")
       .select("clinic_id")
       .eq("id", data.sessionId)
@@ -316,7 +316,7 @@ export const updateSessionStatusServer = createServerFn({ method: "POST" })
     const { data: statusAccess } = await supabaseAdmin
       .from("clinic_members")
       .select("role")
-      .eq("clinic_id", sessionRow.clinic_id)
+      .eq("clinic_id", (sessionRow as { clinic_id: string }).clinic_id)
       .eq("user_id", userId)
       .not("joined_at", "is", null)
       .single();
