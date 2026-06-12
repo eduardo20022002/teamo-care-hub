@@ -270,7 +270,8 @@ function AgendarAvaliacaoModal({
     window.open(`mailto:${responsavelEmail}?subject=${subject}&body=${body}`);
   };
 
-  const canSubmit = days.trim() && startTime && endTime && therapistName.trim();
+  const timeOrderError = startTime && endTime && startTime >= endTime;
+  const canSubmit = days.trim() && startTime && endTime && therapistName.trim() && !timeOrderError;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }}>
@@ -314,6 +315,9 @@ function AgendarAvaliacaoModal({
                   onChange={(e) => setEndTime(e.target.value)}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500"
                 />
+                {timeOrderError && (
+                  <p className="text-xs text-red-500 mt-1">O horário de término deve ser após o início.</p>
+                )}
               </div>
             </div>
             <div>

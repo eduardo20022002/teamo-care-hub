@@ -813,6 +813,7 @@ function DashboardPage() {
                 { to: "/evolucao" as any, tint: "#F0FDF4", color: "#10B981", icon: TrendingUp, title: "Evolução", desc: "Marcos de desenvolvimento e metas." },
                 { to: "/pais-responsaveis" as any, tint: "#F5F3FF", color: "#7C3AED", icon: Users, title: "Pais e Responsáveis", desc: "Vínculos, compartilhamentos e recados." },
                 { to: "/dashboards" as any, tint: "#F0FDFA", color: "#0D9488", icon: BarChart2, title: "Dashboard", desc: "Gráficos de progresso e evolução." },
+                { to: "/acompanhamentos" as any, tint: "#EFF6FF", color: "#3B82F6", icon: Users, title: "Acompanhamentos", desc: "Crianças que você acompanha a convite das famílias." },
               ].map(({ to, tint, color, icon: Icon, title, desc }) => (
                 <button
                   key={title}

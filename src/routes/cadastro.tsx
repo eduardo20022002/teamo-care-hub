@@ -24,8 +24,10 @@ export const Route = createFileRoute("/cadastro")({
     ],
   }),
   validateSearch: z.object({
-    invite:          z.string().optional(),
-    therapistInvite: z.string().optional(),
+    invite:             z.string().optional(),
+    therapistInvite:    z.string().optional(),
+    profissionalInvite: z.string().optional(),
+    userType:           z.string().optional(),
   }).parse,
   component: SignupPage,
 });
@@ -113,8 +115,10 @@ function UserTypeSelector({
 function SignupPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
-  const { invite, therapistInvite } = Route.useSearch();
-  const [userType, setUserType] = useState<UserType>("parent");
+  const { invite, therapistInvite, profissionalInvite, userType: userTypeParam } = Route.useSearch();
+  const [userType, setUserType] = useState<UserType>(
+    userTypeParam === "therapist" ? "therapist" : "parent",
+  );
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -143,13 +147,15 @@ function SignupPage() {
     if (!loading && user) {
       if (therapistInvite) {
         navigate({ to: "/convite-terapeuta/$token/aceitar", params: { token: therapistInvite } });
+      } else if (profissionalInvite) {
+        navigate({ to: "/convite-profissional/$token", params: { token: profissionalInvite } });
       } else if (invite) {
         navigate({ to: "/convite/$token/aceitar", params: { token: invite } });
       } else {
         navigate({ to: "/onboarding" });
       }
     }
-  }, [loading, user, navigate, invite, therapistInvite]);
+  }, [loading, user, navigate, invite, therapistInvite, profissionalInvite]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -216,6 +222,9 @@ function SignupPage() {
       if (therapistInvite) {
         try { sessionStorage.setItem("teamo:pendingTherapistInvite", therapistInvite); } catch { /* não crítico */ }
       }
+      if (profissionalInvite) {
+        try { sessionStorage.setItem("teamo:pendingProfissionalInvite", profissionalInvite); } catch { /* não crítico */ }
+      }
       if (userType === "therapist") {
         try { sessionStorage.setItem("teamo:pendingUserType", "therapist"); } catch { /* não crítico */ }
       } else if (userType === "clinic_coordinator") {
@@ -227,6 +236,8 @@ function SignupPage() {
       toast.success("Conta criada com sucesso!");
       if (therapistInvite) {
         navigate({ to: "/convite-terapeuta/$token/aceitar", params: { token: therapistInvite } });
+      } else if (profissionalInvite) {
+        navigate({ to: "/convite-profissional/$token", params: { token: profissionalInvite } });
       } else if (invite) {
         navigate({ to: "/convite/$token/aceitar", params: { token: invite } });
       } else if (userType === "therapist") {

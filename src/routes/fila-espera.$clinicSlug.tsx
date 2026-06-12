@@ -351,6 +351,8 @@ function FilaEsperaFormPage() {
           </p>
         </div>
 
+        <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+
         {/* ── Seção 1 — Criança ── */}
         <Section n={1} title="Dados da criança">
           <div className="flex flex-col gap-4">
@@ -470,8 +472,7 @@ function FilaEsperaFormPage() {
 
         {/* Envio */}
         <button
-          type="button"
-          onClick={handleSubmit}
+          type="submit"
           disabled={!form.consentimento || submit.isPending}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold text-white transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ background: "linear-gradient(to right, #4F46E5, #7C3AED)" }}
@@ -482,6 +483,8 @@ function FilaEsperaFormPage() {
             "Enviar solicitação"
           )}
         </button>
+
+        </form>
       </main>
     </div>
   );

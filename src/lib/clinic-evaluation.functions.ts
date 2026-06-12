@@ -4,9 +4,11 @@
 // Operações públicas (forms via token) usam supabaseAdmin controlado com verificação de token válido.
 
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { rateLimit, getClientIp } from "@/server/rate-limit";
 import type { EvaluationReport, PatientProfile, ClinicFormToken } from "@/types/clinic-evaluation";
 
 // ─── createEvaluationReportServer ────────────────────────────────────────────
@@ -371,6 +373,16 @@ export const sendForm2Server = createServerFn({ method: "POST" })
     }).parse(d)
   )
   .handler(async ({ data, context }): Promise<{ ok: true; token: string } | { ok: false; error: string }> => {
+    const request = getRequest();
+    const ip = request ? getClientIp(request) : "unknown";
+    const rl = rateLimit(`send-form2:${ip}`, 10, 60_000);
+    if (!rl.allowed) {
+      throw new Response("Muitas tentativas. Tente novamente mais tarde.", {
+        status: 429,
+        headers: { "Retry-After": String(rl.retryAfterSeconds) },
+      });
+    }
+
     const { data: entry } = await supabaseAdmin
       .from("queue_entries")
       .select("child_name, responsavel_nome")
@@ -443,7 +455,7 @@ export const submitForm2Server = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
     const { data: tokenRow } = await supabaseAdmin
       .from("clinic_form_tokens")
-      .select("id, expires_at, used_at, form_type")
+      .select("id, expires_at, used_at, form_type, clinic_id, queue_entry_id")
       .eq("token", data.token)
       .single();
 
@@ -472,6 +484,17 @@ export const submitForm2Server = createServerFn({ method: "POST" })
         },
       })
       .eq("id", tokenRow.id);
+
+    // Audit log LGPD — dados clínicos sensíveis (Art. 11). Nunca logar conteúdo da resposta.
+    await supabaseAdmin.from("audit_logs").insert({
+      user_id:    null,
+      event_type: "form2_family_response_submitted",
+      metadata: {
+        resourceType: "evaluation_report",
+        resourceId:   tokenRow.queue_entry_id ?? null,
+        clinicId:     tokenRow.clinic_id ?? null,
+      },
+    });
 
     return { ok: true };
   });

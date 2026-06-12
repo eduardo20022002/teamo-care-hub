@@ -53,6 +53,7 @@ export function ShareDialog({
     token: string;
     expiresAt: string;
     professionalName: string;
+    professionalEmail?: string;
   } | null>(null);
 
   // Reset on open
@@ -146,6 +147,7 @@ export function ShareDialog({
         token: res.token,
         expiresAt: res.expiresAt,
         professionalName: prof?.name ?? "o profissional",
+        professionalEmail: prof?.email ?? undefined,
       });
       setStep(4);
       toast.success("Compartilhamento criado.");
@@ -225,6 +227,7 @@ export function ShareDialog({
             <ShareConfirmationStep
               url={url}
               professionalName={result.professionalName}
+              professionalEmail={result.professionalEmail}
               expiresAt={result.expiresAt}
               onClose={handleClose}
             />

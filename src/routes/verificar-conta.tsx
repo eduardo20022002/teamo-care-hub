@@ -50,16 +50,21 @@ function VerifyAccountPage() {
       typeof window !== "undefined" ? sessionStorage.getItem("teamo:pendingInvite") : null;
     const pendingTherapistInvite =
       typeof window !== "undefined" ? sessionStorage.getItem("teamo:pendingTherapistInvite") : null;
+    const pendingProfissionalInvite =
+      typeof window !== "undefined" ? sessionStorage.getItem("teamo:pendingProfissionalInvite") : null;
     const pendingUserType =
       typeof window !== "undefined" ? sessionStorage.getItem("teamo:pendingUserType") : null;
 
     sessionStorage.removeItem("teamo:pendingEmail");
     sessionStorage.removeItem("teamo:pendingInvite");
     sessionStorage.removeItem("teamo:pendingTherapistInvite");
+    sessionStorage.removeItem("teamo:pendingProfissionalInvite");
     sessionStorage.removeItem("teamo:pendingUserType");
 
     if (pendingTherapistInvite) {
       navigate({ to: "/convite-terapeuta/$token/aceitar", params: { token: pendingTherapistInvite } });
+    } else if (pendingProfissionalInvite) {
+      navigate({ to: "/convite-profissional/$token", params: { token: pendingProfissionalInvite } });
     } else if (pendingInvite) {
       navigate({ to: "/convite/$token/aceitar", params: { token: pendingInvite } });
     } else if (pendingUserType === "therapist") {

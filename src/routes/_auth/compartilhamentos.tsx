@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Clock, Loader2, Mail, Plus, RefreshCw, Share2, ShieldOff } from "lucide-react";
+import { ArrowLeft, Clock, Loader2, Mail, Plus, RefreshCw, Send, Share2, ShieldOff, UserX, Users } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import {
   AlertDialog,
@@ -36,6 +36,11 @@ import {
 } from "@/components/ui/dialog";
 import type { ExpiryHours } from "@/components/sharing/ShareExpiryStep";
 import { track } from "@/lib/analytics";
+import {
+  listParentProfessionalAccessesServer,
+  revokeParentProfessionalAccessServer,
+  resendParentProfessionalInviteServer,
+} from "@/lib/parent-professional.functions";
 
 const BRAND_GRADIENT = "linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)";
 const BRAND_SHADOW = "0 8px 18px -8px rgba(79,70,229,0.45), 0 3px 8px -3px rgba(236,72,153,0.25)";
@@ -309,6 +314,135 @@ function EmptyShares({ onNew }: { onNew: () => void }) {
   );
 }
 
+function ProfCard({
+  name,
+  email,
+  status,
+  childName,
+  grantedAt,
+  onRevoke,
+  onResend,
+  revoking,
+  resending,
+}: {
+  name: string;
+  email: string;
+  status: "active" | "pending" | "revoked";
+  childName: string;
+  grantedAt?: string;
+  onRevoke?: () => void;
+  onResend?: () => void;
+  revoking?: boolean;
+  resending?: boolean;
+}) {
+  const isActive = status === "active";
+  const isPending = status === "pending";
+  const initials = getInitials(name);
+
+  return (
+    <div
+      className="overflow-hidden rounded-[16px] border border-[#EEF0F4] bg-white shadow-sm"
+      style={{
+        borderLeftWidth: 3,
+        borderLeftColor: isActive ? "#0D9488" : isPending ? "#F59E0B" : "#9CA3AF",
+      }}
+    >
+      <div className="p-4">
+        <div className="flex items-start gap-3">
+          <div
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold"
+            style={{
+              background: isActive ? "#F0FDFA" : "#F9FAFB",
+              color: isActive ? "#0D9488" : "#9CA3AF",
+            }}
+          >
+            {initials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="truncate text-[15px] font-semibold text-foreground">{name}</p>
+              <span
+                className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                style={
+                  isActive
+                    ? { background: "rgba(13,148,136,0.12)", color: "#0D9488" }
+                    : isPending
+                      ? { background: "rgba(245,158,11,0.12)", color: "#D97706" }
+                      : { background: "rgba(156,163,175,0.15)", color: "#6B7280" }
+                }
+              >
+                {isActive ? "Ativo" : isPending ? "Convite pendente" : "Revogado"}
+              </span>
+            </div>
+            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Mail className="h-3 w-3 shrink-0" strokeWidth={1.75} />
+              <span className="truncate">{email}</span>
+            </p>
+            <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <Users className="h-3 w-3 shrink-0" strokeWidth={1.75} />
+              {childName}
+              {isActive && grantedAt && <> · Ativo desde {formatDateTime(grantedAt)}</>}
+            </p>
+          </div>
+        </div>
+
+        {isActive && onRevoke && (
+          <div className="mt-3 border-t border-[#EEF0F4] pt-3">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-center gap-1.5 rounded-[10px] border border-[#EEF0F4] bg-[#F6F7FB] py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-500"
+                >
+                  <UserX className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  Revogar acesso
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Revogar acesso de {name}?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {name} perderá o acesso aos conteúdos compartilhados. Esta ação não pode ser
+                    desfeita.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={onRevoke}
+                    disabled={revoking}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {revoking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Revogar"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
+
+        {isPending && onResend && (
+          <div className="mt-3 border-t border-[#EEF0F4] pt-3">
+            <button
+              type="button"
+              onClick={onResend}
+              disabled={resending}
+              className="flex w-full items-center justify-center gap-1.5 rounded-[10px] border border-[#EEF0F4] bg-[#F6F7FB] py-2 text-xs font-semibold text-foreground transition-colors hover:bg-[#FFF7ED] hover:text-[#EA7B3D] disabled:opacity-40"
+            >
+              {resending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
+              ) : (
+                <Send className="h-3.5 w-3.5" strokeWidth={1.75} />
+              )}
+              Reenviar convite
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SharesPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -317,6 +451,7 @@ function SharesPage() {
   const revokeFn = useRevokeShare();
   const renewFn = useRenewShare();
   const { prefillEventId } = Route.useSearch();
+  const [activeTab, setActiveTab] = useState<"links" | "professionals">("links");
   const [shareOpen, setShareOpen] = useState(false);
   const [renewTarget, setRenewTarget] = useState<ShareSummary | null>(null);
 
@@ -340,6 +475,32 @@ function SharesPage() {
     queryKey: ["shares"],
     queryFn: async () => (await listFn({ data: undefined as never })).shares,
     enabled: !!user,
+  });
+
+  const profAccessesQuery = useQuery({
+    queryKey: ["parent-professional-accesses"],
+    queryFn: () => listParentProfessionalAccessesServer({ data: {} }),
+    enabled: !!user,
+  });
+
+  const revokeAccess = useMutation({
+    mutationFn: (accessId: string) =>
+      revokeParentProfessionalAccessServer({ data: { accessId } }),
+    onSuccess: () => {
+      toast.success("Acesso revogado.");
+      qc.invalidateQueries({ queryKey: ["parent-professional-accesses"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const resendInvite = useMutation({
+    mutationFn: (inviteId: string) =>
+      resendParentProfessionalInviteServer({ data: { inviteId } }),
+    onSuccess: () => {
+      toast.success("Convite reenviado.");
+      qc.invalidateQueries({ queryKey: ["parent-professional-accesses"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const revoke = useMutation({
@@ -416,7 +577,7 @@ function SharesPage() {
             </p>
           </div>
         </div>
-        {hasAny && (
+        {hasAny && activeTab === "links" && (
           <button
             type="button"
             onClick={() => setShareOpen(true)}
@@ -429,50 +590,179 @@ function SharesPage() {
         )}
       </header>
 
-      {/* Loading */}
-      {sharesQuery.isLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      ) : !hasAny ? (
-        <EmptyShares onNew={() => setShareOpen(true)} />
-      ) : (
-        <div className="space-y-6">
-          {(["active", "expired", "revoked"] as const).map((status) =>
-            grouped[status].length === 0 ? null : (
-              <section key={status}>
-                <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {status === "active"
-                    ? "Ativos"
-                    : status === "expired"
-                      ? "Expirados"
-                      : "Revogados"}
-                </h2>
-                <div className="space-y-3">
-                  {grouped[status].map((s) => (
-                    <ShareCard
-                      key={s.id}
-                      share={s}
-                      status={status}
-                      onCopy={
-                        s.link_token
-                          ? () => {
-                              navigator.clipboard.writeText(buildPublicShareUrl(s.link_token!));
-                              track("share.link_copied", { module: "compartilhamento" });
-                              toast.success("Link copiado.");
-                            }
-                          : undefined
-                      }
-                      onRenew={() => setRenewTarget(s)}
-                      onRevoke={() => revoke.mutate(s.id)}
-                      revoking={revoke.isPending}
-                    />
-                  ))}
+      {/* Tab switcher */}
+      <div className="mb-5 flex gap-1 rounded-xl bg-[#F3F4F8] p-1">
+        {(["links", "professionals"] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-[9px] py-2 text-sm font-semibold transition-colors"
+            style={
+              activeTab === tab
+                ? { background: "#fff", color: "#0F172A", boxShadow: "0 1px 4px rgba(0,0,0,0.10)" }
+                : { color: "#6B7280" }
+            }
+          >
+            {tab === "links" ? (
+              <Share2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+            ) : (
+              <Users className="h-3.5 w-3.5" strokeWidth={1.75} />
+            )}
+            {tab === "links" ? "Links OTP" : "Profissionais"}
+          </button>
+        ))}
+      </div>
+
+      {/* Links tab */}
+      {activeTab === "links" && (
+        sharesQuery.isLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : !hasAny ? (
+          <EmptyShares onNew={() => setShareOpen(true)} />
+        ) : (
+          <div className="space-y-6">
+            {(["active", "expired", "revoked"] as const).map((status) =>
+              grouped[status].length === 0 ? null : (
+                <section key={status}>
+                  <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {status === "active"
+                      ? "Ativos"
+                      : status === "expired"
+                        ? "Expirados"
+                        : "Revogados"}
+                  </h2>
+                  <div className="space-y-3">
+                    {grouped[status].map((s) => (
+                      <ShareCard
+                        key={s.id}
+                        share={s}
+                        status={status}
+                        onCopy={
+                          s.link_token
+                            ? () => {
+                                navigator.clipboard.writeText(buildPublicShareUrl(s.link_token!));
+                                track("share.link_copied", { module: "compartilhamento" });
+                                toast.success("Link copiado.");
+                              }
+                            : undefined
+                        }
+                        onRenew={() => setRenewTarget(s)}
+                        onRevoke={() => revoke.mutate(s.id)}
+                        revoking={revoke.isPending}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ),
+            )}
+          </div>
+        )
+      )}
+
+      {/* Professionals tab */}
+      {activeTab === "professionals" && (
+        profAccessesQuery.isLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (() => {
+            const invites = profAccessesQuery.data?.invites ?? [];
+            const accesses = profAccessesQuery.data?.accesses ?? [];
+            const activeAccesses = accesses.filter((a: any) => a.status === "active");
+            const pendingInvites = invites.filter((i: any) => i.status === "pending");
+            const revokedAccesses = accesses.filter((a: any) => a.status === "revoked");
+            const allEmpty = invites.length === 0 && accesses.length === 0;
+
+            if (allEmpty) {
+              return (
+                <div
+                  className="flex flex-col items-center rounded-[20px] p-8 text-center"
+                  style={{ background: "#F0FDFA" }}
+                >
+                  <div
+                    className="mb-5 flex h-[72px] w-[72px] items-center justify-center rounded-[22px]"
+                    style={{ background: "#CCFBF1" }}
+                  >
+                    <Users className="h-8 w-8" style={{ color: "#0D9488" }} strokeWidth={1.75} />
+                  </div>
+                  <h3 className="text-lg font-bold text-foreground">
+                    Nenhum profissional convidado
+                  </h3>
+                  <p className="mt-1.5 max-w-xs text-sm text-muted-foreground">
+                    Ao criar um compartilhamento, você pode convidar o profissional a criar conta
+                    gratuita no TEAmo para acesso contínuo.
+                  </p>
                 </div>
-              </section>
-            ),
-          )}
-        </div>
+              );
+            }
+
+            return (
+              <div className="space-y-6">
+                {activeAccesses.length > 0 && (
+                  <section>
+                    <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Ativos
+                    </h2>
+                    <div className="space-y-3">
+                      {activeAccesses.map((a: any) => (
+                        <ProfCard
+                          key={a.id}
+                          name={a.professionalName}
+                          email={a.professionalEmail ?? ""}
+                          status="active"
+                          childName={a.childName}
+                          grantedAt={a.granted_at}
+                          onRevoke={() => revokeAccess.mutate(a.id)}
+                          revoking={revokeAccess.isPending}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )}
+                {pendingInvites.length > 0 && (
+                  <section>
+                    <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Convites pendentes
+                    </h2>
+                    <div className="space-y-3">
+                      {pendingInvites.map((i: any) => (
+                        <ProfCard
+                          key={i.id}
+                          name={i.invitee_name ?? i.invitee_email.split("@")[0]}
+                          email={i.invitee_email}
+                          status="pending"
+                          childName={i.childName}
+                          onResend={() => resendInvite.mutate(i.id)}
+                          resending={resendInvite.isPending}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )}
+                {revokedAccesses.length > 0 && (
+                  <section>
+                    <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Revogados
+                    </h2>
+                    <div className="space-y-3">
+                      {revokedAccesses.map((a: any) => (
+                        <ProfCard
+                          key={a.id}
+                          name={a.professionalName}
+                          email={a.professionalEmail ?? ""}
+                          status="revoked"
+                          childName={a.childName}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </div>
+            );
+          })()
       )}
 
       <ShareDialog open={shareOpen} onOpenChange={setShareOpen} />

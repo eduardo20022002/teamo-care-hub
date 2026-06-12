@@ -21,9 +21,10 @@ export const Route = createFileRoute("/login")({
     ],
   }),
   validateSearch: z.object({
-    invite:          z.string().optional(),
-    therapistInvite: z.string().optional(),
-    clinicInvite:    z.string().optional(),
+    invite:             z.string().optional(),
+    therapistInvite:    z.string().optional(),
+    clinicInvite:       z.string().optional(),
+    profissionalInvite: z.string().optional(),
   }).parse,
   component: LoginPage,
 });
@@ -56,7 +57,7 @@ function InviteBanner({ ownerName }: { ownerName?: string }) {
 function LoginPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
-  const { invite, therapistInvite, clinicInvite } = Route.useSearch();
+  const { invite, therapistInvite, clinicInvite, profissionalInvite } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -90,6 +91,8 @@ function LoginPage() {
     if (!loading && user) {
       if (therapistInvite) {
         navigate({ to: "/convite-terapeuta/$token/aceitar", params: { token: therapistInvite } });
+      } else if (profissionalInvite) {
+        navigate({ to: "/convite-profissional/$token", params: { token: profissionalInvite } });
       } else if (invite) {
         navigate({ to: "/convite/$token/aceitar", params: { token: invite } });
       } else if (clinicInvite) {
@@ -98,7 +101,7 @@ function LoginPage() {
         navigate({ to: "/dashboard" });
       }
     }
-  }, [loading, user, navigate, invite, therapistInvite, clinicInvite]);
+  }, [loading, user, navigate, invite, therapistInvite, clinicInvite, profissionalInvite]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -131,6 +134,8 @@ function LoginPage() {
     toast.success("Bem-vindo de volta!");
     if (therapistInvite) {
       navigate({ to: "/convite-terapeuta/$token/aceitar", params: { token: therapistInvite } });
+    } else if (profissionalInvite) {
+      navigate({ to: "/convite-profissional/$token", params: { token: profissionalInvite } });
     } else if (invite) {
       navigate({ to: "/convite/$token/aceitar", params: { token: invite } });
     } else {
@@ -142,14 +147,16 @@ function LoginPage() {
     <AuthShell>
       <div>
         {/* Banner de convite */}
-        {(invite || therapistInvite) && <InviteBanner ownerName={inviteOwnerName} />}
+        {(invite || therapistInvite || profissionalInvite) && <InviteBanner ownerName={inviteOwnerName} />}
 
         <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-foreground">
-          {invite || therapistInvite ? "Entre para aceitar o convite" : "Que bom ter você de volta 👋"}
+          {invite || therapistInvite || profissionalInvite ? "Entre para aceitar o convite" : "Que bom ter você de volta 👋"}
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
           {therapistInvite
             ? "Entre para aceitar o convite e acompanhar a evolução dos seus pacientes."
+            : profissionalInvite
+            ? "Entre para acompanhar o desenvolvimento da criança."
             : invite
             ? "Entre para aceitar o convite e acompanhar o cuidado."
             : "Entre para continuar acompanhando o cuidado da sua família."}

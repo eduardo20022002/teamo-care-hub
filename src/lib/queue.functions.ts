@@ -137,13 +137,14 @@ export const submitQueueEntryServer = createServerFn({ method: "POST" })
 
     const childName = data.child_name.trim();
 
-    // Duplicata: mesma criança (nome + data de nascimento) já ativa nesta clínica
+    // Duplicata: mesma criança (nome + data de nascimento) com entrada ativa nesta clínica.
+    // Status terminais (inativo) são ignorados — família pode reentrar após saída da fila.
     const { data: duplicate } = await (supabaseAdmin.from("queue_entries") as any)
       .select("id, form_payload")
       .eq("clinic_id", clinic.id)
       .ilike("child_name", childName)
       .eq("child_birthdate", data.child_birthdate)
-      .neq("status", "inativo")
+      .in("status", ["aguardando", "em_avaliacao", "agendado"])
       .maybeSingle();
 
     if (duplicate) {
