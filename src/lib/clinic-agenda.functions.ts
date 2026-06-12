@@ -43,7 +43,17 @@ export const createClinicRoomServer = createServerFn({ method: "POST" })
       resources: z.array(z.string().max(80)).max(20).optional(),
     }).parse(d)
   )
-  .handler(async ({ data }): Promise<{ ok: true; roomId: string } | { ok: false; error: string }> => {
+  .handler(async ({ data, context }): Promise<{ ok: true; roomId: string } | { ok: false; error: string }> => {
+    const { userId } = context as { userId: string };
+    const { data: roomAccess } = await supabaseAdmin
+      .from("clinic_members")
+      .select("role")
+      .eq("clinic_id", data.clinicId)
+      .eq("user_id", userId)
+      .not("joined_at", "is", null)
+      .single();
+    if (roomAccess?.role !== "coordinator") return { ok: false, error: "Acesso negado." };
+
     const { data: room, error } = await supabaseAdmin
       .from("clinic_rooms")
       .insert({
@@ -75,7 +85,17 @@ export const setTherapistAvailabilityServer = createServerFn({ method: "POST" })
       })).max(50),
     }).parse(d)
   )
-  .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
+  .handler(async ({ data, context }): Promise<{ ok: true } | { ok: false; error: string }> => {
+    const { userId } = context as { userId: string };
+    const { data: availAccess } = await supabaseAdmin
+      .from("clinic_members")
+      .select("role")
+      .eq("clinic_id", data.clinicId)
+      .eq("user_id", userId)
+      .not("joined_at", "is", null)
+      .single();
+    if (!availAccess) return { ok: false, error: "Acesso negado." };
+
     const { error: delErr } = await supabaseAdmin
       .from("clinic_therapist_availability")
       .delete()
@@ -109,7 +129,17 @@ export const getTherapistAvailabilityServer = createServerFn({ method: "GET" })
   .inputValidator((d) =>
     z.object({ clinicId: z.string().uuid(), userId: z.string().uuid() }).parse(d)
   )
-  .handler(async ({ data }): Promise<{ ok: true; slots: TherapistAvailability[] } | { ok: false; error: string }> => {
+  .handler(async ({ data, context }): Promise<{ ok: true; slots: TherapistAvailability[] } | { ok: false; error: string }> => {
+    const { userId } = context as { userId: string };
+    const { data: slotAccess } = await supabaseAdmin
+      .from("clinic_members")
+      .select("role")
+      .eq("clinic_id", data.clinicId)
+      .eq("user_id", userId)
+      .not("joined_at", "is", null)
+      .single();
+    if (!slotAccess) return { ok: false, error: "Acesso negado." };
+
     const { data: rows, error } = await supabaseAdmin
       .from("clinic_therapist_availability")
       .select("*")
@@ -142,7 +172,17 @@ export const createRecurringScheduleServer = createServerFn({ method: "POST" })
       endsOn:           z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
     }).parse(d)
   )
-  .handler(async ({ data }): Promise<{ ok: true; scheduleId: string } | { ok: false; error: string }> => {
+  .handler(async ({ data, context }): Promise<{ ok: true; scheduleId: string } | { ok: false; error: string }> => {
+    const { userId } = context as { userId: string };
+    const { data: schedAccess } = await supabaseAdmin
+      .from("clinic_members")
+      .select("role")
+      .eq("clinic_id", data.clinicId)
+      .eq("user_id", userId)
+      .not("joined_at", "is", null)
+      .single();
+    if (!schedAccess) return { ok: false, error: "Acesso negado." };
+
     const { data: schedule, error } = await supabaseAdmin
       .from("clinic_recurring_schedules")
       .insert({
@@ -218,7 +258,17 @@ export const listClinicSessionsServer = createServerFn({ method: "GET" })
       roomId:      z.string().uuid().optional().nullable(),
     }).parse(d)
   )
-  .handler(async ({ data }): Promise<{ ok: true; sessions: ClinicSession[] } | { ok: false; error: string }> => {
+  .handler(async ({ data, context }): Promise<{ ok: true; sessions: ClinicSession[] } | { ok: false; error: string }> => {
+    const { userId } = context as { userId: string };
+    const { data: sessAccess } = await supabaseAdmin
+      .from("clinic_members")
+      .select("role")
+      .eq("clinic_id", data.clinicId)
+      .eq("user_id", userId)
+      .not("joined_at", "is", null)
+      .single();
+    if (!sessAccess) return { ok: false, error: "Acesso negado." };
+
     // Compute week end (6 days after weekStart)
     const start = new Date(data.weekStart);
     const end   = new Date(start);
@@ -255,7 +305,23 @@ export const updateSessionStatusServer = createServerFn({ method: "POST" })
       notes:     z.string().max(2000).optional().nullable(),
     }).parse(d)
   )
-  .handler(async ({ data }): Promise<{ ok: true } | { ok: false; error: string }> => {
+  .handler(async ({ data, context }): Promise<{ ok: true } | { ok: false; error: string }> => {
+    const { userId } = context as { userId: string };
+    const { data: sessionRow } = await supabaseAdmin
+      .from("clinic_sessions")
+      .select("clinic_id")
+      .eq("id", data.sessionId)
+      .single();
+    if (!sessionRow) return { ok: false, error: "Sessão não encontrada." };
+    const { data: statusAccess } = await supabaseAdmin
+      .from("clinic_members")
+      .select("role")
+      .eq("clinic_id", sessionRow.clinic_id)
+      .eq("user_id", userId)
+      .not("joined_at", "is", null)
+      .single();
+    if (!statusAccess) return { ok: false, error: "Acesso negado." };
+
     const { error } = await supabaseAdmin
       .from("clinic_sessions")
       .update({ status: data.status, notes: data.notes ?? null })
@@ -293,6 +359,15 @@ export const registerTherapistAbsenceServer = createServerFn({ method: "POST" })
     context,
   }): Promise<{ ok: true; cancelledCount: number; replacementsCreated: number } | { ok: false; error: string }> => {
     const { userId } = context as { userId: string };
+
+    const { data: absAccess } = await supabaseAdmin
+      .from("clinic_members")
+      .select("role")
+      .eq("clinic_id", data.clinicId)
+      .eq("user_id", userId)
+      .not("joined_at", "is", null)
+      .single();
+    if (!absAccess) return { ok: false, error: "Acesso negado." };
 
     // 1. Buscar sessões afetadas
     let query = supabaseAdmin
@@ -412,7 +487,17 @@ export const listClinicReplacementsServer = createServerFn({ method: "GET" })
       therapistId: z.string().uuid().optional().nullable(),
     }).parse(d)
   )
-  .handler(async ({ data }): Promise<{ ok: true; replacements: ClinicReplacement[] } | { ok: false; error: string }> => {
+  .handler(async ({ data, context }): Promise<{ ok: true; replacements: ClinicReplacement[] } | { ok: false; error: string }> => {
+    const { userId } = context as { userId: string };
+    const { data: repAccess } = await supabaseAdmin
+      .from("clinic_members")
+      .select("role")
+      .eq("clinic_id", data.clinicId)
+      .eq("user_id", userId)
+      .not("joined_at", "is", null)
+      .single();
+    if (!repAccess) return { ok: false, error: "Acesso negado." };
+
     let query = supabaseAdmin
       .from("clinic_replacements")
       .select("*")
@@ -442,7 +527,9 @@ export const proposeReplacementSlotServer = createServerFn({ method: "POST" })
       durationMinutes: z.number().int().min(15).max(180).optional(),
     }).parse(d)
   )
-  .handler(async ({ data }): Promise<{ ok: true; sessionId: string } | { ok: false; error: string }> => {
+  .handler(async ({ data, context }): Promise<{ ok: true; sessionId: string } | { ok: false; error: string }> => {
+    const { userId } = context as { userId: string };
+
     // Buscar dados da reposição
     const { data: rep, error: repErr } = await supabaseAdmin
       .from("clinic_replacements")
@@ -451,6 +538,15 @@ export const proposeReplacementSlotServer = createServerFn({ method: "POST" })
       .single();
 
     if (repErr || !rep) return { ok: false, error: repErr?.message ?? "Reposição não encontrada." };
+
+    const { data: propAccess } = await supabaseAdmin
+      .from("clinic_members")
+      .select("role")
+      .eq("clinic_id", rep.clinic_id as string)
+      .eq("user_id", userId)
+      .not("joined_at", "is", null)
+      .single();
+    if (!propAccess) return { ok: false, error: "Acesso negado." };
 
     const origSession = rep.original_session as ClinicSession | null;
     if (!origSession) return { ok: false, error: "Sessão original não encontrada." };

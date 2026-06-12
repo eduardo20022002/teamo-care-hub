@@ -421,6 +421,16 @@ export const getFormByTokenServer = createServerFn({ method: "GET" })
     expired: boolean;
     used: boolean;
   } | { ok: false; error: string }> => {
+    const request = getRequest();
+    const ip = request ? getClientIp(request) : "unknown";
+    const rl = rateLimit(`form-token-get:${ip}`, 30, 60_000);
+    if (!rl.allowed) {
+      throw new Response("Muitas tentativas. Tente novamente mais tarde.", {
+        status: 429,
+        headers: { "Retry-After": String(rl.retryAfterSeconds) },
+      });
+    }
+
     const { data: tokenRow, error } = await supabaseAdmin
       .from("clinic_form_tokens")
       .select("*")
@@ -575,6 +585,16 @@ export const submitForm3Server = createServerFn({ method: "POST" })
     }).parse(d)
   )
   .handler(async ({ data }): Promise<{ ok: true; profileId: string } | { ok: false; error: string }> => {
+    const request = getRequest();
+    const ip = request ? getClientIp(request) : "unknown";
+    const rl = rateLimit(`form3-submit:${ip}`, 5, 600_000);
+    if (!rl.allowed) {
+      throw new Response("Muitas tentativas. Tente novamente mais tarde.", {
+        status: 429,
+        headers: { "Retry-After": String(rl.retryAfterSeconds) },
+      });
+    }
+
     const { data: tokenRow } = await supabaseAdmin
       .from("clinic_form_tokens")
       .select("id, clinic_id, queue_entry_id, expires_at, used_at, form_type")

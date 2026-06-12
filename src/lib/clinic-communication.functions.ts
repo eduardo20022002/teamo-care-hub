@@ -4,9 +4,11 @@
 // listPatientCommunicationsServer: autenticada
 
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { rateLimit, getClientIp } from "@/server/rate-limit";
 import type { ClinicCommunication, CommType } from "@/types/clinic-communication";
 
 // Tipos que exigem token de confirmação da família
@@ -40,7 +42,17 @@ export const createCommunicationServer = createServerFn({ method: "POST" })
     data,
     context,
   }): Promise<{ ok: true; communicationId: string; token?: string } | { ok: false; error: string }> => {
-    const userId = context.user.id;
+    const userId = context.userId;
+
+    const { data: commMember } = await supabaseAdmin
+      .from("clinic_members")
+      .select("role")
+      .eq("clinic_id", data.clinicId)
+      .eq("user_id", userId)
+      .not("joined_at", "is", null)
+      .single();
+    if (!commMember) return { ok: false, error: "Acesso negado." };
+
     const needsToken = TOKEN_COMM_TYPES.includes(data.commType as CommType);
     const deadlineDays = data.deadlineDays ?? 5;
     const deadline = new Date();
@@ -117,6 +129,16 @@ export const getCommunicationByTokenServer = createServerFn({ method: "GET" })
     expired: boolean;
     confirmed: boolean;
   } | { ok: false; error: string }> => {
+    const request = getRequest();
+    const ip = request ? getClientIp(request) : "unknown";
+    const rl = rateLimit(`comm-token-get:${ip}`, 30, 60_000);
+    if (!rl.allowed) {
+      throw new Response("Muitas tentativas. Tente novamente mais tarde.", {
+        status: 429,
+        headers: { "Retry-After": String(rl.retryAfterSeconds) },
+      });
+    }
+
     const { data: tokenRow, error: tokenErr } = await (supabaseAdmin as any)
       .from("clinic_form_tokens")
       .select("id, clinic_id, expires_at, used_at, payload")
@@ -164,6 +186,16 @@ export const confirmCommunicationServer = createServerFn({ method: "POST" })
     }).parse(d)
   )
   .handler(async ({ data }): Promise<{ ok: true; alreadyConfirmed: boolean } | { ok: false; error: string }> => {
+    const request = getRequest();
+    const ip = request ? getClientIp(request) : "unknown";
+    const rl = rateLimit(`comm-confirm:${ip}`, 20, 60_000);
+    if (!rl.allowed) {
+      throw new Response("Muitas tentativas. Tente novamente mais tarde.", {
+        status: 429,
+        headers: { "Retry-After": String(rl.retryAfterSeconds) },
+      });
+    }
+
     const { data: tokenRow, error: tokenErr } = await (supabaseAdmin as any)
       .from("clinic_form_tokens")
       .select("id, expires_at, used_at")
@@ -225,7 +257,17 @@ export const listPatientCommunicationsServer = createServerFn({ method: "GET" })
       patientProfileId: z.string().uuid(),
     }).parse(d)
   )
-  .handler(async ({ data }): Promise<{ ok: true; communications: ClinicCommunication[] } | { ok: false; error: string }> => {
+  .handler(async ({ data, context }): Promise<{ ok: true; communications: ClinicCommunication[] } | { ok: false; error: string }> => {
+    const userId = context.userId;
+    const { data: listMember } = await supabaseAdmin
+      .from("clinic_members")
+      .select("role")
+      .eq("clinic_id", data.clinicId)
+      .eq("user_id", userId)
+      .not("joined_at", "is", null)
+      .single();
+    if (!listMember) return { ok: false, error: "Acesso negado." };
+
     const { data: rows, error } = await (supabaseAdmin as any)
       .from("clinic_communications")
       .select("*")
@@ -249,7 +291,23 @@ export const escalateCommunicationServer = createServerFn({ method: "POST" })
     }).parse(d)
   )
   .handler(async ({ data, context }): Promise<{ ok: true } | { ok: false; error: string }> => {
-    const userId = context.user.id;
+    const userId = context.userId;
+
+    const { data: escComm } = await (supabaseAdmin as any)
+      .from("clinic_communications")
+      .select("clinic_id")
+      .eq("id", data.communicationId)
+      .single();
+    if (!escComm) return { ok: false, error: "Comunicação não encontrada." };
+
+    const { data: escMember } = await supabaseAdmin
+      .from("clinic_members")
+      .select("role")
+      .eq("clinic_id", escComm.clinic_id)
+      .eq("user_id", userId)
+      .not("joined_at", "is", null)
+      .single();
+    if (escMember?.role !== "coordinator") return { ok: false, error: "Apenas coordenadores podem escalar comunicações." };
 
     const { error } = await (supabaseAdmin as any)
       .from("clinic_communications")
