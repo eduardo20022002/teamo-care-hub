@@ -117,17 +117,25 @@ function RegistrosPage() {
   const createMutation = useMutation({
     mutationFn: async (vars: { input: DiaryRecordInput; files: File[] }) => {
       const record = await createDiaryRecord(user!.id, vars.input);
+      // Anexos: não engolir falhas — o usuário precisa saber se um vídeo/foto
+      // não subiu (formato, tamanho, conexão). Reporta cada arquivo que falhou.
+      const failed: string[] = [];
       for (const file of vars.files) {
-        try { await uploadRecordAttachment(user!.id, record.id, file); } catch { /* no-op */ }
+        try {
+          await uploadRecordAttachment(user!.id, record.id, file);
+        } catch (e) {
+          failed.push(`${file.name}: ${(e as Error).message ?? "Falha no envio."}`);
+        }
       }
-      return record;
+      return { record, failed };
     },
-    onSuccess: (_record, vars) => {
+    onSuccess: ({ failed }, vars) => {
       track("record.create", {
         module: "registros",
         properties: { record_type: vars.input.record_type },
       });
       toast.success("Registro criado.");
+      for (const msg of failed) toast.error(`Anexo não enviado — ${msg}`);
       qc.invalidateQueries({ queryKey: ["diary-records"] });
       qc.invalidateQueries({ queryKey: ["attendance"] });
       setFormOpen(false);

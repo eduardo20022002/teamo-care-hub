@@ -361,13 +361,34 @@ export type RecordTypeData =
   | TypeDataLivre;
 
 // ===== Anexos (RF-03) =====
+// Aceita os mesmos tipos que o bucket "attachments" permite (ver migration
+// 20260607230000): documentos/imagens + áudio + vídeo (a UI de registros oferece
+// botões Foto / Vídeo / Áudio / Arquivo).
 export const ALLOWED_ATTACHMENT_MIME = [
   "application/pdf",
   "image/jpeg",
   "image/png",
+  "image/webp",
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/wav",
+  "audio/webm",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
 ] as const;
 
+// Imagens/PDF/áudio: 10 MB. Vídeo: 50 MB (clipes de celular passam de 10 MB).
 export const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
+export const MAX_VIDEO_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024;
+
+function maxSizeForMime(mime: string): number {
+  return mime.startsWith("video/") ? MAX_VIDEO_ATTACHMENT_SIZE_BYTES : MAX_ATTACHMENT_SIZE_BYTES;
+}
+
+function sizeLimitLabel(mime: string): string {
+  return mime.startsWith("video/") ? "50 MB" : "10 MB";
+}
 
 export type AttachmentValidation =
   | { ok: true }
@@ -380,23 +401,40 @@ const MAGIC_SIGNATURES: Array<{ mime: string; bytes: number[]; offset?: number }
   { mime: "application/pdf", bytes: [0x25, 0x50, 0x44, 0x46] },        // %PDF
   { mime: "image/jpeg",      bytes: [0xff, 0xd8, 0xff] },               // JFIF/Exif SOI
   { mime: "image/png",       bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] }, // PNG
+  { mime: "image/webp",      bytes: [0x52, 0x49, 0x46, 0x46] },         // RIFF (+ "WEBP" @8, abaixo)
 ];
 
+// Verifica o cabeçalho do arquivo contra assinaturas conhecidas (defesa contra
+// arquivos disfarçados — ex.: HTML/executável com extensão .pdf).
+// Áudio e vídeo são pulados: seus contêineres variam (mp4/mov/webm/mp3/wav) e
+// exigir assinatura rejeitaria clipes legítimos de celular. Para esses, valem o
+// MIME permitido + o enforcement de allowed_mime_types do bucket (server-side).
 async function checkMagicBytes(file: File): Promise<boolean> {
-  const maxHeaderBytes = 8;
-  const buf = await file.slice(0, maxHeaderBytes).arrayBuffer();
+  if (file.type.startsWith("audio/") || file.type.startsWith("video/")) return true;
+
+  const buf = await file.slice(0, 12).arrayBuffer();
   const header = new Uint8Array(buf);
-  return MAGIC_SIGNATURES.some(({ bytes, offset = 0 }) =>
+
+  const matched = MAGIC_SIGNATURES.some(({ bytes, offset = 0 }) =>
     bytes.every((b, i) => header[offset + i] === b),
   );
+  if (!matched) return false;
+
+  // WEBP usa contêiner RIFF; confirma o marcador "WEBP" no offset 8 para não
+  // confundir com outros formatos RIFF (ex.: .wav).
+  if (file.type === "image/webp") {
+    const webp = [0x57, 0x45, 0x42, 0x50]; // "WEBP"
+    return webp.every((b, i) => header[8 + i] === b);
+  }
+  return true;
 }
 
 export function validateAttachmentFile(file: File): AttachmentValidation {
   if (!ALLOWED_ATTACHMENT_MIME.includes(file.type as (typeof ALLOWED_ATTACHMENT_MIME)[number])) {
-    return { ok: false, error: "Formato não suportado. Aceitos: PDF, JPG, PNG." };
+    return { ok: false, error: "Formato não suportado. Aceitos: imagem, vídeo, áudio ou PDF." };
   }
-  if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
-    return { ok: false, error: "Arquivo acima do limite de 10 MB." };
+  if (file.size > maxSizeForMime(file.type)) {
+    return { ok: false, error: `Arquivo acima do limite de ${sizeLimitLabel(file.type)}.` };
   }
   return { ok: true };
 }

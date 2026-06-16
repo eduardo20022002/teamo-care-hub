@@ -14,7 +14,7 @@ function mapError(message: string): string {
     return "Sem conexão com o servidor. Tente novamente.";
   }
   if (/exceeded the maximum allowed size|payload too large/i.test(message)) {
-    return "Arquivo acima do limite de 10 MB.";
+    return "Arquivo acima do limite permitido (até 50 MB para vídeo, 10 MB para os demais).";
   }
   return "Não foi possível concluir a operação. Tente novamente.";
 }

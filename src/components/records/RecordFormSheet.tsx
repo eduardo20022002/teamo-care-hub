@@ -455,11 +455,13 @@ function AttachmentRow({
   onSelect?: (type: AttachBtn, files: File[]) => void;
 }) {
   const refs = useRef<Record<string, HTMLInputElement | null>>({});
+  // Limitado aos tipos que o bucket "attachments" aceita (PDF/imagem/áudio/vídeo).
+  // Office (.doc/.xls/.txt) não é suportado pelo Storage e era rejeitado em silêncio.
   const acceptMap: Record<AttachBtn, string> = {
     Foto: "image/*",
     Vídeo: "video/*",
     Áudio: "audio/*",
-    Arquivo: ".pdf,.doc,.docx,.xls,.xlsx,.txt,image/*",
+    Arquivo: ".pdf,application/pdf,image/*",
   };
   return (
     <div>
