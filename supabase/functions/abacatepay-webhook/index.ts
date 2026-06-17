@@ -121,11 +121,28 @@ Deno.serve(async (req) => {
 
   const providerSubId: string = data.subscription?.id ?? "";
   const providerCustomerId: string = data.customer?.id ?? "";
-  const externalId: string = data.checkout?.externalId ?? data.subscription?.externalId ?? "";
+  // O externalId ("<userId>:<scope>") pode chegar em diferentes posições do payload
+  // dependendo do evento (checkout, payment, subscription ou topo de data). Tentamos
+  // todas para não falhar em ativar o Premium de quem pagou.
+  const externalId: string =
+    data.checkout?.externalId ??
+    data.payment?.externalId ??
+    data.subscription?.externalId ??
+    data.externalId ??
+    "";
   const [userId, scope] = externalId.split(":");
 
   if (!userId || !scope) {
-    console.error("abacatepay-webhook: externalId inválido:", externalId);
+    // Loga apenas as chaves do payload (estrutura, não valores) para depurar onde o
+    // externalId realmente chega sem expor dados pessoais.
+    console.error(
+      "abacatepay-webhook: externalId inválido. event=%s data.keys=%o checkout.keys=%o payment.keys=%o subscription.keys=%o",
+      event,
+      Object.keys(data ?? {}),
+      Object.keys(data.checkout ?? {}),
+      Object.keys(data.payment ?? {}),
+      Object.keys(data.subscription ?? {}),
+    );
     return new Response("Invalid externalId", { status: 400 });
   }
 
