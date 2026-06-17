@@ -1,15 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { Check, Minus, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { usePlan, useClinicPlan } from "@/services/subscription.service";
+import { usePlan, useClinicPlan, useCheckoutFn } from "@/services/subscription.service";
 import { THERAPIST_PRICE, PARENT_PRICE, CLINIC_PRICE } from "@/lib/plan-limits";
-import { createSubscriptionCheckoutServer } from "@/lib/subscription.functions";
 
 type Scope = "therapist" | "parent" | "clinic";
 
@@ -108,7 +106,7 @@ function PremiumPage() {
   const { isClinicPremium } = useClinicPlan(scopeParam === "clinic" ? clinicId : undefined);
 
   // Padrão de escopo: usa o user_type quando o ?scope não foi informado.
-  const checkoutFn = useServerFn(createSubscriptionCheckoutServer);
+  const checkoutFn = useCheckoutFn();
   const checkout = useMutation({
     mutationFn: () => checkoutFn({ data: { scope, clinicId } } as any),
     onSuccess: (res: any) => {

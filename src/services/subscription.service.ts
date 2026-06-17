@@ -6,7 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   getMySubscriptionStatusServer,
   getClinicPlanStatusServer,
+  createSubscriptionCheckoutServer,
 } from "@/lib/subscription.functions";
+import type { PlanScope } from "@/lib/plan-limits";
 import {
   THERAPIST_LIMITS,
   THERAPIST_PRICE,
@@ -87,6 +89,13 @@ export interface ClinicPlanState {
   limits: typeof CLINIC_LIMITS;
   price: typeof CLINIC_PRICE;
 }
+
+/** ServerFn de checkout — retornado por useServerFn para uso em mutations no client. */
+export function useCheckoutFn() {
+  return useServerFn(createSubscriptionCheckoutServer);
+}
+
+export type CheckoutInput = { scope: PlanScope; clinicId?: string };
 
 /** Plano de uma clínica específica (por clinicId). */
 export function useClinicPlan(clinicId: string | undefined): ClinicPlanState {
