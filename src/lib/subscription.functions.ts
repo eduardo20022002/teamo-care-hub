@@ -276,9 +276,17 @@ export const getClinicPlanStatusServer = createServerFn({ method: "POST" })
 
     const clinicPlan = await getClinicPlan(data.clinicId);
 
+    // Clinic subscriptions are stored against the clinic's owner_id, not the requesting user.
+    const { data: clinicRow } = await (supabaseAdmin as any)
+      .from("clinics")
+      .select("owner_id")
+      .eq("id", data.clinicId)
+      .maybeSingle();
+
     const { data: sub } = await (supabaseAdmin as any)
       .from("subscriptions")
       .select("status, trial_ends_at, current_period_end")
+      .eq("user_id", (clinicRow as any)?.owner_id ?? "")
       .eq("scope", "clinic")
       .maybeSingle();
 
