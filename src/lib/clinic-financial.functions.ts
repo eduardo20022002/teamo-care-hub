@@ -17,7 +17,7 @@ import {
   isClinicPremium,
   clinicGateError,
   clinicResourceCount,
-} from "@/lib/subscription.functions";
+} from "@/lib/subscription.server";
 import { CLINIC_LIMITS } from "@/lib/plan-limits";
 
 // ─── createInsuranceAuthorizationServer ──────────────────────────────────────

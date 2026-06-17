@@ -8,7 +8,7 @@ import {
   logShareEvent,
   SHARING_TABLES,
 } from "@/server/sharing.server";
-import { assertParentPremium } from "@/lib/subscription.functions";
+import { assertParentPremium } from "@/lib/subscription.server";
 
 // 2160h = 90 days (~3 months). Trigger DB allows up to 93 days for safety margin.
 const createShareSchema = z.object({

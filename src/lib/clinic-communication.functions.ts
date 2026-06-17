@@ -9,7 +9,7 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { rateLimit, getClientIp } from "@/server/rate-limit";
-import { isClinicPremium, clinicGateError } from "@/lib/subscription.functions";
+import { isClinicPremium, clinicGateError } from "@/lib/subscription.server";
 import { CLINIC_LIMITS } from "@/lib/plan-limits";
 import type { ClinicCommunication, CommType } from "@/types/clinic-communication";
 

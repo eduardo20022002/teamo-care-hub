@@ -13,7 +13,7 @@ import {
   isClinicPremium,
   clinicGateError,
   clinicResourceCount,
-} from "@/lib/subscription.functions";
+} from "@/lib/subscription.server";
 import { CLINIC_LIMITS } from "@/lib/plan-limits";
 import type { EvaluationReport, PatientProfile, ClinicFormToken } from "@/types/clinic-evaluation";
 

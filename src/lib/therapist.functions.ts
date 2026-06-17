@@ -30,7 +30,7 @@ import { appBaseUrl } from "@/server/app-url";
 import {
   assertTherapistPremium,
   isTherapistPremium,
-} from "@/lib/subscription.functions";
+} from "@/lib/subscription.server";
 import { THERAPIST_LIMITS } from "@/lib/plan-limits";
 
 const APP_URL = appBaseUrl;

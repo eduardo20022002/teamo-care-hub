@@ -5,7 +5,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { milestoneSchema, milestoneGoalSchema } from "@/lib/validation";
-import { isTherapistPremium } from "@/lib/subscription.functions";
+import { isTherapistPremium } from "@/lib/subscription.server";
 
 // ─── Helper: verificação de papel ────────────────────────────────────────────
 

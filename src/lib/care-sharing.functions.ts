@@ -19,7 +19,7 @@ import {
 } from "@/server/care-sharing.server";
 import { careInviteSchema } from "@/lib/validation";
 import { logger } from "@/lib/logger";
-import { assertParentPremium } from "@/lib/subscription.functions";
+import { assertParentPremium } from "@/lib/subscription.server";
 import { appBaseUrl } from "@/server/app-url";
 
 const APP_URL = appBaseUrl;

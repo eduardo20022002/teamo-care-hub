@@ -8,7 +8,7 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { nameToSlug } from "@/lib/slugify";
-import { isClinicPremium, clinicGateError } from "@/lib/subscription.functions";
+import { isClinicPremium, clinicGateError } from "@/lib/subscription.server";
 import type { Clinic, ClinicMember, ClinicInvite } from "@/types/clinic";
 import type { Json } from "@/integrations/supabase/types";
 

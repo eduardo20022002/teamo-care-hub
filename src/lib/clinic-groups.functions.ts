@@ -15,7 +15,7 @@ import type {
   CompatibilityAlert,
   MatchingCriteria,
 } from "@/types/clinic-groups";
-import { isClinicPremium, clinicGateError } from "@/lib/subscription.functions";
+import { isClinicPremium, clinicGateError } from "@/lib/subscription.server";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
