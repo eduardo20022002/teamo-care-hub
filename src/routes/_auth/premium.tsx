@@ -20,7 +20,7 @@ const THEME = {
 } as const;
 
 // `as any`: rota nova — routeTree.gen.ts só conhece /premium após `npm run dev`/`build`.
-export const Route = createFileRoute("/_auth/premium" as any)({
+export const Route = createFileRoute("/_auth/premium")({
   validateSearch: (s: Record<string, unknown>): { scope?: Scope; clinicId?: string } => ({
     scope:
       s.scope === "parent" ? "parent" : s.scope === "clinic" ? "clinic" : s.scope === "therapist" ? "therapist" : undefined,

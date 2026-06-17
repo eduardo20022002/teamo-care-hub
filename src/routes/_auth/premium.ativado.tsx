@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 
-export const Route = createFileRoute("/_auth/premium/ativado" as any)({
+export const Route = createFileRoute("/_auth/premium/ativado")({
   validateSearch: (s: Record<string, unknown>): { scope?: string } => ({
     scope: typeof s.scope === "string" ? s.scope : undefined,
   }),
