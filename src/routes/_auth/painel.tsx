@@ -10,11 +10,14 @@ import {
   FileText,
   Layers,
   Link2,
+  LogIn,
   Mail,
+  Monitor,
   RefreshCcw,
   Search,
   Share2,
   Stethoscope,
+  Timer,
   TrendingUp,
   Users,
   WifiOff,
@@ -31,6 +34,7 @@ import {
   listTherapistsServer,
   getDiagnosticsStatsServer,
 } from "@/lib/analytics.functions";
+import { getLoginActivityServer } from "@/lib/session-tracking.functions";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +48,8 @@ import type {
   TechnicalHealthData,
   UserListRow,
   DiagnosticStat,
+  LoginActivityData,
+  LoginSessionRow,
 } from "@/server/analytics.server";
 
 export const Route = createFileRoute("/_auth/painel")({
@@ -671,6 +677,214 @@ function BusinessHealthSection({
 
 // ─── Página principal ─────────────────────────────────────────────────────────
 
+// ─── Atividade de Acesso ──────────────────────────────────────────────────────
+
+const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"] as const;
+
+function parseDevice(ua: string | null): string {
+  if (!ua) return "—";
+  const browser = /Edg/i.test(ua)
+    ? "Edge"
+    : /OPR|Opera/i.test(ua)
+      ? "Opera"
+      : /Chrome/i.test(ua)
+        ? "Chrome"
+        : /Firefox/i.test(ua)
+          ? "Firefox"
+          : /Safari/i.test(ua)
+            ? "Safari"
+            : "Outro";
+  const os = /Android/i.test(ua)
+    ? "Android"
+    : /iPhone|iPad|iOS/i.test(ua)
+      ? "iOS"
+      : /Windows/i.test(ua)
+        ? "Windows"
+        : /Mac OS X|Macintosh/i.test(ua)
+          ? "macOS"
+          : /Linux/i.test(ua)
+            ? "Linux"
+            : "";
+  return os ? `${browser} · ${os}` : browser;
+}
+
+function formatDuration(min: number): string {
+  if (min < 1) return "<1 min";
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m ? `${h}h ${m}min` : `${h}h`;
+}
+
+function formatWhen(iso: string): string {
+  return new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function SessionRowItem({ s }: { s: LoginSessionRow }) {
+  const name = s.fullName || (s.email ? s.email.split("@")[0] : "Usuário");
+  const typeLabel =
+    s.userType === "therapist" ? "Terapeuta" : s.userType === "parent" ? "Responsável" : "—";
+  return (
+    <tr className="border-t" style={{ borderColor: "#F1F2F6" }}>
+      <td className="py-2.5 pr-3">
+        <div className="flex items-center gap-2">
+          {s.active && (
+            <span className="h-2 w-2 shrink-0 rounded-full bg-[#16A34A]" title="Ativo agora" />
+          )}
+          <div className="min-w-0">
+            <p className="truncate text-xs font-semibold text-[#0F172A]">{name}</p>
+            {s.email && <p className="truncate text-[10px] text-[#9CA3AF]">{s.email}</p>}
+          </div>
+        </div>
+      </td>
+      <td className="px-2 py-2.5 text-[11px] text-[#6B7280] whitespace-nowrap">{typeLabel}</td>
+      <td className="px-2 py-2.5 text-[11px] text-[#6B7280] whitespace-nowrap">{formatWhen(s.startedAt)}</td>
+      <td className="px-2 py-2.5 text-[11px] whitespace-nowrap">
+        {s.active ? (
+          <span className="font-medium text-[#16A34A]">em andamento</span>
+        ) : (
+          <span className="text-[#374151]">{formatDuration(s.durationMinutes)}</span>
+        )}
+      </td>
+      <td className="px-2 py-2.5 text-[11px] text-[#6B7280] whitespace-nowrap">{parseDevice(s.userAgent)}</td>
+      <td className="px-2 py-2.5 text-[11px] text-[#9CA3AF] whitespace-nowrap">{s.ip ?? "—"}</td>
+    </tr>
+  );
+}
+
+function LoginActivitySection({ data }: { data: LoginActivityData }) {
+  const maxDay = Math.max(...data.loginsPerDay.map((d) => d.count), 1);
+  const maxCell = Math.max(...data.peakHours.flat(), 1);
+
+  return (
+    <section className="mb-10">
+      <SectionHeader
+        icon={<LogIn className="h-5 w-5 text-[#4F46E5]" strokeWidth={1.75} />}
+        title="Atividade de acesso"
+        subtitle="Quem entrou, quando e por quanto tempo · IP e dispositivo (LGPD: só admin)"
+      />
+
+      {/* KPIs */}
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <MetricCard
+          label="Ativos agora"
+          value={data.kpis.activeNow}
+          sub="vistos nos últimos 5 min"
+          accent="#16A34A"
+          tint="#ECFDF5"
+          icon={<Activity className="h-4 w-4" strokeWidth={1.75} />}
+        />
+        <MetricCard
+          label="Logins hoje"
+          value={data.kpis.loginsToday}
+          accent="#4F46E5"
+          tint="#EEF1FF"
+          icon={<LogIn className="h-4 w-4" strokeWidth={1.75} />}
+        />
+        <MetricCard
+          label="Duração média"
+          value={formatDuration(data.kpis.avgDurationMinutes)}
+          sub="por sessão (30 dias)"
+          accent="#D97706"
+          tint="#FFFBEB"
+          icon={<Timer className="h-4 w-4" strokeWidth={1.75} />}
+        />
+      </div>
+
+      {/* Acessos por dia (30d) */}
+      <div className="mb-5 rounded-2xl border bg-white p-4" style={{ borderColor: "#EEF0F4" }}>
+        <p className="mb-3 text-xs font-semibold text-[#374151]">Acessos por dia · últimos 30 dias</p>
+        <div className="flex h-24 items-end gap-[3px]">
+          {data.loginsPerDay.map((d) => (
+            <div
+              key={d.date}
+              className="flex-1 rounded-t-sm"
+              style={{
+                height: `${Math.max(2, Math.round((d.count / maxDay) * 100))}%`,
+                background: d.count ? "#7C3AED" : "#E5E7EB",
+              }}
+              title={`${new Date(d.date).toLocaleDateString("pt-BR")}: ${d.count} acesso(s)`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Horários de pico (hora × dia da semana) */}
+      <div className="mb-5 rounded-2xl border bg-white p-4" style={{ borderColor: "#EEF0F4" }}>
+        <p className="mb-3 text-xs font-semibold text-[#374151]">Horários de pico</p>
+        <div className="overflow-x-auto">
+          <div className="min-w-[560px]">
+            <div className="mb-1 grid grid-cols-[28px_repeat(24,1fr)] gap-[2px]">
+              <span />
+              {Array.from({ length: 24 }, (_, h) => (
+                <span key={h} className="text-center text-[8px] text-[#9CA3AF]">
+                  {h % 6 === 0 ? h : ""}
+                </span>
+              ))}
+            </div>
+            {data.peakHours.map((row, wd) => (
+              <div key={wd} className="grid grid-cols-[28px_repeat(24,1fr)] gap-[2px]">
+                <span className="text-[9px] leading-4 text-[#9CA3AF]">{WEEKDAYS[wd]}</span>
+                {row.map((count, h) => (
+                  <div
+                    key={h}
+                    className="h-3.5 rounded-[2px]"
+                    style={{
+                      background:
+                        count === 0
+                          ? "#F1F2F6"
+                          : `rgba(124,58,237,${0.2 + 0.8 * (count / maxCell)})`,
+                    }}
+                    title={`${WEEKDAYS[wd]} ${h}h: ${count} acesso(s)`}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Tabela de últimos acessos */}
+      <div className="rounded-2xl border bg-white" style={{ borderColor: "#EEF0F4" }}>
+        <div className="border-b px-4 py-3" style={{ borderColor: "#F1F2F6" }}>
+          <div className="flex items-center gap-2">
+            <Monitor className="h-4 w-4 text-[#4F46E5]" strokeWidth={1.75} />
+            <span className="text-xs font-semibold text-[#374151]">Últimos acessos</span>
+          </div>
+        </div>
+        {data.recentSessions.length === 0 ? (
+          <p className="px-4 py-6 text-center text-xs text-[#9CA3AF]">Nenhum acesso registrado ainda.</p>
+        ) : (
+          <div className="overflow-x-auto px-4 py-1">
+            <table className="w-full min-w-[560px]">
+              <thead>
+                <tr className="text-left text-[10px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
+                  <th className="py-2 pr-3">Usuário</th>
+                  <th className="px-2 py-2">Tipo</th>
+                  <th className="px-2 py-2">Início</th>
+                  <th className="px-2 py-2">Duração</th>
+                  <th className="px-2 py-2">Dispositivo</th>
+                  <th className="px-2 py-2">IP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.recentSessions.map((s) => (
+                  <SessionRowItem key={s.id} s={s} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function PainelPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -741,6 +955,17 @@ function PainelPage() {
     retry: false,
   });
 
+  const { data: loginActivity, isLoading: loginLoading, refetch: refetchLogin } = useQuery<LoginActivityData>({
+    queryKey: ["admin-login-activity"],
+    queryFn: async () => {
+      const headers = await getAuthHeaders();
+      return getLoginActivityServer({ headers } as any);
+    },
+    enabled: !!profile?.is_admin,
+    staleTime: 30_000,
+    retry: false,
+  });
+
   // Queries lazy — só carregam quando os dialogs são abertos
   const { data: caregiversList = [], isLoading: caregiversLoading } = useQuery({
     queryKey: ["admin-caregivers"],
@@ -775,12 +1000,13 @@ function PainelPage() {
     retry: false,
   });
 
-  const isLoading = profileLoading || bizLoading || behaviorLoading || techLoading;
+  const isLoading = profileLoading || bizLoading || behaviorLoading || techLoading || loginLoading;
 
   const handleRefresh = () => {
     void refetchBiz();
     void refetchBehavior();
     void refetchTech();
+    void refetchLogin();
   };
 
   if (profileLoading) {
@@ -826,6 +1052,7 @@ function PainelPage() {
         </div>
       ) : (
         <>
+          {loginActivity && <LoginActivitySection data={loginActivity} />}
           {techData && <TechnicalHealthSection data={techData} />}
           {behaviorData && <UserBehaviorSection data={behaviorData} />}
           {businessData && (

@@ -31,6 +31,9 @@ import {
   useMilestoneGoalCounts,
   type Milestone,
 } from "@/services/milestones.service";
+import { usePlan } from "@/services/subscription.service";
+import { useUpgrade } from "@/components/premium/PremiumGate";
+import { PremiumBadge } from "@/components/premium/PremiumBadge";
 import {
   MILESTONE_AREAS,
   MILESTONE_AREA_LABELS,
@@ -226,7 +229,13 @@ function MilestoneFormSheet({
   );
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
-  const [shared, setShared] = useState(initial?.is_shared_with_parents ?? true);
+
+  // Compartilhar marcos com os pais é Premium. No free, nasce não compartilhado.
+  const { isPremium } = usePlan();
+  const { openUpgrade } = useUpgrade();
+  const [shared, setShared] = useState(
+    isPremium ? (initial?.is_shared_with_parents ?? true) : false,
+  );
 
   const createMutation = useCreateMilestone(childId);
   const updateMutation = useUpdateMilestone(childId);
@@ -363,10 +372,10 @@ function MilestoneFormSheet({
           />
         </div>
 
-        {/* Toggle visibilidade */}
+        {/* Toggle visibilidade — compartilhar é Premium */}
         <button
           type="button"
-          onClick={() => setShared((v) => !v)}
+          onClick={() => (isPremium ? setShared((v) => !v) : openUpgrade("milestones"))}
           className="mt-4 flex w-full items-center gap-3 rounded-xl border px-4 py-3.5 text-left transition-colors"
           style={
             shared
@@ -375,22 +384,27 @@ function MilestoneFormSheet({
           }
         >
           <div className="flex-1">
-            <p className="text-[14px] font-bold" style={{ color: "#0F172A" }}>
+            <p className="flex items-center gap-1.5 text-[14px] font-bold" style={{ color: "#0F172A" }}>
               Visível para a família
+              {!isPremium && <PremiumBadge />}
             </p>
             <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>
-              Os responsáveis verão este marco e acompanharão o progresso.
+              {isPremium
+                ? "Os responsáveis verão este marco e acompanharão o progresso."
+                : "Compartilhar marcos com a família é Premium."}
             </p>
           </div>
-          <span
-            className="ml-auto flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors"
-            style={{ background: shared ? TEAL : "#D1D5DB" }}
-          >
+          {isPremium && (
             <span
-              className="h-5 w-5 rounded-full bg-white shadow transition-transform"
-              style={{ transform: shared ? "translateX(22px)" : "translateX(2px)" }}
-            />
-          </span>
+              className="ml-auto flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors"
+              style={{ background: shared ? TEAL : "#D1D5DB" }}
+            >
+              <span
+                className="h-5 w-5 rounded-full bg-white shadow transition-transform"
+                style={{ transform: shared ? "translateX(22px)" : "translateX(2px)" }}
+              />
+            </span>
+          )}
         </button>
 
         {/* Botão salvar */}

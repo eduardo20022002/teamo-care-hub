@@ -31,6 +31,8 @@ import {
   useDeleteParentCommunication,
   useSharedContent,
 } from "@/services/therapist.service";
+import { usePlan } from "@/services/subscription.service";
+import { PremiumPreview } from "@/components/premium/PremiumPreview";
 import { formatAge } from "@/lib/formatters";
 import {
   THERAPIST_INVITE_RELATION_LABELS,
@@ -605,6 +607,19 @@ function PaisResponsaveisDetailPage() {
     enabled: !!user,
   });
   const patient = ((allChildren as Child[] | undefined) ?? []).find((c) => c.id === childId) ?? null;
+
+  // O módulo "Pais e Responsáveis" inteiro é Premium (premium-terapeuta.md §2).
+  const { isPremium, isLoading: planLoading } = usePlan();
+  if (!planLoading && !isPremium) {
+    return (
+      <AppShell onBack={() => navigate({ to: "/pais-responsaveis" as any })}>
+        <PremiumPreview
+          feature="invites"
+          subtitle={`Conecte ${patient?.name ?? "a família"} ao cuidado: convide responsáveis, envie recados e compartilhe a evolução. Disponível no Premium.`}
+        />
+      </AppShell>
+    );
+  }
 
   const TABS: { id: Tab; label: string; icon: typeof Users }[] = [
     { id: "vinculos",      label: "Vínculos",    icon: Users },

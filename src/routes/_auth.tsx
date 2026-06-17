@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 import { signOut } from "@/services/auth.service";
+import { startSession, heartbeatSession } from "@/services/session.service";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import {
   Dialog,
@@ -14,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { PremiumGateProvider } from "@/components/premium/PremiumGate";
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutos (recomendação HIPAA/LGPD)
 const IDLE_WARN_BEFORE_MS = 60 * 1000; // avisa 1 minuto antes
@@ -50,6 +52,17 @@ function AuthLayout() {
     }
   }, [loading, user, navigate]);
 
+  // Rastreamento de sessão (painel admin de acesso): garante a linha no mount e
+  // mantém "visto por último" com heartbeat. Fechar o navegador sem logout fica
+  // coberto pelo last_seen_at (duração ainda fica próxima do real).
+  useEffect(() => {
+    if (loading || !user?.email_confirmed_at) return;
+    void startSession();
+    const HEARTBEAT_MS = 3 * 60 * 1000;
+    const id = window.setInterval(() => void heartbeatSession(), HEARTBEAT_MS);
+    return () => window.clearInterval(id);
+  }, [loading, user?.email_confirmed_at]);
+
   const handleTimeout = useCallback(async () => {
     setWarnOpen(false);
     await signOut("idle");
@@ -80,7 +93,7 @@ function AuthLayout() {
   }
 
   return (
-    <>
+    <PremiumGateProvider>
       <Outlet />
 
       <Dialog
@@ -111,6 +124,6 @@ function AuthLayout() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </PremiumGateProvider>
   );
 }

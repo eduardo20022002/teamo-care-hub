@@ -19,6 +19,7 @@ import {
 } from "@/server/care-sharing.server";
 import { careInviteSchema } from "@/lib/validation";
 import { logger } from "@/lib/logger";
+import { assertParentPremium } from "@/lib/subscription.functions";
 import { appBaseUrl } from "@/server/app-url";
 
 const APP_URL = appBaseUrl;
@@ -43,6 +44,9 @@ export const sendCareInviteServer = createServerFn({ method: "POST" })
   .inputValidator((d) => careInviteSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { userId, supabase } = context as any;
+
+    // Convidar co-cuidadores é Premium do responsável.
+    await assertParentPremium(userId, "cuidado-compartilhado");
 
     // Verifica que o owner é dono da criança (RLS-aware)
     const { data: child } = await supabase

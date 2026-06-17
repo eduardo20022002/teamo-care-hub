@@ -13,6 +13,12 @@ import type {
   ClinicSession,
   ClinicReplacement,
 } from "@/types/clinic-agenda";
+import {
+  isClinicPremium,
+  clinicGateError,
+  clinicResourceCount,
+} from "@/lib/subscription.functions";
+import { CLINIC_LIMITS } from "@/lib/plan-limits";
 
 
 // ─── listClinicRoomsServer ───────────────────────────────────────────────────
@@ -53,6 +59,12 @@ export const createClinicRoomServer = createServerFn({ method: "POST" })
       .not("joined_at", "is", null)
       .single();
     if (roomAccess?.role !== "coordinator") return { ok: false, error: "Acesso negado." };
+
+    // Gate freemium da clínica: free = 1 sala.
+    if (!(await isClinicPremium(data.clinicId))) {
+      const count = await clinicResourceCount("clinic_rooms", data.clinicId);
+      if (count >= CLINIC_LIMITS.salas) return clinicGateError("clinica-salas");
+    }
 
     const { data: room, error } = await supabaseAdmin
       .from("clinic_rooms")
@@ -182,6 +194,9 @@ export const createRecurringScheduleServer = createServerFn({ method: "POST" })
       .not("joined_at", "is", null)
       .single();
     if (!schedAccess) return { ok: false, error: "Acesso negado." };
+
+    // Sessões recorrentes são Premium da clínica (free = sem recorrência).
+    if (!(await isClinicPremium(data.clinicId))) return clinicGateError("clinica-sessoes");
 
     const { data: schedule, error } = await supabaseAdmin
       .from("clinic_recurring_schedules")
@@ -368,6 +383,9 @@ export const registerTherapistAbsenceServer = createServerFn({ method: "POST" })
       .not("joined_at", "is", null)
       .single();
     if (!absAccess) return { ok: false, error: "Acesso negado." };
+
+    // Gestão de ausências e reposições é Premium da clínica.
+    if (!(await isClinicPremium(data.clinicId))) return clinicGateError("clinica-sessoes");
 
     // 1. Buscar sessões afetadas
     let query = supabaseAdmin

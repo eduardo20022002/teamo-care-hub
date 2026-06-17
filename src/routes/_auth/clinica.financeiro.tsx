@@ -4,6 +4,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/hooks/useAuth";
 import { getMyClinicServer } from "@/lib/clinic.functions";
+import { useClinicPlan } from "@/services/subscription.service";
+import { useUpgrade } from "@/components/premium/PremiumGate";
+import { UsageBar } from "@/components/premium/UsageBar";
 import {
   listInsuranceAuthorizationsServer,
   startAuthorizationRenewalServer,
@@ -476,6 +479,7 @@ function AuthRow({
 function ClinicFinanceiroPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const { openUpgrade } = useUpgrade();
   const [filter, setFilter] = useState<FilterStatus>("todas");
   const [showNewModal, setShowNewModal] = useState(false);
   const [renewingId, setRenewingId] = useState<string | null>(null);
@@ -492,6 +496,7 @@ function ClinicFinanceiroPage() {
   });
 
   const clinicId = clinicQuery.data?.clinic?.id ?? "";
+  const { isClinicPremium, limits } = useClinicPlan(clinicId || undefined);
 
   const authsQuery = useQuery({
     queryKey: ["insuranceAuthorizations", clinicId],
@@ -551,6 +556,15 @@ function ClinicFinanceiroPage() {
 
       <div className="px-6 py-6 max-w-7xl mx-auto flex flex-col gap-6">
         {/* Header */}
+        {!isClinicPremium && !!clinicId && (
+          <UsageBar
+            used={allAuths.length}
+            total={limits.autorizacoes}
+            noun={["autorização", "autorizações"]}
+            onUpgrade={() => openUpgrade("clinica-autorizacoes")}
+            accentColor="#2563EB"
+          />
+        )}
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Autorizações de convênio</h1>
@@ -565,7 +579,7 @@ function ClinicFinanceiroPage() {
             </p>
           </div>
           <button
-            onClick={() => setShowNewModal(true)}
+            onClick={() => (!isClinicPremium && allAuths.length >= limits.autorizacoes) ? openUpgrade("clinica-autorizacoes") : setShowNewModal(true)}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors"
           >
             <Plus size={15} />
@@ -618,7 +632,7 @@ function ClinicFinanceiroPage() {
                 </p>
               </div>
               <button
-                onClick={() => setShowNewModal(true)}
+                onClick={() => (!isClinicPremium && allAuths.length >= limits.autorizacoes) ? openUpgrade("clinica-autorizacoes") : setShowNewModal(true)}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors"
               >
                 <Plus size={15} />

@@ -9,6 +9,8 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { rateLimit, getClientIp } from "@/server/rate-limit";
+import { isClinicPremium, clinicGateError } from "@/lib/subscription.functions";
+import { CLINIC_LIMITS } from "@/lib/plan-limits";
 import type { ClinicCommunication, CommType } from "@/types/clinic-communication";
 
 // Tipos que exigem token de confirmação da família
@@ -52,6 +54,17 @@ export const createCommunicationServer = createServerFn({ method: "POST" })
       .not("joined_at", "is", null)
       .single();
     if (!commMember) return { ok: false, error: "Acesso negado." };
+
+    // Gate freemium da clínica: Form 1 (confirmacao_fila) é sempre grátis;
+    // demais comunicações (Form 2/3 etc.) = 1 envio no free.
+    if (data.commType !== "confirmacao_fila" && !(await isClinicPremium(data.clinicId))) {
+      const { count } = await (supabaseAdmin as any)
+        .from("clinic_communications")
+        .select("id", { count: "exact", head: true })
+        .eq("clinic_id", data.clinicId)
+        .neq("comm_type", "confirmacao_fila");
+      if ((count ?? 0) >= CLINIC_LIMITS.comunicacoes) return clinicGateError("clinica-comunicacoes");
+    }
 
     const needsToken = TOKEN_COMM_TYPES.includes(data.commType as CommType);
     const deadlineDays = data.deadlineDays ?? 5;
@@ -122,21 +135,12 @@ export const getCommunicationByTokenServer = createServerFn({ method: "GET" })
   .inputValidator((d) =>
     z.object({ token: z.string().min(20) }).parse(d)
   )
-  .handler(async ({ data }): Promise<{
-    ok: true;
-    communication: ClinicCommunication;
-    payload: Record<string, unknown>;
-    expired: boolean;
-    confirmed: boolean;
-  } | { ok: false; error: string }> => {
+  .handler(async ({ data }) => {
     const request = getRequest();
     const ip = request ? getClientIp(request) : "unknown";
     const rl = rateLimit(`comm-token-get:${ip}`, 30, 60_000);
     if (!rl.allowed) {
-      throw new Response("Muitas tentativas. Tente novamente mais tarde.", {
-        status: 429,
-        headers: { "Retry-After": String(rl.retryAfterSeconds) },
-      });
+      return { ok: false as const, error: `Muitas tentativas. Tente novamente em ${rl.retryAfterSeconds}s.` };
     }
 
     const { data: tokenRow, error: tokenErr } = await (supabaseAdmin as any)

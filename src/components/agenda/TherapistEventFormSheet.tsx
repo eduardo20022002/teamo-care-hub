@@ -6,6 +6,9 @@ import { useState, useEffect } from "react";
 import { X, Loader2, MapPin } from "lucide-react";
 import { getPatientColor } from "@/lib/agenda/tokens";
 import type { TherapistSessionInput } from "@/services/agenda/events.service";
+import { usePlan } from "@/services/subscription.service";
+import { useUpgrade } from "@/components/premium/PremiumGate";
+import { PremiumBadge } from "@/components/premium/PremiumBadge";
 
 const TEAL = "#0D9488";
 const TEAL_SOFT = "#F0FDFA";
@@ -73,6 +76,10 @@ export function TherapistEventFormSheet({
   submitting,
   patients,
 }: Props) {
+  // Recorrência é Premium: no free só "Não repete" é permitida (DB também bloqueia).
+  const { isPremium } = usePlan();
+  const { openUpgrade } = useUpgrade();
+
   const [patientId, setPatientId]           = useState<string>(patients[0]?.id ?? "");
   const [sessionType, setSessionType]       = useState<SessionType>("individual");
   const [date, setDate]                     = useState<string>(todayISO());
@@ -80,7 +87,7 @@ export function TherapistEventFormSheet({
   const [duration, setDuration]             = useState<DurationOption>(60);
   const [customDuration, setCustomDuration] = useState<string>("15");
   const [customUnit, setCustomUnit]         = useState<CustomUnit>("minutes");
-  const [recurrence, setRecurrence]         = useState<RecurrenceOption>("weekly");
+  const [recurrence, setRecurrence]         = useState<RecurrenceOption>(isPremium ? "weekly" : "none");
   const [daysOfWeek, setDaysOfWeek]         = useState<number[]>([new Date().getDay()]);
   const [locale, setLocale]                 = useState<string>("");
 
@@ -94,11 +101,11 @@ export function TherapistEventFormSheet({
       setDuration(60);
       setCustomDuration("15");
       setCustomUnit("minutes");
-      setRecurrence("weekly");
+      setRecurrence(isPremium ? "weekly" : "none");
       setDaysOfWeek([new Date().getDay()]);
       setLocale("");
     }
-  }, [open, patients]);
+  }, [open, patients, isPremium]);
 
   if (!open) return null;
 
@@ -300,24 +307,38 @@ export function TherapistEventFormSheet({
             )}
           </div>
 
-          {/* Recorrência */}
+          {/* Recorrência — recorrentes são Premium */}
           <div>
-            <label className="block text-[13px] font-bold text-[#374151] mb-2">
+            <label className="mb-2 flex items-center gap-2 text-[13px] font-bold text-[#374151]">
               Recorrência
+              {!isPremium && <PremiumBadge />}
             </label>
             <div className="flex flex-wrap gap-2">
-              {RECURRENCE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setRecurrence(opt.value)}
-                  className="rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-all"
-                  style={chipStyle(recurrence === opt.value)}
-                >
-                  {opt.label}
-                </button>
-              ))}
+              {RECURRENCE_OPTIONS.map((opt) => {
+                const locked = !isPremium && opt.value !== "none";
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() =>
+                      locked ? openUpgrade("recurring") : setRecurrence(opt.value)
+                    }
+                    className="rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-all"
+                    style={{
+                      ...chipStyle(recurrence === opt.value),
+                      ...(locked ? { opacity: 0.55 } : {}),
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
             </div>
+            {!isPremium && (
+              <p className="mt-2 text-[12px] text-[#6B7280]">
+                Sessões recorrentes são Premium. No plano gratuito, crie sessões avulsas.
+              </p>
+            )}
           </div>
 
           {/* Dias da semana (semanal ou quinzenal) */}

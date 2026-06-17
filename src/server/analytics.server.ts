@@ -472,3 +472,121 @@ export async function fetchTechnicalHealthData(): Promise<TechnicalHealthData> {
 
   return { webVitals, errorRate, jsErrors, supabaseStatus };
 }
+
+// ─── Atividade de Acesso (admin) ─────────────────────────────────────────────
+
+export interface LoginSessionRow {
+  id: string;
+  userId: string;
+  fullName: string | null;
+  email: string | null;
+  userType: string | null;
+  therapistPlan: string | null;
+  startedAt: string;
+  lastSeenAt: string;
+  endedAt: string | null;
+  endReason: string | null;
+  ip: string | null;
+  userAgent: string | null;
+  durationMinutes: number;
+  active: boolean;
+}
+
+export interface LoginActivityData {
+  kpis: { activeNow: number; loginsToday: number; avgDurationMinutes: number };
+  recentSessions: LoginSessionRow[];
+  /** Logins por dia nos últimos 30 dias (ordem crescente). */
+  loginsPerDay: { date: string; count: number }[];
+  /** Matriz [diaDaSemana 0=Dom..6=Sáb][hora 0..23] = nº de logins. */
+  peakHours: number[][];
+}
+
+const ACTIVE_WINDOW_MS = 5 * 60 * 1000; // "ativo agora" = visto nos últimos 5 min
+
+function sessionDurationMs(startedAt: string, lastSeenAt: string, endedAt: string | null): number {
+  const start = new Date(startedAt).getTime();
+  const end = new Date(endedAt ?? lastSeenAt).getTime();
+  return Math.max(0, end - start);
+}
+
+export async function fetchLoginActivityData(): Promise<LoginActivityData> {
+  const now = Date.now();
+  const d30 = new Date(now - 30 * 86400_000).toISOString();
+  const startOfToday = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+
+  // Sessões dos últimos 30 dias com dados do perfil (join via FK user_id → profiles).
+  const { data: rows } = await (supabaseAdmin as any)
+    .from("user_sessions")
+    .select(
+      "id, user_id, started_at, last_seen_at, ended_at, end_reason, ip, user_agent, " +
+        "profiles:user_id (full_name, email, user_type, therapist_plan)",
+    )
+    .gte("started_at", d30)
+    .order("started_at", { ascending: false });
+
+  const sessions: any[] = rows ?? [];
+
+  // KPIs
+  let activeNow = 0;
+  let loginsToday = 0;
+  let durationSum = 0;
+  const peakHours: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  const perDay = new Map<string, number>();
+
+  for (const s of sessions) {
+    const startedAt = s.started_at as string;
+    const lastSeenAt = s.last_seen_at as string;
+    const endedAt = (s.ended_at as string | null) ?? null;
+
+    const isActive = !endedAt && now - new Date(lastSeenAt).getTime() < ACTIVE_WINDOW_MS;
+    if (isActive) activeNow++;
+    if (startedAt >= startOfToday) loginsToday++;
+    durationSum += sessionDurationMs(startedAt, lastSeenAt, endedAt);
+
+    const d = new Date(startedAt);
+    peakHours[d.getDay()][d.getHours()]++;
+    const key = d.toISOString().slice(0, 10);
+    perDay.set(key, (perDay.get(key) ?? 0) + 1);
+  }
+
+  const avgDurationMinutes = sessions.length
+    ? Math.round(durationSum / sessions.length / 60000)
+    : 0;
+
+  // Série de 30 dias preenchida (inclui dias sem login = 0).
+  const loginsPerDay: { date: string; count: number }[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const key = new Date(now - i * 86400_000).toISOString().slice(0, 10);
+    loginsPerDay.push({ date: key, count: perDay.get(key) ?? 0 });
+  }
+
+  // Lista das 50 sessões mais recentes (a UI mostra um trecho).
+  const recentSessions: LoginSessionRow[] = sessions.slice(0, 50).map((s) => {
+    const p = s.profiles ?? {};
+    const endedAt = (s.ended_at as string | null) ?? null;
+    const lastSeenAt = s.last_seen_at as string;
+    return {
+      id: s.id as string,
+      userId: s.user_id as string,
+      fullName: (p.full_name as string | null) ?? null,
+      email: (p.email as string | null) ?? null,
+      userType: (p.user_type as string | null) ?? null,
+      therapistPlan: (p.therapist_plan as string | null) ?? null,
+      startedAt: s.started_at as string,
+      lastSeenAt,
+      endedAt,
+      endReason: (s.end_reason as string | null) ?? null,
+      ip: (s.ip as string | null) ?? null,
+      userAgent: (s.user_agent as string | null) ?? null,
+      durationMinutes: Math.round(sessionDurationMs(s.started_at as string, lastSeenAt, endedAt) / 60000),
+      active: !endedAt && now - new Date(lastSeenAt).getTime() < ACTIVE_WINDOW_MS,
+    };
+  });
+
+  return {
+    kpis: { activeNow, loginsToday, avgDurationMinutes },
+    recentSessions,
+    loginsPerDay,
+    peakHours,
+  };
+}

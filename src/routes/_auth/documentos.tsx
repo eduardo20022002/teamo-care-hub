@@ -28,6 +28,9 @@ import { AddChildDocumentDialog } from "@/components/documents/AddChildDocumentD
 import { EmptyDocuments } from "@/components/documents/EmptyDocuments";
 import { DeleteAttachmentDialog } from "@/components/attachments/DeleteAttachmentDialog";
 import { track } from "@/lib/analytics";
+import { usePlan } from "@/services/subscription.service";
+import { useUpgrade } from "@/components/premium/PremiumGate";
+import { UsageBar } from "@/components/premium/UsageBar";
 
 export const Route = createFileRoute("/_auth/documentos")({
   head: () => ({
@@ -44,6 +47,8 @@ function DocumentosPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
+  const { isParentPremium, parentLimits } = usePlan();
+  const { openUpgrade } = useUpgrade();
 
   useEffect(() => {
     track("module.open", { module: "documentos", route: "/documentos" });
@@ -97,6 +102,12 @@ function DocumentosPage() {
         qc.invalidateQueries({ queryKey: ["documents-all"] });
         qc.invalidateQueries({ queryKey: ["child-attachments"] });
       }
+      // Backstop: o trigger do banco bloqueia o 2º documento no free.
+      if (failed.some((f) => f.error.includes("PREMIUM_REQUIRED"))) {
+        setAddOpen(false);
+        openUpgrade("documentos");
+        return;
+      }
       for (const f of failed) {
         toast.error(`${f.name}: ${f.error}`);
       }
@@ -128,6 +139,17 @@ function DocumentosPage() {
 
   const documents = documentsQuery.data ?? [];
   const childrenList = childrenQuery.data ?? [];
+
+  // Gate freemium do responsável: free = 1 documento (conta só anexos de criança).
+  const childDocCount = documents.filter((d) => d.source === "child").length;
+  const atDocLimit = !isParentPremium && childDocCount >= parentLimits.documents;
+  const handleAddDoc = () => {
+    if (atDocLimit) {
+      openUpgrade("documentos");
+      return;
+    }
+    setAddOpen(true);
+  };
 
   const filtered = useMemo(() => {
     return documents.filter((d) => {
@@ -186,7 +208,7 @@ function DocumentosPage() {
         {hasChildren && (
           <button
             type="button"
-            onClick={() => setAddOpen(true)}
+            onClick={handleAddDoc}
             className="flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] px-4 text-sm font-semibold text-white"
             style={{ background: BRAND_GRADIENT, boxShadow: BRAND_SHADOW }}
           >
@@ -195,6 +217,16 @@ function DocumentosPage() {
           </button>
         )}
       </header>
+
+      {/* Indicador de uso (plano gratuito do responsável) */}
+      {!isParentPremium && hasChildren && (
+        <UsageBar
+          used={childDocCount}
+          total={parentLimits.documents}
+          noun={["documento", "documentos"]}
+          onUpgrade={() => openUpgrade("documentos")}
+        />
+      )}
 
       {hasAny && (
         <div className="mb-6">
@@ -211,7 +243,7 @@ function DocumentosPage() {
       {!hasAny ? (
         <EmptyDocuments
           hasChildren={hasChildren}
-          onAdd={() => setAddOpen(true)}
+          onAdd={handleAddDoc}
         />
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">

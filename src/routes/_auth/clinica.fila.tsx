@@ -11,6 +11,9 @@ import { listQueueEntriesServer } from "@/lib/queue.functions";
 import { getMyClinicServer } from "@/lib/clinic.functions";
 import { authHeaders } from "@/lib/auth-headers";
 import { supabase } from "@/integrations/supabase/client";
+import { useClinicPlan } from "@/services/subscription.service";
+import { useUpgrade } from "@/components/premium/PremiumGate";
+import { UsageBar } from "@/components/premium/UsageBar";
 import {
   QUEUE_MODALIDADE_LABELS,
   QUEUE_TIER_LABELS,
@@ -144,6 +147,7 @@ function EntryRow({ entry }: { entry: QueueEntry }) {
 
 function ClinicFilaPage() {
   const queryClient = useQueryClient();
+  const { openUpgrade } = useUpgrade();
   const [aba, setAba] = useState<QueueModalidade | "todas">("todas");
   const [filterTier, setFilterTier] = useState<QueueTier | "todas">("todas");
   const [filterStatus, setFilterStatus] = useState<QueueStatus | "todas">("aguardando");
@@ -159,6 +163,7 @@ function ClinicFilaPage() {
   });
 
   const clinic = clinicQuery.data?.clinic;
+  const { isClinicPremium, limits } = useClinicPlan(clinic?.id);
 
   const entriesQuery = useQuery({
     queryKey: ["queue-entries", clinic?.id, aba, filterTier, filterStatus],
@@ -252,8 +257,19 @@ function ClinicFilaPage() {
     );
   }
 
+  const activeCount = entries.filter((e) => e.status !== "inativo").length;
+
   return (
     <div className="px-6 py-6 max-w-7xl mx-auto flex flex-col gap-6">
+      {!isClinicPremium && !!clinic?.id && (
+        <UsageBar
+          used={activeCount}
+          total={limits.casos}
+          noun={["caso ativo", "casos ativos"]}
+          onUpgrade={() => openUpgrade("clinica-casos")}
+          accentColor="#2563EB"
+        />
+      )}
       {/* Cabeçalho */}
       <div className="flex items-start justify-between gap-4">
         <div>

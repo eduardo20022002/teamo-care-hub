@@ -6,7 +6,7 @@ import { trackEventServer } from "@/lib/analytics.functions";
 
 // Session ID gerado uma vez por aba/sessão de browser.
 // Não é identificável sozinho; serve para agrupar eventos da mesma sessão.
-function getSessionId(): string {
+export function getSessionId(): string {
   // SSR guard: sessionStorage não existe no servidor
   if (typeof window === "undefined") return "ssr";
   const key = "__teamo_sid";
@@ -15,6 +15,17 @@ function getSessionId(): string {
     sid = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     sessionStorage.setItem(key, sid);
   }
+  return sid;
+}
+
+/**
+ * Gera um novo session_id. Chamar no login para que cada login (mesmo na mesma aba,
+ * após um logout) vire uma sessão distinta em user_sessions/analytics_events.
+ */
+export function resetSessionId(): string {
+  if (typeof window === "undefined") return "ssr";
+  const sid = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  sessionStorage.setItem("__teamo_sid", sid);
   return sid;
 }
 

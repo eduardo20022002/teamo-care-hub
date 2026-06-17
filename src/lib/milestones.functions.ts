@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { milestoneSchema, milestoneGoalSchema } from "@/lib/validation";
+import { isTherapistPremium } from "@/lib/subscription.functions";
 
 // ─── Helper: verificação de papel ────────────────────────────────────────────
 
@@ -77,6 +78,10 @@ export const createMilestoneServer = createServerFn({ method: "POST" })
     const { userId } = context as any;
     await assertTherapist(userId);
 
+    // Compartilhar marco com pais é Premium: no free, força não compartilhado.
+    const sharedWithParents =
+      (await isTherapistPremium(userId)) ? data.isSharedWithParents : false;
+
     const now = new Date().toISOString();
     const { data: created, error } = await supabaseAdmin
       .from("therapeutic_milestones" as any)
@@ -86,7 +91,7 @@ export const createMilestoneServer = createServerFn({ method: "POST" })
         title:                 data.title,
         area:                  data.area,
         description:           data.description ?? null,
-        is_shared_with_parents: data.isSharedWithParents,
+        is_shared_with_parents: sharedWithParents,
         status:                "em_progresso",
         started_at:            now,
         created_at:            now,
@@ -111,13 +116,17 @@ export const updateMilestoneServer = createServerFn({ method: "POST" })
     await assertTherapist(userId);
     await assertMilestoneOwner(data.milestoneId, userId);
 
+    // Compartilhar marco com pais é Premium: no free, força não compartilhado.
+    const sharedWithParents =
+      (await isTherapistPremium(userId)) ? data.isSharedWithParents : false;
+
     const { data: updated, error } = await supabaseAdmin
       .from("therapeutic_milestones" as any)
       .update({
         title:                 data.title,
         area:                  data.area,
         description:           data.description ?? null,
-        is_shared_with_parents: data.isSharedWithParents,
+        is_shared_with_parents: sharedWithParents,
         updated_at:            new Date().toISOString(),
       })
       .eq("id", data.milestoneId)

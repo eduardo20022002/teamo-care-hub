@@ -8,6 +8,9 @@ import { listQueueEntriesServer } from "@/lib/queue.functions";
 import { getMyClinicServer } from "@/lib/clinic.functions";
 import { authHeaders } from "@/lib/auth-headers";
 import { EVALUATION_INSTRUMENTS, type EvaluationReport } from "@/types/clinic-evaluation";
+import { useClinicPlan } from "@/services/subscription.service";
+import { useUpgrade } from "@/components/premium/PremiumGate";
+import { UsageBar } from "@/components/premium/UsageBar";
 
 export const Route = createFileRoute("/_auth/clinica/avaliacoes")({
   head: () => ({ meta: [{ title: "Avaliações — Clínica TEAmo" }] }),
@@ -37,6 +40,7 @@ function daysSince(date: string) {
 
 function ClinicAvaliacoesPage() {
   const [tab, setTab] = useState<"em_sessao" | "aguardando_relatorio" | "concluidas">("em_sessao");
+  const { openUpgrade } = useUpgrade();
 
   const getClinic = useServerFn(getMyClinicServer);
   const listReports = useServerFn(listEvaluationReportsServer);
@@ -47,6 +51,7 @@ function ClinicAvaliacoesPage() {
     queryFn: async () => getClinic({ headers: await authHeaders() }),
   });
   const clinicId = clinicQuery.data?.clinic?.id;
+  const { isClinicPremium, limits } = useClinicPlan(clinicId);
 
   const reportsQuery = useQuery({
     queryKey: ["evaluation-reports", clinicId],
@@ -91,6 +96,15 @@ function ClinicAvaliacoesPage() {
 
   return (
     <div className="px-6 py-6 max-w-7xl mx-auto flex flex-col gap-6">
+      {!isClinicPremium && !!clinicId && (
+        <UsageBar
+          used={reports.length}
+          total={limits.avaliacoes}
+          noun={["avaliação", "avaliações"]}
+          onUpgrade={() => openUpgrade("clinica-avaliacoes")}
+          accentColor="#2563EB"
+        />
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Avaliações</h1>

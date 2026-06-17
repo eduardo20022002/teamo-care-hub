@@ -27,6 +27,9 @@ import { DeleteAttendanceDialog } from "@/components/attendance/DeleteAttendance
 import { ShareDialog } from "@/components/sharing/ShareDialog";
 import { countRecordAttachments } from "@/services/attachments.service";
 import { track } from "@/lib/analytics";
+import { usePlan } from "@/services/subscription.service";
+import { useUpgrade } from "@/components/premium/PremiumGate";
+import { UsageBar } from "@/components/premium/UsageBar";
 
 const BRAND_GRADIENT =
   "linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%)";
@@ -67,6 +70,8 @@ function RegistrosPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
+  const { isParentPremium, parentLimits } = usePlan();
+  const { openUpgrade } = useUpgrade();
   const openNew = new URLSearchParams(location.search).get("new") === "1";
   // Captura uma única vez no mount (antes de navigate limpar a URL)
   const [savedDefaultChildId] = useState<string | undefined>(
@@ -106,6 +111,17 @@ function RegistrosPage() {
   const profsQuery = useQuery({ queryKey: ["professionals"], queryFn: listProfessionals, enabled: !!user });
   const recordsQuery = useQuery({ queryKey: ["diary-records"], queryFn: () => listDiaryRecords(), enabled: !!user });
 
+  // Gate freemium do responsável: free = até 10 registros.
+  const recordCount = recordsQuery.data?.length ?? 0;
+  const atRecordLimit = !isParentPremium && recordCount >= parentLimits.records;
+  const handleNewRecord = () => {
+    if (atRecordLimit) {
+      openUpgrade("registros");
+      return;
+    }
+    setTypePickerOpen(true);
+  };
+
   // Attachment count for delete dialog
   const attachCountQuery = useQuery({
     queryKey: ["record-attachments-count", deletingRecord?.id],
@@ -134,14 +150,26 @@ function RegistrosPage() {
         module: "registros",
         properties: { record_type: vars.input.record_type },
       });
-      toast.success("Registro criado.");
-      for (const msg of failed) toast.error(`Anexo não enviado — ${msg}`);
+      if (failed.length > 0) {
+        toast.success("Registro criado.");
+        for (const msg of failed) toast.error(`Anexo não enviado — ${msg}`);
+      } else {
+        toast.success("Registro criado.");
+      }
       qc.invalidateQueries({ queryKey: ["diary-records"] });
       qc.invalidateQueries({ queryKey: ["attendance"] });
       setFormOpen(false);
       setSelectedType(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      // Backstop: o trigger do banco bloqueia o 11º registro no free.
+      if (e.message.includes("PREMIUM_REQUIRED")) {
+        setFormOpen(false);
+        openUpgrade("registros");
+        return;
+      }
+      toast.error(e.message);
+    },
   });
 
   const updateMutation = useMutation({
@@ -278,7 +306,7 @@ function RegistrosPage() {
           {childrenList.length > 0 && (
             <button
               type="button"
-              onClick={() => setTypePickerOpen(true)}
+              onClick={handleNewRecord}
               className="flex h-9 w-9 items-center justify-center rounded-full text-white"
               style={{ background: BRAND_GRADIENT, boxShadow: BRAND_SHADOW }}
               aria-label="Novo registro"
@@ -288,6 +316,16 @@ function RegistrosPage() {
           )}
         </div>
       </header>
+
+      {/* Indicador de uso (plano gratuito do responsável) */}
+      {!isParentPremium && childrenList.length > 0 && (
+        <UsageBar
+          used={recordCount}
+          total={parentLimits.records}
+          noun={["registro", "registros"]}
+          onUpgrade={() => openUpgrade("registros")}
+        />
+      )}
 
       {/* Filter pills */}
       {hasAny && (
@@ -320,7 +358,7 @@ function RegistrosPage() {
           {childrenList.length > 0 && (
             <button
               type="button"
-              onClick={() => setTypePickerOpen(true)}
+              onClick={handleNewRecord}
               className="flex h-[50px] w-full max-w-[260px] items-center justify-center gap-2 rounded-[12px] text-sm font-semibold text-white"
               style={{ background: BRAND_GRADIENT, boxShadow: BRAND_SHADOW }}
             >

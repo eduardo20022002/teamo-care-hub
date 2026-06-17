@@ -27,8 +27,34 @@ import {
   sessionRecordSchema,
 } from "@/lib/validation";
 import { appBaseUrl } from "@/server/app-url";
+import {
+  assertTherapistPremium,
+  isTherapistPremium,
+} from "@/lib/subscription.functions";
+import { THERAPIST_LIMITS } from "@/lib/plan-limits";
 
 const APP_URL = appBaseUrl;
+
+// ─── Helper: gate de limite de pacientes (free = 2 pacientes) ─────────────────
+//
+// Conta os children do terapeuta (user_id = ele) — exatamente o que
+// listPatientsServer exibe, então a mensagem "limite de 2 pacientes" é fiel.
+// Pacientes acessados via convite de um pai chegam por outro path
+// (parent_professional_access, sem user_id = terapeuta) e NÃO contam — modelo
+// freemium assimétrico.
+async function assertCanCreatePatient(userId: string): Promise<void> {
+  if (await isTherapistPremium(userId)) return;
+  const { count } = await (supabaseAdmin as any)
+    .from("children")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+  if ((count ?? 0) >= THERAPIST_LIMITS.activePatients) {
+    throw new Response(
+      JSON.stringify({ code: "PREMIUM_REQUIRED", feature: "patients" }),
+      { status: 402, headers: { "Content-Type": "application/json" } },
+    );
+  }
+}
 
 // ─── Helper: nome do perfil ───────────────────────────────────────────────────
 
@@ -107,6 +133,7 @@ export const createPatientServer = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context as any;
     await assertTherapist(userId);
+    await assertCanCreatePatient(userId);
 
     const { data: child, error } = await supabaseAdmin
       .from("children")
@@ -149,6 +176,7 @@ export const sendTherapistInviteServer = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context as any;
     await assertTherapist(userId);
+    await assertTherapistPremium(userId, "invites");
 
     // Verifica que o terapeuta é DONO da criança (paciente criado por ele).
     // Usa supabaseAdmin + filtro explícito por user_id para NÃO depender de
@@ -246,6 +274,7 @@ export const resendTherapistInviteServer = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ inviteId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { userId } = context as any;
+    await assertTherapistPremium(userId, "invites");
 
     const { data: invite } = await (supabaseAdmin as any)
       .from("therapist_invites")
@@ -573,6 +602,7 @@ export const createPatientWithGuardiansServer = createServerFn({ method: "POST" 
   .handler(async ({ data, context }) => {
     const { userId } = context as any;
     await assertTherapist(userId);
+    await assertCanCreatePatient(userId);
 
     // INSERT na tabela children com guardian_info, birthDate e diagnoses
     const { data: child, error } = await (supabaseAdmin as any)
@@ -626,10 +656,14 @@ export const saveSessionPlanServer = createServerFn({ method: "POST" })
     if (fetchErr || !event) throw new Response("Evento não encontrado.", { status: 404 });
     if ((event as any).therapist_id !== userId) throw new Response("Sem permissão.", { status: 403 });
 
+    // Vínculo objetivo↔meta é Premium: no free, ignora silenciosamente os ids
+    // (o plano da sessão continua salvando normalmente, só sem o vínculo).
+    const premium = await isTherapistPremium(userId);
+
     const plan = {
       objectives:          data.objectives ?? null,
       specific_objectives: data.specificObjectives ?? [],
-      objective_goal_ids:  data.objectiveGoalIds ?? [],
+      objective_goal_ids:  premium ? (data.objectiveGoalIds ?? []) : [],
       activities:          data.activities ?? [],
       materials:           data.materials ?? null,
     };
@@ -708,6 +742,14 @@ export const saveSessionRecordServer = createServerFn({ method: "POST" })
     const now = new Date().toISOString();
     const publishing = !data.isDraft;
 
+    // Gating freemium (defense-in-depth). No free:
+    //  - registro é SEMPRE privado (toggle de privacidade é Premium);
+    //  - vínculo de pontos a continuar com sessão futura é Premium (ignorado).
+    const premium = await isTherapistPremium(userId);
+    const isPrivate = premium ? data.isPrivate : true;
+    const pointsToContinue = premium ? (data.pointsToContinue ?? null) : null;
+    const nextSessionEventId = premium ? (data.nextSessionEventId ?? null) : null;
+
     const recordPayload: Record<string, unknown> = {
       event_id:             data.eventId,
       therapist_id:         userId,
@@ -718,12 +760,12 @@ export const saveSessionRecordServer = createServerFn({ method: "POST" })
       clinical_observations: data.clinicalObservations ?? null,
       notable_behaviors:    data.notableBehaviors ?? [],
       professional_observations: data.professionalObservations ?? [],
-      is_private:           data.isPrivate,
+      is_private:           isPrivate,
       family_instruction:   data.familyInstruction ?? null,
       frequency_suggestion: data.frequencySuggestion ?? null,
-      points_to_continue:   data.pointsToContinue ?? null,
+      points_to_continue:   pointsToContinue,
       approach_adjustment:  data.approachAdjustment ?? null,
-      next_session_event_id: data.nextSessionEventId ?? null,
+      next_session_event_id: nextSessionEventId,
       is_draft:             data.isDraft,
       updated_at:           now,
     };
@@ -742,14 +784,14 @@ export const saveSessionRecordServer = createServerFn({ method: "POST" })
 
     // Se publicando: propaga points_to_continue para a sessão escolhida pelo terapeuta
     // (next_session_event_id) ou, na ausência de escolha, para o próximo evento cronológico.
-    if (publishing && data.pointsToContinue) {
+    if (publishing && pointsToContinue) {
       let targetEvent: { id: string; session_plan: unknown } | null = null;
 
-      if (data.nextSessionEventId) {
+      if (nextSessionEventId) {
         const { data: chosen } = await (supabaseAdmin as any)
           .from("agenda_events")
           .select("id, session_plan, therapist_id")
-          .eq("id", data.nextSessionEventId)
+          .eq("id", nextSessionEventId)
           .maybeSingle();
         // Só aceita se for sessão do próprio terapeuta (defesa em profundidade)
         if (chosen && (chosen as any).therapist_id === userId) {
@@ -776,7 +818,7 @@ export const saveSessionRecordServer = createServerFn({ method: "POST" })
         const updatedPlan = {
           ...existingPlan,
           // Pré-preenche objectives com os pontos a continuar (pode ser editado pelo terapeuta)
-          objectives_from_previous: data.pointsToContinue,
+          objectives_from_previous: pointsToContinue,
         };
         await (supabaseAdmin as any)
           .from("agenda_events")
@@ -1184,6 +1226,7 @@ export const createParentCommunicationServer = createServerFn({ method: "POST" }
   .handler(async ({ data, context }) => {
     const { userId } = context as any;
     await assertTherapistOwnsChild(userId, data.childId);
+    await assertTherapistPremium(userId, "recados");
 
     const { data: comm, error } = await (supabaseAdmin as any)
       .from("parent_communications")

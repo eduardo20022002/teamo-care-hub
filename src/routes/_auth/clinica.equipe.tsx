@@ -15,6 +15,9 @@ import {
 import { authHeaders } from "@/lib/auth-headers";
 import { CLINIC_MEMBER_ROLE_LABELS } from "@/types/clinic";
 import type { ClinicMemberRole } from "@/types/clinic";
+import { useClinicPlan } from "@/services/subscription.service";
+import { useUpgrade } from "@/components/premium/PremiumGate";
+import { PremiumPreview } from "@/components/premium/PremiumPreview";
 
 export const Route = createFileRoute("/_auth/clinica/equipe")({
   head: () => ({
@@ -300,6 +303,7 @@ function ConfirmRemoveModal({
 function ClinicEquipePage() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const { openUpgrade } = useUpgrade();
 
   const getClinic      = useServerFn(getMyClinicServer);
   const listMembers    = useServerFn(listClinicMembersServer);
@@ -319,6 +323,15 @@ function ClinicEquipePage() {
   });
 
   const clinicId = clinicQuery.data?.clinic?.id ?? "";
+  const { isClinicPremium, isLoading: planLoading } = useClinicPlan(clinicId || undefined);
+
+  if (clinicId && !planLoading && !isClinicPremium) {
+    return (
+      <div className="px-6 py-6 max-w-4xl mx-auto">
+        <PremiumPreview feature="clinica-equipe" />
+      </div>
+    );
+  }
 
   const membersQuery = useQuery({
     queryKey: ["clinicMembers", clinicId],

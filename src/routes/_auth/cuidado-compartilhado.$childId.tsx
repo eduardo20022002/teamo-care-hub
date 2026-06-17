@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
+import { usePlan } from "@/services/subscription.service";
+import { PremiumPreview } from "@/components/premium/PremiumPreview";
 import {
   useCareInvites,
   useSendCareInvite,
@@ -464,11 +466,22 @@ function PendingRow({
 
 function ManageCarePage() {
   const { childId } = Route.useParams();
+  const navigate = useNavigate();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const { isParentPremium, isLoading: planLoading } = usePlan();
   const { data, isLoading, isError, refetch } = useCareInvites(childId);
 
   const totalPending =
     (data?.aguardandoAprovacao?.length ?? 0) + (data?.aguardandoAceite?.length ?? 0);
+
+  // Convidar co-cuidadores é Premium do responsável.
+  if (!planLoading && !isParentPremium) {
+    return (
+      <AppShell onBack={() => navigate({ to: "/dashboard" })}>
+        <PremiumPreview feature="cuidado-compartilhado" />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>

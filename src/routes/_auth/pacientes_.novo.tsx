@@ -4,11 +4,14 @@
  * Design: área do terapeuta (teal #0D9488).
  */
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Plus, Trash2, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
-import { useCreatePatientWithGuardians } from "@/services/therapist.service";
+import { useCreatePatientWithGuardians, usePatients } from "@/services/therapist.service";
+import { usePlan } from "@/services/subscription.service";
+import { useUpgrade } from "@/components/premium/PremiumGate";
+import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const TEAL        = "#0D9488";
@@ -73,6 +76,30 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function NovoPackientePage() {
   const navigate = useNavigate();
   const createPatient = useCreatePatientWithGuardians();
+
+  // ── Gate freemium: free = até 2 pacientes ──────────────────────────────────
+  const { isPremium, isLoading: planLoading, limits } = usePlan();
+  const { data: patientsData, isLoading: patientsLoading } = usePatients();
+  const { openUpgrade } = useUpgrade();
+
+  const patientCount = patientsData?.patients?.length ?? 0;
+  const gateLoading = planLoading || patientsLoading;
+  const blocked = !gateLoading && !isPremium && patientCount >= limits.activePatients;
+
+  useEffect(() => {
+    if (blocked) {
+      openUpgrade("patients");
+      navigate({ to: "/dashboard" });
+    }
+  }, [blocked, openUpgrade, navigate]);
+
+  if (gateLoading || blocked) {
+    return (
+      <AppShell hideMenu onBack={() => navigate({ to: "/dashboard" })}>
+        <LoadingSpinner label="Carregando..." />
+      </AppShell>
+    );
+  }
 
   // Form state
   const [name, setName]           = useState("");

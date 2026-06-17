@@ -1,6 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { logAuthEvent } from "./audit.service";
+import { startSession, endSession } from "./session.service";
+import { resetSessionId } from "@/lib/analytics";
 
 export interface AuthResult {
   ok: boolean;
@@ -162,6 +164,9 @@ export async function signIn(email: string, password: string): Promise<AuthResul
     };
   }
   await logAuthEvent(data.user?.id ?? null, "auth.login_success", {});
+  // Novo session_id por login (mesmo na mesma aba após logout) + inicia o rastreamento.
+  resetSessionId();
+  void startSession();
   return { ok: true };
 }
 
@@ -172,6 +177,8 @@ export async function signOut(reason: "manual" | "idle" = "manual"): Promise<voi
     reason === "idle" ? "auth.session_expired" : "auth.logout",
     {},
   );
+  // Encerra a sessão ANTES do signOut (precisa do token para o ServerFn autenticado).
+  await endSession(reason === "idle" ? "idle" : "logout");
   await supabase.auth.signOut();
 }
 

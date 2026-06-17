@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { useSaveSessionPlan, useGetSessionRecord } from "@/services/therapist.service";
 import { useAllGoalsForChild, type GoalPickerItem } from "@/services/milestones.service";
+import { usePlan } from "@/services/subscription.service";
+import { useUpgrade } from "@/components/premium/PremiumGate";
 import { MILESTONE_AREA_COLORS } from "@/lib/validation";
 
 const TEAL = "#0D9488";
@@ -189,6 +191,9 @@ function SessionPlanPage() {
   const navigate = useNavigate();
   const { eventId } = Route.useParams();
   const savePlan = useSaveSessionPlan();
+  // Vínculo objetivo↔meta é Premium (server ignora os ids no free).
+  const { isPremium } = usePlan();
+  const { openUpgrade } = useUpgrade();
   const { data, isLoading } = useGetSessionRecord(eventId);
 
   const [objectives, setObjectives] = useState("");
@@ -422,13 +427,13 @@ function SessionPlanPage() {
                         {/* Botão de vínculo */}
                         <button
                           type="button"
-                          onClick={() => setPickerForIndex(i)}
-                          title="Vincular a metas"
+                          onClick={() => (isPremium ? setPickerForIndex(i) : openUpgrade("goal-link"))}
+                          title={isPremium ? "Vincular a metas" : "Vincular a metas (Premium)"}
                           className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border transition-colors relative"
                           style={
                             hasLinks
                               ? { borderColor: TEAL, background: TEAL + "11" }
-                              : { borderColor: "#E5E7EB" }
+                              : { borderColor: "#E5E7EB", ...(isPremium ? {} : { opacity: 0.6 }) }
                           }
                         >
                           <Link2 size={14} strokeWidth={1.8} color={hasLinks ? TEAL : "#9CA3AF"} />

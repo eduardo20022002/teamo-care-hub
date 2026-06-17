@@ -9,6 +9,12 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { rateLimit, getClientIp } from "@/server/rate-limit";
+import {
+  isClinicPremium,
+  clinicGateError,
+  clinicResourceCount,
+} from "@/lib/subscription.functions";
+import { CLINIC_LIMITS } from "@/lib/plan-limits";
 import type { EvaluationReport, PatientProfile, ClinicFormToken } from "@/types/clinic-evaluation";
 
 // ─── createEvaluationReportServer ────────────────────────────────────────────
@@ -35,6 +41,12 @@ export const createEvaluationReportServer = createServerFn({ method: "POST" })
       .single();
 
     if (!member) return { ok: false, error: "Sem permissão para esta clínica" };
+
+    // Gate freemium da clínica: free = 1 avaliação.
+    if (!(await isClinicPremium(data.clinicId))) {
+      const count = await clinicResourceCount("evaluation_reports", data.clinicId);
+      if (count >= CLINIC_LIMITS.avaliacoes) return clinicGateError("clinica-avaliacoes");
+    }
 
     const { data: report, error } = await supabaseAdmin
       .from("evaluation_reports")
@@ -675,6 +687,14 @@ export const approvePatientProfileServer = createServerFn({ method: "POST" })
       .single();
 
     if (member?.role !== "coordinator") return { ok: false, error: "Apenas coordenadores podem aprovar cadastros" };
+
+    // Gate freemium da clínica: free = 1 caso ativo (paciente aprovado).
+    if (data.action === "aprovado" && !(await isClinicPremium(profile.clinic_id))) {
+      const count = await clinicResourceCount("patient_profiles", profile.clinic_id, (q) =>
+        q.eq("status", "aprovado").neq("id", data.profileId),
+      );
+      if (count >= CLINIC_LIMITS.casos) return clinicGateError("clinica-casos");
+    }
 
     const { error } = await supabaseAdmin
       .from("patient_profiles")

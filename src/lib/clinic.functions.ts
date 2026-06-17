@@ -8,6 +8,7 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { nameToSlug } from "@/lib/slugify";
+import { isClinicPremium, clinicGateError } from "@/lib/subscription.functions";
 import type { Clinic, ClinicMember, ClinicInvite } from "@/types/clinic";
 import type { Json } from "@/integrations/supabase/types";
 
@@ -268,6 +269,9 @@ export const createClinicInviteServer = createServerFn({ method: "POST" })
     if (member?.role !== "coordinator" && clinic?.owner_id !== userId) {
       return { ok: false, error: "Sem permissão para convidar membros." };
     }
+
+    // Equipe (convidar terapeutas/recepcionistas) é Premium da clínica (free = só coordenador).
+    if (!(await isClinicPremium(data.clinicId))) return clinicGateError("clinica-equipe");
 
     // Buscar user_id pelo email para checar se já é membro ativo
     const { data: profile } = await supabaseAdmin

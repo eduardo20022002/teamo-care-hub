@@ -17,6 +17,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/useAuth";
+import { usePlan } from "@/services/subscription.service";
+import { PremiumPreview } from "@/components/premium/PremiumPreview";
 import {
   buildPublicShareUrl,
   deriveShareStatus,
@@ -446,6 +448,7 @@ function ProfCard({
 function SharesPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isParentPremium, isLoading: planLoading } = usePlan();
   const qc = useQueryClient();
   const listFn = useListShares();
   const revokeFn = useRevokeShare();
@@ -545,6 +548,15 @@ function SharesPage() {
   }, [sharesQuery.data]);
 
   const hasAny = (sharesQuery.data ?? []).length > 0;
+
+  // Compartilhamento via OTP é Premium do responsável (free-vs-premium-responsavel.md).
+  if (!planLoading && !isParentPremium) {
+    return (
+      <AppShell onBack={() => navigate({ to: "/dashboard" })}>
+        <PremiumPreview feature="compartilhamentos" />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>

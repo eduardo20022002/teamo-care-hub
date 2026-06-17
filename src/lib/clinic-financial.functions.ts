@@ -13,6 +13,12 @@ import type {
   AuthorizationAlert,
 } from "@/types/clinic-financial";
 import { getAlertLevel } from "@/types/clinic-financial";
+import {
+  isClinicPremium,
+  clinicGateError,
+  clinicResourceCount,
+} from "@/lib/subscription.functions";
+import { CLINIC_LIMITS } from "@/lib/plan-limits";
 
 // ─── createInsuranceAuthorizationServer ──────────────────────────────────────
 
@@ -43,6 +49,12 @@ export const createInsuranceAuthorizationServer = createServerFn({ method: "POST
 
     if (member?.role !== "coordinator") {
       return { ok: false, error: "Apenas coordenadores podem cadastrar autorizações" };
+    }
+
+    // Gate freemium da clínica: free = 1 autorização.
+    if (!(await isClinicPremium(data.clinicId))) {
+      const count = await clinicResourceCount("insurance_authorizations", data.clinicId);
+      if (count >= CLINIC_LIMITS.autorizacoes) return clinicGateError("clinica-autorizacoes");
     }
 
     const { data: auth, error } = await supabaseAdmin

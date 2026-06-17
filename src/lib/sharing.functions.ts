@@ -8,6 +8,7 @@ import {
   logShareEvent,
   SHARING_TABLES,
 } from "@/server/sharing.server";
+import { assertParentPremium } from "@/lib/subscription.functions";
 
 // 2160h = 90 days (~3 months). Trigger DB allows up to 93 days for safety margin.
 const createShareSchema = z.object({
@@ -28,6 +29,9 @@ export const createShare = createServerFn({ method: "POST" })
   .inputValidator((data) => createShareSchema.parse(data))
   .handler(async ({ data, context }) => {
     const { userId, supabase } = context as any;
+
+    // Compartilhamento via OTP é Premium do responsável.
+    await assertParentPremium(userId, "compartilhamentos");
 
     // Validate professional belongs to this user (RLS-protected query)
     const { data: prof, error: profErr } = await supabase

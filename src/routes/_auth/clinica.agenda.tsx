@@ -6,6 +6,8 @@ import { ChevronLeft, ChevronRight, Plus, X, CheckCircle, AlertCircle, XCircle, 
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { authHeaders } from "@/lib/auth-headers";
+import { useClinicPlan } from "@/services/subscription.service";
+import { useUpgrade } from "@/components/premium/PremiumGate";
 import {
   listClinicSessionsServer,
   updateSessionStatusServer,
@@ -75,6 +77,7 @@ export default function ClinicAgendaPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { openUpgrade } = useUpgrade();
 
   const [viewMode, setViewMode] = useState<ViewMode>("profissional");
   const [weekStart, setWeekStart] = useState<Date>(getMonday(new Date()));
@@ -95,6 +98,7 @@ export default function ClinicAgendaPage() {
   });
 
   const clinicId = clinicQuery.data?.clinic?.id ?? "";
+  const { isClinicPremium } = useClinicPlan(clinicId || undefined);
 
   const sessionsQuery = useQuery({
     queryKey: ["clinicSessions", clinicId, toISO(weekStart)],
@@ -163,7 +167,7 @@ export default function ClinicAgendaPage() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setAbsenceModalOpen(true)}
+            onClick={() => isClinicPremium ? setAbsenceModalOpen(true) : openUpgrade("clinica-sessoes")}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
             style={{ border: "0.5px solid #E5E7EB" }}
           >
@@ -529,7 +533,14 @@ function AbsenceModal({
         },
         headers: await authHeaders(),
       });
-      if (!res.ok) { toast.error(res.error || "Erro ao registrar ausência."); return; }
+      if (!res.ok) {
+        if (res.error?.includes("PREMIUM_REQUIRED")) {
+          toast.error("Registrar ausências requer o plano Premium da clínica.");
+        } else {
+          toast.error(res.error || "Erro ao registrar ausência.");
+        }
+        return;
+      }
       onSuccess();
     } finally {
       setLoading(false);

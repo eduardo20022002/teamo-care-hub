@@ -15,6 +15,7 @@ import type {
   CompatibilityAlert,
   MatchingCriteria,
 } from "@/types/clinic-groups";
+import { isClinicPremium, clinicGateError } from "@/lib/subscription.functions";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -163,6 +164,9 @@ export const createGroupServer = createServerFn({ method: "POST" })
     if (member?.role !== "coordinator") {
       return { ok: false, error: "Apenas coordenadores podem criar grupos" };
     }
+
+    // Grupos ABA são exclusivos do Premium da clínica.
+    if (!(await isClinicPremium(data.clinicId))) return clinicGateError("clinica-grupos");
 
     const insertData: Record<string, unknown> = {
       clinic_id:         data.clinicId,

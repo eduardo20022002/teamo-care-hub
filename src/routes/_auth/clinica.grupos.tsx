@@ -11,6 +11,8 @@ import { listGroupsServer, createGroupServer } from "@/lib/clinic-groups.functio
 import { listClinicRoomsServer as listRoomsServer } from "@/lib/clinic-agenda.functions";
 import type { ClinicGroup } from "@/types/clinic-groups";
 import { GROUP_STATUS_LABELS, GROUP_STATUS_COLORS, DAY_NAMES_SHORT } from "@/types/clinic-groups";
+import { useClinicPlan } from "@/services/subscription.service";
+import { PremiumPreview } from "@/components/premium/PremiumPreview";
 
 export const Route = createFileRoute("/_auth/clinica/grupos")({
   head: () => ({ meta: [{ title: "Grupos ABA — Clínica TEAmo" }] }),
@@ -152,6 +154,15 @@ function ClinicGruposPage() {
   });
 
   const clinicId = clinicQuery.data?.clinic?.id ?? "";
+  const { isClinicPremium, isLoading: planLoading } = useClinicPlan(clinicId || undefined);
+
+  if (clinicId && !planLoading && !isClinicPremium) {
+    return (
+      <div className="px-6 py-6 max-w-7xl mx-auto">
+        <PremiumPreview feature="clinica-grupos" />
+      </div>
+    );
+  }
 
   const groupsQuery = useQuery({
     queryKey: ["clinicGroups", clinicId],

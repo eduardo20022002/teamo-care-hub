@@ -24,6 +24,9 @@ import {
   type NotableBehaviorType,
   type SessionRecordInput,
 } from "@/lib/validation";
+import { usePlan } from "@/services/subscription.service";
+import { useUpgrade } from "@/components/premium/PremiumGate";
+import { PremiumBadge } from "@/components/premium/PremiumBadge";
 
 const TEAL = "#0D9488";
 const TEAL_SOFT = "#F0FDFA";
@@ -281,6 +284,8 @@ function SectionBlock({
 
 function SessionRecordPage() {
   const navigate = useNavigate();
+  const { isPremium } = usePlan();
+  const { openUpgrade } = useUpgrade();
   const { eventId } = Route.useParams();
   const saveRecord = useSaveSessionRecord();
   const { data, isLoading } = useGetSessionRecord(eventId);
@@ -632,40 +637,54 @@ function SessionRecordPage() {
           {/* ═══ Bloco 2 — Observações clínicas ═══ */}
           <SectionBlock number={2} title="Observações clínicas">
             {/* Controle de visibilidade — bloco clicável e explícito */}
-            <button
-              type="button"
-              onClick={() => setIsPrivate((v) => !v)}
-              className="mb-4 flex w-full items-center gap-3 rounded-[14px] border-2 px-4 py-3 text-left transition-colors"
-              style={
-                isPrivate
-                  ? { borderColor: "#CBD5E1", background: "#F8FAFC" }
-                  : { borderColor: TEAL_BORDER, background: TEAL_SOFT }
-              }
-            >
-              <div
-                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full"
-                style={{ background: isPrivate ? "#E2E8F0" : "white" }}
-              >
-                {isPrivate ? <Lock size={16} color="#475569" /> : <Eye size={16} color={TEAL} />}
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold" style={{ color: isPrivate ? "#475569" : TEAL }}>
-                  {isPrivate ? "Privado — só você vê" : "Compartilhado com a família"}
-                </p>
-                <p className="text-xs text-[#6B7280] mt-0.5">
-                  Toque para {isPrivate ? "compartilhar com os responsáveis" : "tornar privado"}
-                </p>
-              </div>
-              <div
-                className="flex h-6 w-11 flex-shrink-0 items-center rounded-full px-0.5 transition-colors"
-                style={{ background: isPrivate ? "#CBD5E1" : TEAL }}
-              >
-                <div
-                  className="h-5 w-5 rounded-full bg-white shadow-sm transition-transform"
-                  style={{ transform: isPrivate ? "translateX(0)" : "translateX(20px)" }}
-                />
-              </div>
-            </button>
+            {(() => {
+              // No free, o registro é sempre privado e o toggle é Premium.
+              const lockedFree = !isPremium;
+              const showPrivate = lockedFree ? true : isPrivate;
+              return (
+                <button
+                  type="button"
+                  onClick={() =>
+                    lockedFree ? openUpgrade("privacy") : setIsPrivate((v) => !v)
+                  }
+                  className="mb-4 flex w-full items-center gap-3 rounded-[14px] border-2 px-4 py-3 text-left transition-colors"
+                  style={
+                    showPrivate
+                      ? { borderColor: "#CBD5E1", background: "#F8FAFC" }
+                      : { borderColor: TEAL_BORDER, background: TEAL_SOFT }
+                  }
+                >
+                  <div
+                    className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full"
+                    style={{ background: showPrivate ? "#E2E8F0" : "white" }}
+                  >
+                    {showPrivate ? <Lock size={16} color="#475569" /> : <Eye size={16} color={TEAL} />}
+                  </div>
+                  <div className="flex-1">
+                    <p className="flex items-center gap-1.5 text-sm font-bold" style={{ color: showPrivate ? "#475569" : TEAL }}>
+                      {showPrivate ? "Privado — só você vê" : "Compartilhado com a família"}
+                      {lockedFree && <PremiumBadge />}
+                    </p>
+                    <p className="text-xs text-[#6B7280] mt-0.5">
+                      {lockedFree
+                        ? "Compartilhar registros com a família é Premium"
+                        : `Toque para ${isPrivate ? "compartilhar com os responsáveis" : "tornar privado"}`}
+                    </p>
+                  </div>
+                  {!lockedFree && (
+                    <div
+                      className="flex h-6 w-11 flex-shrink-0 items-center rounded-full px-0.5 transition-colors"
+                      style={{ background: isPrivate ? "#CBD5E1" : TEAL }}
+                    >
+                      <div
+                        className="h-5 w-5 rounded-full bg-white shadow-sm transition-transform"
+                        style={{ transform: isPrivate ? "translateX(0)" : "translateX(20px)" }}
+                      />
+                    </div>
+                  )}
+                </button>
+              );
+            })()}
 
             <div className="mb-4">
               <textarea
