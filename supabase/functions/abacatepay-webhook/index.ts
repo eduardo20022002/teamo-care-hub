@@ -3,38 +3,28 @@
 // Recebe eventos de assinatura do AbacatePay e espelha o status na tabela
 // `subscriptions` + campo de plano em `profiles`/`clinics`.
 //
-// Segurança: HMAC-SHA256 com a chave pública fixa da AbacatePay (header X-Webhook-Signature).
+// Segurança: HMAC-SHA256 com o secret configurado por webhook no painel AbacatePay
+//   (header X-Webhook-Signature, valor em base64).
 //
 // Deploy:
 //   supabase functions deploy abacatepay-webhook --project-ref oguqnqdqqqzvfrdztykz
 //
 // Secrets necessários (supabase secrets set --project-ref oguqnqdqqqzvfrdztykz):
-//   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+//   ABACATEPAY_WEBHOOK_SECRET, SUPABASE_URL (auto), SUPABASE_SERVICE_ROLE_KEY (auto)
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-// Chave pública fixa da AbacatePay para verificação HMAC de todos os webhooks.
-const ABACATEPAY_PUBLIC_KEY =
-  "t9dXRhHHo3yDEj5pVDYz0frf7q6bMKyMRmxxCPIPp3RCplBfXRxqlC6ZpiWmOqj4L63qEaeUOtrCI8P0VMUgo6iIga2ri9ogaHFs0WIIywSMg0q7RmBfybe1E5XJcfC4IW3alNqym0tXoAKkzvfEjZxV6bE0oG2zJrNNYmUCKZyV0KZ3JS8Votf9EAWWYdiDkMkpbMdPggfh1EqHlVkMiTady6jOR3hyzGEHrIz2Ret0xHKMbiqkr9HS1JhNHDX9";
-
 async function verifySignature(rawBody: string, sig: string): Promise<boolean> {
   try {
+    const secret = Deno.env.get("ABACATEPAY_WEBHOOK_SECRET");
+    if (!secret) {
+      console.error("abacatepay-webhook: ABACATEPAY_WEBHOOK_SECRET não configurado");
+      return false;
+    }
     const enc = new TextEncoder();
-    const keyBytes = enc.encode(ABACATEPAY_PUBLIC_KEY);
+    const keyBytes = enc.encode(secret);
     const msgBytes = enc.encode(rawBody);
 
-    const key = await crypto.subtle.importKey(
-      "raw",
-      keyBytes,
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"],
-    );
-
-    const computed = await crypto.subtle.sign("HMAC", key, msgBytes);
-    const computedB64 = btoa(String.fromCharCode(...new Uint8Array(computed)));
-
-    // Comparação timing-safe via crypto.subtle.verify
     const verifyKey = await crypto.subtle.importKey(
       "raw",
       keyBytes,
