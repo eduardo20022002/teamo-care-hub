@@ -1,13 +1,19 @@
 // ServerFns + helpers do módulo de Assinaturas (Freemium).
 // Nunca importar de arquivos *.client.* — todos rodam no servidor.
-//
-// Etapa 1 (gating): o plano é lido de profiles.therapist_plan (espelho de subscriptions).
-// Escritas ficam para a Etapa 2 (webhook AbacatePay) / gating manual via service_role.
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import type { PlanTier, PremiumFeature } from "@/lib/plan-limits";
+import type { PlanTier, PlanScope, PremiumFeature } from "@/lib/plan-limits";
+
+const ABACATEPAY_BASE = "https://api.abacatepay.com/v2";
+
+function abacateHeaders() {
+  return {
+    Authorization: `Bearer ${process.env.ABACATEPAY_API_KEY}`,
+    "Content-Type": "application/json",
+  };
+}
 
 // ─── Helpers de gate (reutilizados por todos os ServerFns gated) ──────────────
 
@@ -149,6 +155,106 @@ export async function clinicResourceCount(
   const { count } = await q;
   return count ?? 0;
 }
+
+// ─── AbacatePay — checkout de assinatura ──────────────────────────────────────
+
+/**
+ * Retorna o `customerId` AbacatePay do usuário.
+ * Primeiro tenta reusar um ID já salvo em qualquer subscription desse usuário.
+ * Se não encontrar, cria um novo customer via API e retorna o ID (não persiste —
+ * o webhook salva após a assinatura ser criada).
+ */
+async function createOrGetAbacateCustomer(userId: string): Promise<string> {
+  const { data: existing } = await (supabaseAdmin as any)
+    .from("subscriptions")
+    .select("provider_customer_id")
+    .eq("user_id", userId)
+    .not("provider_customer_id", "is", null)
+    .limit(1)
+    .maybeSingle();
+
+  if ((existing as any)?.provider_customer_id) {
+    return (existing as any).provider_customer_id as string;
+  }
+
+  const { data: authData } = await supabaseAdmin.auth.admin.getUserById(userId);
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("full_name")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const resp = await fetch(`${ABACATEPAY_BASE}/customers/create`, {
+    method: "POST",
+    headers: abacateHeaders(),
+    body: JSON.stringify({
+      name: (profile as any)?.full_name ?? "Usuário TEAmo",
+      email: authData?.user?.email ?? "",
+    }),
+  });
+  const json = await resp.json();
+  if (!json.success) throw new Error(`AbacatePay customer: ${json.error}`);
+  return json.data.id as string;
+}
+
+export const createSubscriptionCheckoutServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        scope: z.enum(["therapist", "parent", "clinic"]),
+        clinicId: z.string().uuid().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: true; checkoutUrl: string } | { ok: false; error: string }> => {
+    const { userId } = context as any;
+
+    const { data: existing } = await (supabaseAdmin as any)
+      .from("subscriptions")
+      .select("status")
+      .eq("user_id", userId)
+      .eq("scope", data.scope)
+      .maybeSingle();
+
+    if ((existing as any)?.status === "active" || (existing as any)?.status === "trialing") {
+      return { ok: false, error: "ALREADY_SUBSCRIBED" };
+    }
+
+    const productIds: Record<PlanScope, string | undefined> = {
+      therapist: process.env.ABACATEPAY_PRODUCT_THERAPIST_ID,
+      parent: process.env.ABACATEPAY_PRODUCT_PARENT_ID,
+      clinic: process.env.ABACATEPAY_PRODUCT_CLINIC_ID,
+    };
+    const productId = productIds[data.scope];
+    if (!productId) return { ok: false, error: "PRODUCT_NOT_CONFIGURED" };
+
+    let customerId: string;
+    try {
+      customerId = await createOrGetAbacateCustomer(userId);
+    } catch (e: any) {
+      return { ok: false, error: e.message ?? "CUSTOMER_ERROR" };
+    }
+
+    const appUrl = (process.env.APP_URL ?? "https://teamo.vercel.app").replace(/\/$/, "");
+    const scopeQs = `scope=${data.scope}${data.clinicId ? `&clinicId=${data.clinicId}` : ""}`;
+
+    const resp = await fetch(`${ABACATEPAY_BASE}/subscriptions/create`, {
+      method: "POST",
+      headers: abacateHeaders(),
+      body: JSON.stringify({
+        items: [{ id: productId, quantity: 1 }],
+        customerId,
+        externalId: `${userId}:${data.scope}`,
+        completionUrl: `${appUrl}/premium/ativado?${scopeQs}`,
+        returnUrl: `${appUrl}/premium?${scopeQs}`,
+        methods: ["CARD"],
+      }),
+    });
+    const json = await resp.json();
+    if (!json.success) return { ok: false, error: json.error ?? "CHECKOUT_ERROR" };
+    return { ok: true, checkoutUrl: json.data.url as string };
+  });
 
 // ─── getClinicPlanStatusServer — status do plano da clínica para o frontend ───
 

@@ -1,18 +1,15 @@
-/**
- * /premium — Tela de planos (TEAmo Premium). Escopo-aware: mostra o plano do
- * RESPONSÁVEL (R$ 29,90, roxo) ou do TERAPEUTA (R$ 49,90, teal) conforme o
- * ?scope= recebido (ou o user_type do usuário, como padrão).
- * Etapa 1 (gating): o CTA de assinatura é "Em breve" — checkout AbacatePay na Etapa 2.
- */
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Check, Minus, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlan, useClinicPlan } from "@/services/subscription.service";
 import { THERAPIST_PRICE, PARENT_PRICE, CLINIC_PRICE } from "@/lib/plan-limits";
+import { createSubscriptionCheckoutServer } from "@/lib/subscription.functions";
 
 type Scope = "therapist" | "parent" | "clinic";
 
@@ -111,6 +108,23 @@ function PremiumPage() {
   const { isClinicPremium } = useClinicPlan(scopeParam === "clinic" ? clinicId : undefined);
 
   // Padrão de escopo: usa o user_type quando o ?scope não foi informado.
+  const checkoutFn = useServerFn(createSubscriptionCheckoutServer);
+  const checkout = useMutation({
+    mutationFn: () => checkoutFn({ data: { scope, clinicId } } as any),
+    onSuccess: (res: any) => {
+      if (res?.ok) {
+        window.location.href = res.checkoutUrl;
+      } else if (res?.error === "ALREADY_SUBSCRIBED") {
+        toast.info("Você já tem uma assinatura ativa neste plano.");
+      } else if (res?.error === "PRODUCT_NOT_CONFIGURED") {
+        toast.error("Pagamento temporariamente indisponível. Tente novamente em breve.");
+      } else {
+        toast.error("Erro ao iniciar checkout. Tente novamente.");
+      }
+    },
+    onError: () => toast.error("Erro ao iniciar checkout. Tente novamente."),
+  });
+
   const { data: profile } = useQuery({
     queryKey: ["premium-user-type", user?.id],
     queryFn: async () => {
@@ -187,7 +201,7 @@ function PremiumPage() {
           ))}
         </div>
 
-        {/* CTA — Etapa 1: pagamento ainda não disponível */}
+        {/* CTA */}
         {alreadyPremium ? (
           <div
             className="mt-6 rounded-xl border p-4 text-center text-sm font-medium"
@@ -197,11 +211,18 @@ function PremiumPage() {
           </div>
         ) : (
           <>
-            <Button disabled className="mt-6 h-12 w-full rounded-xl text-base font-semibold">
-              Assinatura em breve
+            <Button
+              onClick={() => checkout.mutate()}
+              disabled={checkout.isPending}
+              className="mt-6 h-12 w-full rounded-xl text-base font-semibold text-white"
+              style={{ background: theme.accent }}
+            >
+              {checkout.isPending
+                ? "Redirecionando..."
+                : `Assinar por R$ ${formatPrice(price.monthly)}/mês`}
             </Button>
             <p className="mt-2 text-center text-xs text-muted-foreground">
-              O pagamento via cartão (Abacate Pay) será habilitado em breve.
+              {price.trialDays} dias grátis · cancele quando quiser · cartão de crédito
             </p>
           </>
         )}
