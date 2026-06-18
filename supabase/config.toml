@@ -1,1 +1,7 @@
 project_id = "oguqnqdqqqzvfrdztykz"
+
+# O webhook do AbacatePay é chamado por um terceiro externo, que envia o header
+# X-Webhook-Signature (HMAC), NÃO um JWT do Supabase. Sem verify_jwt=false, o gateway
+# do Supabase rejeita toda chamada do AbacatePay com 401 antes de chegar no handler.
+[functions.abacatepay-webhook]
+verify_jwt = false
