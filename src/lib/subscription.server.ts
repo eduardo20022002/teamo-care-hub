@@ -14,13 +14,32 @@ export function abacateHeaders() {
 
 // ─── Helpers de gate ──────────────────────────────────────────────────────────
 
+/**
+ * true se o usuário tem um trial ATIVO (status='trialing' e trial_ends_at no futuro)
+ * para o escopo dado. Inclui o trial grandfather (provider=null) e o trial de uma
+ * assinatura AbacatePay. Durante o trial os gates premium não disparam.
+ */
+export async function hasActiveTrial(userId: string, scope: PlanScope): Promise<boolean> {
+  const { data } = await (supabaseAdmin as any)
+    .from("subscriptions")
+    .select("status, trial_ends_at")
+    .eq("user_id", userId)
+    .eq("scope", scope)
+    .maybeSingle();
+  const sub = data as any;
+  if (!sub || sub.status !== "trialing") return false;
+  if (!sub.trial_ends_at) return true; // trial sem data definida → considera ativo
+  return new Date(sub.trial_ends_at).getTime() > Date.now();
+}
+
 export async function getTherapistPlan(userId: string): Promise<PlanTier> {
   const { data } = await supabaseAdmin
     .from("profiles")
     .select("therapist_plan")
     .eq("id", userId)
     .maybeSingle();
-  return (data as any)?.therapist_plan === "premium" ? "premium" : "free";
+  if ((data as any)?.therapist_plan === "premium") return "premium";
+  return (await hasActiveTrial(userId, "therapist")) ? "premium" : "free";
 }
 
 export async function isTherapistPremium(userId: string): Promise<boolean> {
@@ -33,7 +52,8 @@ export async function getParentPlan(userId: string): Promise<PlanTier> {
     .select("parent_plan")
     .eq("id", userId)
     .maybeSingle();
-  return (data as any)?.parent_plan === "premium" ? "premium" : "free";
+  if ((data as any)?.parent_plan === "premium") return "premium";
+  return (await hasActiveTrial(userId, "parent")) ? "premium" : "free";
 }
 
 export async function isParentPremium(userId: string): Promise<boolean> {
@@ -59,10 +79,14 @@ export async function assertTherapistPremium(userId: string, feature: PremiumFea
 export async function getClinicPlan(clinicId: string): Promise<PlanTier> {
   const { data } = await (supabaseAdmin as any)
     .from("clinics")
-    .select("clinic_plan")
+    .select("clinic_plan, owner_id")
     .eq("id", clinicId)
     .maybeSingle();
-  return (data as any)?.clinic_plan === "premium" ? "premium" : "free";
+  if ((data as any)?.clinic_plan === "premium") return "premium";
+  // A assinatura/trial da clínica fica vinculada ao owner_id (scope='clinic').
+  const ownerId = (data as any)?.owner_id;
+  if (ownerId && (await hasActiveTrial(ownerId, "clinic"))) return "premium";
+  return "free";
 }
 
 export async function isClinicPremium(clinicId: string): Promise<boolean> {
@@ -128,11 +152,6 @@ export async function runGetMySubscriptionStatus(userId: string) {
     .eq("id", userId)
     .maybeSingle();
 
-  const therapistPlan: PlanTier =
-    (profile as any)?.therapist_plan === "premium" ? "premium" : "free";
-  const parentPlan: PlanTier =
-    (profile as any)?.parent_plan === "premium" ? "premium" : "free";
-
   const { data: subs } = await (supabaseAdmin as any)
     .from("subscriptions")
     .select("scope, status, trial_ends_at, current_period_end")
@@ -141,6 +160,16 @@ export async function runGetMySubscriptionStatus(userId: string) {
 
   const therapistSub = (subs ?? []).find((s: any) => s.scope === "therapist");
   const parentSub = (subs ?? []).find((s: any) => s.scope === "parent");
+
+  // Trial ativo (grandfather ou AbacatePay) também concede premium para a UI.
+  const trialActive = (sub: any): boolean =>
+    sub?.status === "trialing" &&
+    (!sub.trial_ends_at || new Date(sub.trial_ends_at).getTime() > Date.now());
+
+  const therapistPlan: PlanTier =
+    (profile as any)?.therapist_plan === "premium" || trialActive(therapistSub) ? "premium" : "free";
+  const parentPlan: PlanTier =
+    (profile as any)?.parent_plan === "premium" || trialActive(parentSub) ? "premium" : "free";
 
   return {
     therapistPlan,
@@ -193,12 +222,17 @@ export async function runCreateSubscriptionCheckout(
 ): Promise<{ ok: true; checkoutUrl: string } | { ok: false; error: string }> {
   const { data: existing } = await (supabaseAdmin as any)
     .from("subscriptions")
-    .select("status")
+    .select("status, provider")
     .eq("user_id", userId)
     .eq("scope", data.scope)
     .maybeSingle();
 
-  if ((existing as any)?.status === "active" || (existing as any)?.status === "trialing") {
+  // Bloqueia só quem já tem assinatura real do AbacatePay ativa ou em trial.
+  // O trial grandfather (provider=null) PODE assinar para converter em pago.
+  const ex = existing as any;
+  const hasRealSub =
+    ex?.provider === "abacatepay" && (ex?.status === "active" || ex?.status === "trialing");
+  if (hasRealSub) {
     return { ok: false, error: "ALREADY_SUBSCRIBED" };
   }
 
