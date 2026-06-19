@@ -33,6 +33,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { createChild, listChildren } from "@/services/children.service";
 import { getProfile } from "@/services/profile.service";
 import { usePatients, useMyTherapistAccesses } from "@/services/therapist.service";
+import { usePlan } from "@/services/subscription.service";
+import { PlanStatusChip } from "@/components/premium/PlanStatusChip";
 import { getRole } from "@/lib/roles";
 import {
   formatAge,
@@ -586,6 +588,9 @@ function DashboardPage() {
     ? getRole(profileQuery.data) === "therapist"
     : false;
 
+  // Status do plano (terapeuta e pais) para o selo no header.
+  const plan = usePlan();
+
   // ─── Dados do terapeuta ───────────────────────────────────────────────────────
   const { data: patientsData, isLoading: patientsLoading } = usePatients();
   const patients = (patientsData?.patients ?? []) as Child[];
@@ -739,6 +744,16 @@ function DashboardPage() {
                   ? "Adicione seu primeiro paciente para começar."
                   : `Você tem ${patients.length} paciente${patients.length !== 1 ? "s" : ""} cadastrado${patients.length !== 1 ? "s" : ""}.`}
               </p>
+              {!plan.isLoading && (
+                <div className="mt-3">
+                  <PlanStatusChip
+                    scope="therapist"
+                    isPremium={plan.isPremium}
+                    status={plan.status}
+                    trialEndsAt={plan.trialEndsAt}
+                  />
+                </div>
+              )}
             </div>
           </section>
 
@@ -876,6 +891,16 @@ function DashboardPage() {
                   >
                     Olá{displayName ? `, ${displayName}` : ""}
                   </h1>
+                  {!plan.isLoading && (
+                    <div className="mt-2">
+                      <PlanStatusChip
+                        scope="parent"
+                        isPremium={plan.isParentPremium}
+                        status={plan.parentStatus}
+                        trialEndsAt={plan.parentTrialEndsAt}
+                      />
+                    </div>
+                  )}
                 </div>
                 <button
                   type="button"

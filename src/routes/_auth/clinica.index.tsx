@@ -16,6 +16,8 @@ import { authHeaders } from "@/lib/auth-headers";
 import { useServerFn } from "@tanstack/react-start";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { formatAge } from "@/lib/formatters";
+import { useClinicPlan } from "@/services/subscription.service";
+import { PlanStatusChip } from "@/components/premium/PlanStatusChip";
 
 export const Route = createFileRoute("/_auth/clinica/")({
   head: () => ({
@@ -172,6 +174,7 @@ function ClinicDashboard() {
   });
 
   const clinicId = clinicQuery.data?.clinic?.id ?? "";
+  const clinicPlan = useClinicPlan(clinicId || undefined);
 
   const alertsQuery = useQuery({
     queryKey: ["authorizationAlerts", clinicId],
@@ -320,6 +323,16 @@ function ClinicDashboard() {
         <p className="text-sm text-gray-500 mt-0.5 capitalize">
           {today} · {clinic.name}
         </p>
+        {!clinicPlan.isLoading && (
+          <div className="mt-2">
+            <PlanStatusChip
+              scope="clinic"
+              isPremium={clinicPlan.isClinicPremium}
+              status={clinicPlan.status}
+              trialEndsAt={clinicPlan.trialEndsAt}
+            />
+          </div>
+        )}
       </div>
 
       {/* Metric cards */}

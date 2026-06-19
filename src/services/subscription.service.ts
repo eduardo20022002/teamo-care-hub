@@ -44,6 +44,8 @@ export interface PlanState {
   isParentPremium: boolean;
   parentLimits: typeof PARENT_LIMITS;
   parentPrice: typeof PARENT_PRICE;
+  parentStatus: string | null;
+  parentTrialEndsAt: string | null;
   // Comum
   isLoading: boolean;
 }
@@ -75,6 +77,8 @@ export function usePlan(): PlanState {
     isParentPremium: parentPlan === "premium",
     parentLimits: PARENT_LIMITS,
     parentPrice: PARENT_PRICE,
+    parentStatus: (data as any)?.parentStatus ?? null,
+    parentTrialEndsAt: (data as any)?.parentTrialEndsAt ?? null,
     isLoading,
   };
 }
