@@ -34,7 +34,7 @@ import {
   listTherapistsServer,
   getDiagnosticsStatsServer,
 } from "@/lib/analytics.functions";
-import { getLoginActivityServer } from "@/lib/session-tracking.functions";
+import { getLoginActivityServer, getAccessLogServer } from "@/lib/session-tracking.functions";
 import {
   Dialog,
   DialogContent,
@@ -50,6 +50,7 @@ import type {
   DiagnosticStat,
   LoginActivityData,
   LoginSessionRow,
+  AccessLogPage,
 } from "@/server/analytics.server";
 
 export const Route = createFileRoute("/_auth/painel")({
@@ -757,9 +758,106 @@ function SessionRowItem({ s }: { s: LoginSessionRow }) {
   );
 }
 
+const ACCESS_LOG_PAGE_SIZE = 100;
+
+/** Dialog com o log COMPLETO de acessos (sem limite de tempo), paginado por "Carregar mais". */
+function FullAccessLogDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const [rows, setRows] = useState<LoginSessionRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  const loadPage = async (offset: number, reset: boolean) => {
+    setLoading(true);
+    try {
+      const { data: session } = await supabaseClient.auth.getSession();
+      const token = session.session?.access_token;
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const page = (await getAccessLogServer({
+        data: { limit: ACCESS_LOG_PAGE_SIZE, offset },
+        headers,
+      } as any)) as AccessLogPage;
+      setTotal(page.total);
+      setRows((prev) => (reset ? page.rows : [...prev, ...page.rows]));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Ao abrir, carrega a primeira página (uma vez por abertura).
+  useEffect(() => {
+    if (open) {
+      setRows([]);
+      setTotal(0);
+      void loadPage(0, true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const hasMore = rows.length < total;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Monitor className="h-4 w-4 text-[#4F46E5]" strokeWidth={1.75} />
+            Log completo de acessos
+            <span className="text-xs font-normal text-[#9CA3AF]">
+              {total > 0 ? `${rows.length} de ${total}` : ""}
+            </span>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="max-h-[65vh] overflow-auto">
+          {rows.length === 0 && !loading ? (
+            <p className="px-4 py-6 text-center text-xs text-[#9CA3AF]">Nenhum acesso registrado.</p>
+          ) : (
+            <table className="w-full min-w-[560px]">
+              <thead className="sticky top-0 bg-white">
+                <tr className="text-left text-[10px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
+                  <th className="py-2 pr-3">Usuário</th>
+                  <th className="px-2 py-2">Tipo</th>
+                  <th className="px-2 py-2">Início</th>
+                  <th className="px-2 py-2">Duração</th>
+                  <th className="px-2 py-2">Dispositivo</th>
+                  <th className="px-2 py-2">IP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((s) => (
+                  <SessionRowItem key={s.id} s={s} />
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div className="flex items-center justify-center pt-2">
+          {hasMore ? (
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => void loadPage(rows.length, false)}
+              className="rounded-full border px-4 py-1.5 text-xs font-semibold text-[#4F46E5] disabled:opacity-50"
+              style={{ borderColor: "#E0E3FF", background: "#EEF1FF" }}
+            >
+              {loading ? "Carregando…" : "Carregar mais"}
+            </button>
+          ) : (
+            rows.length > 0 && (
+              <span className="text-[11px] text-[#9CA3AF]">Fim do log · {total} acesso(s)</span>
+            )
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function LoginActivitySection({ data }: { data: LoginActivityData }) {
   const maxDay = Math.max(...data.loginsPerDay.map((d) => d.count), 1);
   const maxCell = Math.max(...data.peakHours.flat(), 1);
+  const [fullLogOpen, setFullLogOpen] = useState(false);
 
   return (
     <section className="mb-10">
@@ -851,11 +949,20 @@ function LoginActivitySection({ data }: { data: LoginActivityData }) {
 
       {/* Tabela de últimos acessos */}
       <div className="rounded-2xl border bg-white" style={{ borderColor: "#EEF0F4" }}>
-        <div className="border-b px-4 py-3" style={{ borderColor: "#F1F2F6" }}>
+        <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "#F1F2F6" }}>
           <div className="flex items-center gap-2">
             <Monitor className="h-4 w-4 text-[#4F46E5]" strokeWidth={1.75} />
             <span className="text-xs font-semibold text-[#374151]">Últimos acessos</span>
+            <span className="text-[10px] text-[#9CA3AF]">· 50 mais recentes (30 dias)</span>
           </div>
+          <button
+            type="button"
+            onClick={() => setFullLogOpen(true)}
+            className="rounded-full border px-3 py-1 text-[11px] font-semibold text-[#4F46E5]"
+            style={{ borderColor: "#E0E3FF", background: "#EEF1FF" }}
+          >
+            Ver log completo
+          </button>
         </div>
         {data.recentSessions.length === 0 ? (
           <p className="px-4 py-6 text-center text-xs text-[#9CA3AF]">Nenhum acesso registrado ainda.</p>
@@ -881,6 +988,8 @@ function LoginActivitySection({ data }: { data: LoginActivityData }) {
           </div>
         )}
       </div>
+
+      <FullAccessLogDialog open={fullLogOpen} onOpenChange={setFullLogOpen} />
     </section>
   );
 }

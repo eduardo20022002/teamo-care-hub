@@ -62,6 +62,34 @@ export async function assertAdmin(userId: string): Promise<void> {
   }
 }
 
+// ─── Exclusão de contas de teste das métricas ────────────────────────────────
+// Estas contas são usadas para testes internos e NÃO devem contaminar os números
+// do painel (totais, atividade, acessos etc.).
+const TEST_ACCOUNT_EMAILS = [
+  "eduardo.estevesterra@gmail.com",
+  "eduardo.meirelles@ufpe.br",
+  "ianetemporal@gmail.com",
+];
+
+let _testIdsCache: { ids: string[]; at: number } | null = null;
+
+/** IDs dos perfis das contas de teste (cache de 60s). Vazio se nenhuma existir. */
+export async function getTestUserIds(): Promise<string[]> {
+  if (_testIdsCache && Date.now() - _testIdsCache.at < 60_000) return _testIdsCache.ids;
+  const { data } = await (supabaseAdmin as any)
+    .from("profiles")
+    .select("id")
+    .in("email", TEST_ACCOUNT_EMAILS);
+  const ids = (data ?? []).map((r: any) => r.id as string);
+  _testIdsCache = { ids, at: Date.now() };
+  return ids;
+}
+
+/** Aplica `col NOT IN (testIds)` a um query builder, se houver IDs a excluir. */
+function excludeTest(q: any, ids: string[], col = "user_id"): any {
+  return ids.length ? q.not(col, "in", `(${ids.join(",")})`) : q;
+}
+
 // ─── Saúde do Negócio ────────────────────────────────────────────────────────
 
 export interface BusinessHealthData {
@@ -105,6 +133,8 @@ export async function fetchBusinessHealthData(): Promise<BusinessHealthData> {
   const d60 = new Date(now.getTime() - 60 * 86400_000).toISOString();
   const d24h = new Date(now.getTime() - 86400_000).toISOString();
 
+  const testIds = await getTestUserIds();
+
   const [
     { count: caregivers },
     { count: professionals },
@@ -126,61 +156,61 @@ export async function fetchBusinessHealthData(): Promise<BusinessHealthData> {
     { count: inactive30 },
     { count: pendingInvites },
   ] = await Promise.all([
-    (supabaseAdmin.from("profiles") as any).select("*", { count: "exact", head: true }),
-    (supabaseAdmin.from("professionals") as any).select("*", { count: "exact", head: true }),
-    (supabaseAdmin.from("children") as any).select("*", { count: "exact", head: true }),
-    (supabaseAdmin.from("attendance_records") as any).select("*", { count: "exact", head: true }),
-    (supabaseAdmin.from("child_attachments") as any).select("*", { count: "exact", head: true }),
-    (supabaseAdmin.from("agenda_events") as any).select("*", { count: "exact", head: true }),
-    (supabaseAdmin.from("shares") as any).select("*", { count: "exact", head: true }),
+    excludeTest((supabaseAdmin.from("profiles") as any).select("*", { count: "exact", head: true }), testIds, "id"),
+    excludeTest((supabaseAdmin.from("professionals") as any).select("*", { count: "exact", head: true }), testIds),
+    excludeTest((supabaseAdmin.from("children") as any).select("*", { count: "exact", head: true }), testIds),
+    excludeTest((supabaseAdmin.from("attendance_records") as any).select("*", { count: "exact", head: true }), testIds),
+    excludeTest((supabaseAdmin.from("child_attachments") as any).select("*", { count: "exact", head: true }), testIds),
+    excludeTest((supabaseAdmin.from("agenda_events") as any).select("*", { count: "exact", head: true }), testIds),
+    excludeTest((supabaseAdmin.from("shares") as any).select("*", { count: "exact", head: true }), testIds),
     // growth
-    (supabaseAdmin.from("profiles") as any)
+    excludeTest((supabaseAdmin.from("profiles") as any)
       .select("*", { count: "exact", head: true })
-      .gte("created_at", d7),
-    (supabaseAdmin.from("profiles") as any)
+      .gte("created_at", d7), testIds, "id"),
+    excludeTest((supabaseAdmin.from("profiles") as any)
       .select("*", { count: "exact", head: true })
       .gte("created_at", d14)
-      .lt("created_at", d7),
-    (supabaseAdmin.from("profiles") as any)
+      .lt("created_at", d7), testIds, "id"),
+    excludeTest((supabaseAdmin.from("profiles") as any)
       .select("*", { count: "exact", head: true })
-      .gte("created_at", d30),
-    (supabaseAdmin.from("profiles") as any)
+      .gte("created_at", d30), testIds, "id"),
+    excludeTest((supabaseAdmin.from("profiles") as any)
       .select("*", { count: "exact", head: true })
       .gte("created_at", d60)
-      .lt("created_at", d30),
+      .lt("created_at", d30), testIds, "id"),
     // DAU/WAU/MAU via analytics_events session.start
-    (supabaseAdmin as any).from("analytics_events")
+    excludeTest((supabaseAdmin as any).from("analytics_events")
       .select("user_id")
       .eq("event_type", "session.start")
-      .gte("created_at", d24h),
-    (supabaseAdmin as any).from("analytics_events")
+      .gte("created_at", d24h), testIds),
+    excludeTest((supabaseAdmin as any).from("analytics_events")
       .select("user_id")
       .eq("event_type", "session.start")
-      .gte("created_at", d7),
-    (supabaseAdmin as any).from("analytics_events")
+      .gte("created_at", d7), testIds),
+    excludeTest((supabaseAdmin as any).from("analytics_events")
       .select("user_id")
       .eq("event_type", "session.start")
-      .gte("created_at", d30),
+      .gte("created_at", d30), testIds),
     // profissionais cadastrados (proxy para vínculos ativos)
-    (supabaseAdmin.from("professionals") as any)
-      .select("*", { count: "exact", head: true }),
-    (supabaseAdmin.from("shares") as any)
+    excludeTest((supabaseAdmin.from("professionals") as any)
+      .select("*", { count: "exact", head: true }), testIds),
+    excludeTest((supabaseAdmin.from("shares") as any)
       .select("*", { count: "exact", head: true })
-      .not("consumed_at", "is", null),
-    (supabaseAdmin.from("shares") as any)
+      .not("consumed_at", "is", null), testIds),
+    excludeTest((supabaseAdmin.from("shares") as any)
       .select("*", { count: "exact", head: true })
       .is("consumed_at", null)
-      .lt("expires_at", now.toISOString()),
+      .lt("expires_at", now.toISOString()), testIds),
     // churn: sessões iniciadas antes de 30d atrás (proxy de usuários inativos)
-    (supabaseAdmin as any).from("analytics_events")
+    excludeTest((supabaseAdmin as any).from("analytics_events")
       .select("user_id", { count: "exact", head: true })
       .eq("event_type", "session.start")
-      .lt("created_at", d30),
+      .lt("created_at", d30), testIds),
     // convites de cuidado compartilhado ainda pendentes e não expirados
-    (supabaseAdmin as any).from("care_invites")
+    excludeTest((supabaseAdmin as any).from("care_invites")
       .select("*", { count: "exact", head: true })
       .eq("status", "pending")
-      .gt("expires_at", now.toISOString()),
+      .gt("expires_at", now.toISOString()), testIds, "owner_id"),
   ]);
 
   const uniqueIds = (rows: { user_id: string }[] | null) =>
@@ -230,20 +260,30 @@ export interface UserListRow {
 }
 
 export async function fetchCaregiversList(): Promise<UserListRow[]> {
-  const { data } = await (supabaseAdmin as any)
-    .from("profiles")
-    .select("id, full_name, email, created_at")
-    .eq("user_type", "parent")
-    .order("created_at", { ascending: false });
+  const testIds = await getTestUserIds();
+  const { data } = await excludeTest(
+    (supabaseAdmin as any)
+      .from("profiles")
+      .select("id, full_name, email, created_at")
+      .eq("user_type", "parent")
+      .order("created_at", { ascending: false }),
+    testIds,
+    "id",
+  );
   return data ?? [];
 }
 
 export async function fetchTherapistsList(): Promise<UserListRow[]> {
-  const { data } = await (supabaseAdmin as any)
-    .from("profiles")
-    .select("id, full_name, email, created_at")
-    .eq("user_type", "therapist")
-    .order("created_at", { ascending: false });
+  const testIds = await getTestUserIds();
+  const { data } = await excludeTest(
+    (supabaseAdmin as any)
+      .from("profiles")
+      .select("id, full_name, email, created_at")
+      .eq("user_type", "therapist")
+      .order("created_at", { ascending: false }),
+    testIds,
+    "id",
+  );
   return data ?? [];
 }
 
@@ -273,24 +313,25 @@ export interface UserBehaviorData {
 
 export async function fetchUserBehaviorData(): Promise<UserBehaviorData> {
   const d30 = new Date(Date.now() - 30 * 86400_000).toISOString();
+  const testIds = await getTestUserIds();
 
   const [moduleOpens, moduleActions, topEventsRows, otpRequested, otpSucceeded, sharesCreated, sharesExpired, errorRows] =
     await Promise.all([
       // opens por módulo
-      (supabaseAdmin as any).from("analytics_events")
+      excludeTest((supabaseAdmin as any).from("analytics_events")
         .select("module")
         .eq("event_type", "module.open")
-        .gte("created_at", d30),
+        .gte("created_at", d30), testIds),
       // ações (create/upload/etc) por módulo
-      (supabaseAdmin as any).from("analytics_events")
+      excludeTest((supabaseAdmin as any).from("analytics_events")
         .select("module")
         .in("event_type", ["record.create", "document.upload", "event.create", "share.create", "professional.invite"])
-        .gte("created_at", d30),
+        .gte("created_at", d30), testIds),
       // top eventos
-      (supabaseAdmin as any).from("analytics_events")
+      excludeTest((supabaseAdmin as any).from("analytics_events")
         .select("event_type")
         .gte("created_at", d30)
-        .limit(2000),
+        .limit(2000), testIds),
       // funil OTP — usa audit_logs (logShareEvent já registra esses eventos)
       (supabaseAdmin.from("audit_logs") as any)
         .select("*", { count: "exact", head: true })
@@ -300,20 +341,20 @@ export async function fetchUserBehaviorData(): Promise<UserBehaviorData> {
         .select("*", { count: "exact", head: true })
         .eq("event_type", "share.otp_succeeded")
         .gte("created_at", d30),
-      (supabaseAdmin.from("shares") as any)
+      excludeTest((supabaseAdmin.from("shares") as any)
         .select("*", { count: "exact", head: true })
-        .gte("created_at", d30),
-      (supabaseAdmin.from("shares") as any)
+        .gte("created_at", d30), testIds),
+      excludeTest((supabaseAdmin.from("shares") as any)
         .select("*", { count: "exact", head: true })
         .is("consumed_at", null)
         .lt("expires_at", new Date().toISOString())
-        .gte("created_at", d30),
+        .gte("created_at", d30), testIds),
       // erros JS
-      (supabaseAdmin as any).from("analytics_events")
+      excludeTest((supabaseAdmin as any).from("analytics_events")
         .select("route")
         .eq("event_type", "error.js")
         .gte("created_at", d30)
-        .limit(500),
+        .limit(500), testIds),
     ]);
 
   // agregar módulos
@@ -514,15 +555,20 @@ export async function fetchLoginActivityData(): Promise<LoginActivityData> {
   const d30 = new Date(now - 30 * 86400_000).toISOString();
   const startOfToday = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
 
+  const testIds = await getTestUserIds();
+
   // Sessões dos últimos 30 dias com dados do perfil (join via FK user_id → profiles).
-  const { data: rows } = await (supabaseAdmin as any)
-    .from("user_sessions")
-    .select(
-      "id, user_id, started_at, last_seen_at, ended_at, end_reason, ip, user_agent, " +
-        "profiles:user_id (full_name, email, user_type, therapist_plan)",
-    )
-    .gte("started_at", d30)
-    .order("started_at", { ascending: false });
+  const { data: rows } = await excludeTest(
+    (supabaseAdmin as any)
+      .from("user_sessions")
+      .select(
+        "id, user_id, started_at, last_seen_at, ended_at, end_reason, ip, user_agent, " +
+          "profiles:user_id (full_name, email, user_type, therapist_plan)",
+      )
+      .gte("started_at", d30)
+      .order("started_at", { ascending: false }),
+    testIds,
+  );
 
   const sessions: any[] = rows ?? [];
 
@@ -560,33 +606,76 @@ export async function fetchLoginActivityData(): Promise<LoginActivityData> {
     loginsPerDay.push({ date: key, count: perDay.get(key) ?? 0 });
   }
 
-  // Lista das 50 sessões mais recentes (a UI mostra um trecho).
-  const recentSessions: LoginSessionRow[] = sessions.slice(0, 50).map((s) => {
-    const p = s.profiles ?? {};
-    const endedAt = (s.ended_at as string | null) ?? null;
-    const lastSeenAt = s.last_seen_at as string;
-    return {
-      id: s.id as string,
-      userId: s.user_id as string,
-      fullName: (p.full_name as string | null) ?? null,
-      email: (p.email as string | null) ?? null,
-      userType: (p.user_type as string | null) ?? null,
-      therapistPlan: (p.therapist_plan as string | null) ?? null,
-      startedAt: s.started_at as string,
-      lastSeenAt,
-      endedAt,
-      endReason: (s.end_reason as string | null) ?? null,
-      ip: (s.ip as string | null) ?? null,
-      userAgent: (s.user_agent as string | null) ?? null,
-      durationMinutes: Math.round(sessionDurationMs(s.started_at as string, lastSeenAt, endedAt) / 60000),
-      active: !endedAt && now - new Date(lastSeenAt).getTime() < ACTIVE_WINDOW_MS,
-    };
-  });
+  // Lista das 50 sessões mais recentes (a UI mostra um trecho; o log completo
+  // fica na visão paginada via fetchAccessLog).
+  const recentSessions: LoginSessionRow[] = sessions.slice(0, 50).map(mapSessionRow);
 
   return {
     kpis: { activeNow, loginsToday, avgDurationMinutes },
     recentSessions,
     loginsPerDay,
     peakHours,
+  };
+}
+
+/** Converte uma linha de user_sessions (com join de profiles) em LoginSessionRow. */
+function mapSessionRow(s: any): LoginSessionRow {
+  const now = Date.now();
+  const p = s.profiles ?? {};
+  const endedAt = (s.ended_at as string | null) ?? null;
+  const lastSeenAt = s.last_seen_at as string;
+  return {
+    id: s.id as string,
+    userId: s.user_id as string,
+    fullName: (p.full_name as string | null) ?? null,
+    email: (p.email as string | null) ?? null,
+    userType: (p.user_type as string | null) ?? null,
+    therapistPlan: (p.therapist_plan as string | null) ?? null,
+    startedAt: s.started_at as string,
+    lastSeenAt,
+    endedAt,
+    endReason: (s.end_reason as string | null) ?? null,
+    ip: (s.ip as string | null) ?? null,
+    userAgent: (s.user_agent as string | null) ?? null,
+    durationMinutes: Math.round(sessionDurationMs(s.started_at as string, lastSeenAt, endedAt) / 60000),
+    active: !endedAt && now - new Date(lastSeenAt).getTime() < ACTIVE_WINDOW_MS,
+  };
+}
+
+export interface AccessLogPage {
+  rows: LoginSessionRow[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
+/**
+ * Log COMPLETO de acessos (sem limite de tempo), paginado. Exclui contas de teste.
+ * Usado pela visão "log completo" do painel — diferente de fetchLoginActivityData,
+ * que é limitado a 30 dias e às 50 sessões mais recentes para o resumo.
+ */
+export async function fetchAccessLog(opts: { limit?: number; offset?: number } = {}): Promise<AccessLogPage> {
+  const limit = Math.min(Math.max(opts.limit ?? 100, 1), 500);
+  const offset = Math.max(opts.offset ?? 0, 0);
+  const testIds = await getTestUserIds();
+
+  const { data: rows, count } = await excludeTest(
+    (supabaseAdmin as any)
+      .from("user_sessions")
+      .select(
+        "id, user_id, started_at, last_seen_at, ended_at, end_reason, ip, user_agent, " +
+          "profiles:user_id (full_name, email, user_type, therapist_plan)",
+        { count: "exact" },
+      )
+      .order("started_at", { ascending: false })
+      .range(offset, offset + limit - 1),
+    testIds,
+  );
+
+  return {
+    rows: (rows ?? []).map(mapSessionRow),
+    total: count ?? 0,
+    offset,
+    limit,
   };
 }

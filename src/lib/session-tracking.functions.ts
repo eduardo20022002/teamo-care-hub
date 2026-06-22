@@ -10,7 +10,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getClientIp } from "@/server/rate-limit";
-import { assertAdmin, fetchLoginActivityData } from "@/server/analytics.server";
+import { assertAdmin, fetchLoginActivityData, fetchAccessLog } from "@/server/analytics.server";
 
 const sessionIdSchema = z.object({ sessionId: z.string().min(1).max(200) });
 
@@ -89,4 +89,18 @@ export const getLoginActivityServer = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     await assertAdmin((context as any).userId);
     return fetchLoginActivityData();
+  });
+
+// ─── getAccessLogServer — log COMPLETO de acessos (paginado, sem limite de tempo) ─
+export const getAccessLogServer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      limit: z.number().int().min(1).max(500).optional(),
+      offset: z.number().int().min(0).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin((context as any).userId);
+    return fetchAccessLog({ limit: data.limit, offset: data.offset });
   });
