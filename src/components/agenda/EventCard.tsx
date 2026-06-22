@@ -1,5 +1,5 @@
 import { ChevronRight, MapPin, Paperclip } from "lucide-react";
-import { AGENDA_BRAND } from "@/lib/agenda/tokens";
+import { AGENDA_BRAND, getPatientColor } from "@/lib/agenda/tokens";
 import { formatEventTimeRange } from "@/lib/agenda/format";
 import type { AgendaEventWithRelations } from "@/types/agenda";
 import { TypeChip } from "./TypeChip";
@@ -18,6 +18,7 @@ export function EventCard({ event, onClick, hasMention = false }: Props) {
     event.professional?.name ?? event.professional_name_raw ?? null;
   const obsCount = event.observation_count ?? 0;
   const attachCount = event.attachment_count ?? 0;
+  const childColor = event.child_id ? getPatientColor(event.child_id) : null;
 
   return (
     <button
@@ -54,6 +55,18 @@ export function EventCard({ event, onClick, hasMention = false }: Props) {
       {/* Main */}
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-center gap-1.5">
+          {event.child?.name && childColor && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold"
+              style={{ background: childColor.tint, color: childColor.col }}
+            >
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ background: childColor.col }}
+              />
+              {event.child.name}
+            </span>
+          )}
           <TypeChip type={event.type} size="sm" />
           {hasMention && (
             <span
