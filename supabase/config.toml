@@ -5,3 +5,8 @@ project_id = "oguqnqdqqqzvfrdztykz"
 # do Supabase rejeita toda chamada do AbacatePay com 401 antes de chegar no handler.
 [functions.abacatepay-webhook]
 verify_jwt = false
+
+# Invocada pelo pg_cron via pg_net, que não emite JWT do Supabase. A autenticação
+# é o header x-campaign-token (CAMPAIGN_CRON_TOKEN), validado dentro do handler.
+[functions.campaign-dispatch]
+verify_jwt = false
