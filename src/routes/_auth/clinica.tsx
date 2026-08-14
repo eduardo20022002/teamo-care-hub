@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Bell, ChevronDown, Building2, LogOut, Settings, Users } from "lucide-react";
+import { Bell, ChevronDown, Building2, LogOut, Menu, Settings, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { getProfile } from "@/services/profile.service";
@@ -10,6 +10,7 @@ import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { signOut } from "@/services/auth.service";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 const HEADER_GRADIENT = "linear-gradient(to right, #4F46E5, #7C3AED, #EC4899)";
 
@@ -37,6 +38,7 @@ function ClinicLayout() {
   const navigate = useNavigate();
   const routerState = useRouterState();
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
 
   const getClinic = useServerFn(getMyClinicServer);
 
@@ -113,8 +115,18 @@ function ClinicLayout() {
           </span>
         </Link>
 
-        {/* Nav */}
-        <nav className="flex items-center gap-1 mx-4">
+        {/* Hamburger — mobile only */}
+        <button
+          type="button"
+          onClick={() => setNavOpen(true)}
+          className="md:hidden flex h-8 w-8 items-center justify-center rounded-full hover:bg-white/20 transition-colors shrink-0"
+          aria-label="Abrir menu"
+        >
+          <Menu size={20} color="white" />
+        </button>
+
+        {/* Nav — desktop/tablet only */}
+        <nav className="hidden md:flex items-center gap-1 mx-4">
           {NAV_ITEMS.map(({ label, to }) => {
             const isActive = to === "/clinica" ? currentPath === "/clinica" : currentPath.startsWith(to);
             const isDisabled = DISABLED_ITEMS.has(label);
@@ -221,6 +233,39 @@ function ClinicLayout() {
       <main className="pt-14">
         <Outlet />
       </main>
+
+      {/* Mobile nav drawer */}
+      <Sheet open={navOpen} onOpenChange={setNavOpen}>
+        <SheetContent side="left" className="w-72 p-0">
+          <SheetHeader
+            className="px-5 py-4 space-y-0 text-left"
+            style={{ background: HEADER_GRADIENT }}
+          >
+            <SheetTitle className="text-white text-left">TEAmo · Clínica</SheetTitle>
+          </SheetHeader>
+          <nav className="flex flex-col p-2">
+            {NAV_ITEMS.map(({ label, to }) => {
+              const isActive = to === "/clinica" ? currentPath === "/clinica" : currentPath.startsWith(to);
+              const isDisabled = DISABLED_ITEMS.has(label);
+              return (
+                <Link
+                  key={to}
+                  to={to}
+                  onClick={() => setNavOpen(false)}
+                  className={[
+                    "px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+                    isDisabled ? "opacity-40 pointer-events-none" : "",
+                    isActive ? "bg-indigo-50 text-indigo-700" : "text-gray-700 hover:bg-gray-50",
+                  ].join(" ")}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

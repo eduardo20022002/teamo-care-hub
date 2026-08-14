@@ -366,7 +366,7 @@ function GroupDetailPage() {
         </span>
       </div>
 
-      <div className="flex gap-6">
+      <div className="flex flex-col md:flex-row gap-6">
         {/* Main content */}
         <div className="flex-1 flex flex-col gap-4">
           {/* Tabs */}
@@ -460,7 +460,7 @@ function GroupDetailPage() {
         </div>
 
         {/* Sidebar: definições + candidatos */}
-        <div className="w-72 flex-shrink-0 flex flex-col gap-4">
+        <div className="w-full md:w-72 md:flex-shrink-0 flex flex-col gap-4">
           {/* Definições do grupo */}
           <div className="bg-white rounded-xl p-4" style={{ border: "0.5px solid #E5E7EB" }}>
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Definições do grupo</h3>

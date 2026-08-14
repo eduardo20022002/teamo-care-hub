@@ -268,12 +268,12 @@ function ClinicAvaliacoesEntryPage() {
 
       {/* Barra de progresso */}
       <div className="bg-white rounded-xl p-4" style={{ border: "0.5px solid #E5E7EB" }}>
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-1.5 sm:gap-2 mb-3">
           {SECTIONS.map((s, i) => (
             <button
               key={i}
               onClick={() => { if (i <= section || reportId) setSection(i); }}
-              className={`flex-1 text-xs py-1.5 rounded font-medium transition-colors ${
+              className={`flex-1 text-xs py-1.5 rounded font-medium transition-colors truncate px-1 ${
                 i === section
                   ? "bg-indigo-600 text-white"
                   : i < section
@@ -281,7 +281,8 @@ function ClinicAvaliacoesEntryPage() {
                   : "bg-gray-100 text-gray-400"
               }`}
             >
-              {i + 1}. {s}
+              <span className="sm:hidden">{i + 1}</span>
+              <span className="hidden sm:inline">{i + 1}. {s}</span>
             </button>
           ))}
         </div>
@@ -462,7 +463,7 @@ function Section1({ evaluationDates, setEvaluationDates, instruments, setInstrum
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="text-sm font-medium text-gray-700 block mb-1">Nº de sessões realizadas</label>
           <input
@@ -542,7 +543,7 @@ function Section2({ vbmappLevel, setVbmappLevel, vbmappDomains, setVbmappDomains
 
       <div>
         <label className="text-sm font-medium text-gray-700 block mb-3">Nível VB-MAPP</label>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[1, 2, 3].map((lvl) => (
             <button
               key={lvl}
@@ -570,7 +571,7 @@ function Section2({ vbmappLevel, setVbmappLevel, vbmappDomains, setVbmappDomains
           <label className="text-sm font-medium text-gray-700 block mb-3">
             Pontuação por domínio — Nível {vbmappLevel}
           </label>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {Object.entries(VBMAPP_DOMAINS_LABELS).map(([key, label]) => (
               <div key={key}>
                 <label className="text-xs text-gray-500 block mb-1">{label}</label>
@@ -829,7 +830,7 @@ function Section5({
 
       <div>
         <label className="text-sm font-medium text-gray-700 block mb-3">Modalidade indicada</label>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {RECOMMENDED_MODALITIES.map((m) => (
             <button key={m.value}
               onClick={() => setRecommendedModality(
@@ -848,7 +849,7 @@ function Section5({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <label className="text-sm font-medium text-gray-700 block mb-1">Horas/semana</label>
           {vbmappLevel && (
@@ -938,7 +939,7 @@ function Section6({ goals, setGoals }: {
                 className="text-red-400 hover:text-red-600"><Trash2 size={14} /></button>
             )}
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="text-xs text-gray-500 block mb-1">Domínio</label>
               <select

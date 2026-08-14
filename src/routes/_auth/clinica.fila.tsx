@@ -313,7 +313,7 @@ function ClinicFilaPage() {
       </div>
 
       {/* Cards de resumo por tier */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         {(["alta","moderada","rotina","triagem"] as QueueTier[]).map((tier) => {
           const styles: Record<QueueTier, { bg: string; text: string; border: string }> = {
             alta:     { bg: "#FEF2F2", text: "#B91C1C", border: "#FECACA" },

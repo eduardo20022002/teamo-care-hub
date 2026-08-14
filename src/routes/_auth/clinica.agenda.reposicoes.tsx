@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, Clock, Calendar, ChevronLeft, X, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { authHeaders } from "@/lib/auth-headers";
 import {
   listClinicReplacementsServer,
@@ -73,6 +74,70 @@ function DeadlineBadge({ deadline }: { deadline: string }) {
     <span className="text-xs text-gray-500 flex items-center gap-1">
       <Calendar size={12} /> {days} dias
     </span>
+  );
+}
+
+// ─── Lista mobile (cards) ────────────────────────────────────────────────────
+
+function ReposicoesMobileList({
+  active,
+  expired,
+  onPropose,
+}: {
+  active: ClinicReplacement[];
+  expired: ClinicReplacement[];
+  onPropose: (r: ClinicReplacement) => void;
+}) {
+  return (
+    <div className="flex flex-col">
+      {active.map((r) => {
+        const colors = STATUS_COLORS[r.status];
+        return (
+          <div key={r.id} className="px-4 py-3 border-b border-gray-50 flex flex-col gap-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium text-gray-900 text-sm truncate">{r.patient_name}</span>
+              <span
+                className="px-2 py-0.5 rounded-full text-xs font-medium shrink-0"
+                style={{ background: colors.bg, color: colors.text, border: `0.5px solid ${colors.border}` }}
+              >
+                {REPLACEMENT_STATUS_LABELS[r.status]}
+              </span>
+            </div>
+            <div className="text-xs text-gray-500">
+              {r.therapist_name || r.therapist_user_id.slice(0, 8)} ·{" "}
+              {REPLACEMENT_EVENT_TYPE_LABELS[r.event_type]}
+            </div>
+            <div className="flex items-center justify-between">
+              <DeadlineBadge deadline={r.deadline_date} />
+              {r.status === "pendente" && (
+                <button
+                  type="button"
+                  onClick={() => onPropose(r)}
+                  className="px-2 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 rounded border border-indigo-200 transition-colors"
+                >
+                  Propor horário
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      {expired.length > 0 && (
+        <>
+          <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50">
+            Expiradas (últimos 30 dias)
+          </div>
+          {expired.map((r) => (
+            <div key={r.id} className="px-4 py-3 border-b border-gray-50 text-sm text-gray-400">
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate">{r.patient_name}</span>
+                <span className="text-xs shrink-0">{REPLACEMENT_EVENT_TYPE_LABELS[r.event_type]}</span>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
   );
 }
 
@@ -224,6 +289,7 @@ function AbsenceModal({
 export default function ClinicReposicoesPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   const [statusFilter, setStatusFilter] = useState<ReplacementStatus | "todos">("todos");
   const [proposeTarget, setProposeTarget] = useState<ClinicReplacement | null>(null);
@@ -342,6 +408,8 @@ export default function ClinicReposicoesPage() {
             <p className="text-sm font-semibold text-gray-900">Nenhuma reposição em aberto</p>
             <p className="text-sm text-gray-400">Todas as reposições foram realizadas ou não há eventos geradores.</p>
           </div>
+        ) : isMobile ? (
+          <ReposicoesMobileList active={active} expired={expired} onPropose={setProposeTarget} />
         ) : (
           <>
             {/* Active rows */}

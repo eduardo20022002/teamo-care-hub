@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ChevronLeft, ChevronRight, Plus, X, CheckCircle, AlertCircle, XCircle, UserMinus, Users2, Clock, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { authHeaders } from "@/lib/auth-headers";
 import { useClinicPlan } from "@/services/subscription.service";
 import { useUpgrade } from "@/components/premium/PremiumGate";
@@ -78,6 +79,7 @@ export default function ClinicAgendaPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { openUpgrade } = useUpgrade();
+  const isMobile = useIsMobile();
 
   const [viewMode, setViewMode] = useState<ViewMode>("profissional");
   const [weekStart, setWeekStart] = useState<Date>(getMonday(new Date()));
@@ -305,6 +307,15 @@ export default function ClinicAgendaPage() {
 
       {/* Grid — Por profissional / sala */}
       {viewMode !== "grupo" && (
+        isMobile ? (
+          <AgendaMobileList
+            weekDays={weekDays}
+            sessionsByDay={sessionsByDay}
+            isLoading={sessionsQuery.isLoading}
+            today={today}
+            onSelect={setSelectedSession}
+          />
+        ) : (
       <div className="bg-white rounded-xl overflow-hidden" style={{ border: "0.5px solid #E5E7EB" }}>
         {/* Day headers */}
         <div className="grid grid-cols-6 border-b border-gray-100">
@@ -386,8 +397,8 @@ export default function ClinicAgendaPage() {
           })}
         </div>
       </div>
-
-      )} {/* end viewMode !== "grupo" */}
+        )
+      )}
 
       {/* Session detail panel */}
       {selectedSession && (
@@ -419,6 +430,90 @@ export default function ClinicAgendaPage() {
   );
 }
 
+// ─── AgendaMobileList ─────────────────────────────────────────────────────────
+
+function AgendaMobileList({
+  weekDays,
+  sessionsByDay,
+  isLoading,
+  today,
+  onSelect,
+}: {
+  weekDays: Date[];
+  sessionsByDay: Map<string, ClinicSession[]>;
+  isLoading: boolean;
+  today: string;
+  onSelect: (s: ClinicSession) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      {weekDays.map((d) => {
+        const iso = toISO(d);
+        const daySessions = sessionsByDay.get(iso) ?? [];
+        const isToday = iso === today;
+        return (
+          <div key={iso} className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 px-1">
+              <span className={["text-sm font-bold", isToday ? "text-indigo-600" : "text-gray-900"].join(" ")}>
+                {DAY_NAMES_FULL[d.getDay()]} · {d.getDate()}
+              </span>
+              {isToday && (
+                <span className="text-[10px] font-bold text-white bg-indigo-600 px-1.5 py-0.5 rounded-full">
+                  HOJE
+                </span>
+              )}
+            </div>
+            {isLoading ? (
+              <div className="text-xs text-gray-300 px-1">Carregando…</div>
+            ) : daySessions.length === 0 ? (
+              <div className="text-xs text-gray-300 px-1">Sem sessões</div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {daySessions.map((s) => {
+                  const colors = SESSION_TYPE_COLORS[s.session_type] ?? SESSION_TYPE_COLORS.terapeutica;
+                  const isReplacement = s.session_type === "reposicao";
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => onSelect(s)}
+                      className="w-full text-left px-3 py-2.5 rounded-lg flex items-center justify-between gap-2"
+                      style={{
+                        background: colors.bg,
+                        border: isReplacement
+                          ? `1.5px dashed ${colors.border}`
+                          : `0.5px solid ${colors.border}`,
+                      }}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        {STATUS_ICONS[s.status]}
+                        <span className="font-semibold text-sm truncate" style={{ color: colors.text }}>
+                          {s.patient_name}
+                        </span>
+                        {isReplacement && (
+                          <span
+                            className="text-[10px] font-bold px-1 rounded shrink-0"
+                            style={{ background: colors.border, color: "white" }}
+                          >
+                            R
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-gray-500 shrink-0">
+                        {s.start_time.slice(0, 5)} · {s.duration_minutes}min
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── SessionPanel ─────────────────────────────────────────────────────────────
 
 function SessionPanel({
@@ -434,7 +529,7 @@ function SessionPanel({
 }) {
   return (
     <div
-      className="fixed right-6 top-20 w-80 bg-white rounded-xl shadow-xl z-40 flex flex-col"
+      className="fixed inset-x-4 top-20 sm:inset-x-auto sm:right-6 w-auto sm:w-80 bg-white rounded-xl shadow-xl z-40 flex flex-col"
       style={{ border: "0.5px solid #E5E7EB" }}
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
