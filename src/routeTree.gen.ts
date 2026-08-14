@@ -17,6 +17,7 @@ import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as CompletarPerfilRouteImport } from './routes/completar-perfil'
 import { Route as CadastroRouteImport } from './routes/cadastro'
+import { Route as InteresseRouteImport } from './routes/interesse'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as FilaEsperaClinicSlugRouteImport } from './routes/fila-espera.$clinicSlug'
@@ -131,6 +132,11 @@ const CompletarPerfilRoute = CompletarPerfilRouteImport.update({
 const CadastroRoute = CadastroRouteImport.update({
   id: '/cadastro',
   path: '/cadastro',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InteresseRoute = InteresseRouteImport.update({
+  id: '/interesse',
+  path: '/interesse',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -538,6 +544,7 @@ const AuthPacienteChildIdMarcosMarcoIdMetaGoalIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cadastro': typeof CadastroRoute
+  '/interesse': typeof InteresseRoute
   '/completar-perfil': typeof CompletarPerfilRoute
   '/login': typeof LoginRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -622,6 +629,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cadastro': typeof CadastroRoute
+  '/interesse': typeof InteresseRoute
   '/completar-perfil': typeof CompletarPerfilRoute
   '/login': typeof LoginRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -707,6 +715,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_auth': typeof AuthRouteWithChildren
   '/cadastro': typeof CadastroRoute
+  '/interesse': typeof InteresseRoute
   '/completar-perfil': typeof CompletarPerfilRoute
   '/login': typeof LoginRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -793,6 +802,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/cadastro'
+    | '/interesse'
     | '/completar-perfil'
     | '/login'
     | '/privacidade'
@@ -877,6 +887,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/cadastro'
+    | '/interesse'
     | '/completar-perfil'
     | '/login'
     | '/privacidade'
@@ -961,6 +972,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_auth'
     | '/cadastro'
+    | '/interesse'
     | '/completar-perfil'
     | '/login'
     | '/privacidade'
@@ -1047,6 +1059,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRouteWithChildren
   CadastroRoute: typeof CadastroRoute
+  InteresseRoute: typeof InteresseRoute
   CompletarPerfilRoute: typeof CompletarPerfilRoute
   LoginRoute: typeof LoginRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
@@ -1123,6 +1136,13 @@ declare module '@tanstack/react-router' {
       path: '/cadastro'
       fullPath: '/cadastro'
       preLoaderRoute: typeof CadastroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/interesse': {
+      id: '/interesse'
+      path: '/interesse'
+      fullPath: '/interesse'
+      preLoaderRoute: typeof InteresseRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_auth': {
@@ -1870,6 +1890,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRouteWithChildren,
   CadastroRoute: CadastroRoute,
+  InteresseRoute: InteresseRoute,
   CompletarPerfilRoute: CompletarPerfilRoute,
   LoginRoute: LoginRoute,
   PrivacidadeRoute: PrivacidadeRoute,
