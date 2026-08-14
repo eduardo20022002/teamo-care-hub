@@ -6,6 +6,7 @@
 import { Link } from "@tanstack/react-router";
 import { Sparkles, Gift, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BILLING_ENABLED } from "@/lib/plan-limits";
 import type { PlanScope } from "@/lib/plan-limits";
 
 const ACCENT: Record<PlanScope, string> = { therapist: "#0D9488", parent: "#7C3AED", clinic: "#2563EB" };
@@ -32,6 +33,9 @@ export function PlanStatusChip({
   trialEndsAt: string | null;
   className?: string;
 }) {
+  // Cobrança desligada → nenhum selo de plano aparece.
+  if (!BILLING_ENABLED) return null;
+
   const accent = ACCENT[scope];
   const soft = ACCENT_SOFT[scope];
   const border = ACCENT_BORDER[scope];

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Check, Minus, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { usePlan, useClinicPlan, useCheckoutFn } from "@/services/subscription.service";
-import { THERAPIST_PRICE, PARENT_PRICE, CLINIC_PRICE } from "@/lib/plan-limits";
+import { THERAPIST_PRICE, PARENT_PRICE, CLINIC_PRICE, BILLING_ENABLED } from "@/lib/plan-limits";
 
 type Scope = "therapist" | "parent" | "clinic";
 
@@ -19,6 +19,10 @@ const THEME = {
 
 // `as any`: rota nova — routeTree.gen.ts só conhece /premium após `npm run dev`/`build`.
 export const Route = createFileRoute("/_auth/premium")({
+  // Cobrança desligada → página de planos indisponível; volta ao dashboard.
+  beforeLoad: () => {
+    if (!BILLING_ENABLED) throw redirect({ to: "/dashboard" });
+  },
   validateSearch: (s: Record<string, unknown>): { scope?: Scope; clinicId?: string } => ({
     scope:
       s.scope === "parent" ? "parent" : s.scope === "clinic" ? "clinic" : s.scope === "therapist" ? "therapist" : undefined,

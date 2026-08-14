@@ -1,6 +1,7 @@
 // Helpers server-only do módulo de Assinaturas.
 // Este arquivo NUNCA é importado por código cliente — apenas por *.functions.ts e Edge Functions.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { BILLING_ENABLED } from "@/lib/plan-limits";
 import type { PlanTier, PlanScope, PremiumFeature } from "@/lib/plan-limits";
 
 const ABACATEPAY_BASE = "https://api.abacatepay.com/v2";
@@ -33,6 +34,7 @@ export async function hasActiveTrial(userId: string, scope: PlanScope): Promise<
 }
 
 export async function getTherapistPlan(userId: string): Promise<PlanTier> {
+  if (!BILLING_ENABLED) return "premium"; // cobrança desligada → acesso total
   const { data } = await supabaseAdmin
     .from("profiles")
     .select("therapist_plan")
@@ -47,6 +49,7 @@ export async function isTherapistPremium(userId: string): Promise<boolean> {
 }
 
 export async function getParentPlan(userId: string): Promise<PlanTier> {
+  if (!BILLING_ENABLED) return "premium"; // cobrança desligada → acesso total
   const { data } = await supabaseAdmin
     .from("profiles")
     .select("parent_plan")
@@ -77,6 +80,7 @@ export async function assertTherapistPremium(userId: string, feature: PremiumFea
 }
 
 export async function getClinicPlan(clinicId: string): Promise<PlanTier> {
+  if (!BILLING_ENABLED) return "premium"; // cobrança desligada → acesso total
   const { data } = await (supabaseAdmin as any)
     .from("clinics")
     .select("clinic_plan, owner_id")
@@ -146,6 +150,20 @@ async function createOrGetAbacateCustomer(userId: string): Promise<string> {
 // ─── Implementações dos handlers (chamadas via dynamic import no functions.ts) ─
 
 export async function runGetMySubscriptionStatus(userId: string) {
+  // Cobrança desligada → UI enxerga premium em ambos os escopos (sem trial).
+  if (!BILLING_ENABLED) {
+    return {
+      therapistPlan: "premium" as PlanTier,
+      parentPlan: "premium" as PlanTier,
+      status: "active",
+      trialEndsAt: null,
+      currentPeriodEnd: null,
+      parentStatus: "active",
+      parentTrialEndsAt: null,
+      parentCurrentPeriodEnd: null,
+    };
+  }
+
   const { data: profile } = await supabaseAdmin
     .from("profiles")
     .select("therapist_plan, parent_plan")
@@ -193,6 +211,16 @@ export async function runGetClinicPlanStatus(userId: string, clinicId: string) {
     .maybeSingle();
   if (!member) throw new Response("Sem acesso a esta clínica.", { status: 403 });
 
+  // Cobrança desligada → UI enxerga clínica premium (sem trial).
+  if (!BILLING_ENABLED) {
+    return {
+      clinicPlan: "premium" as PlanTier,
+      status: "active",
+      trialEndsAt: null,
+      currentPeriodEnd: null,
+    };
+  }
+
   const clinicPlan = await getClinicPlan(clinicId);
 
   const { data: clinicRow } = await (supabaseAdmin as any)
@@ -220,6 +248,9 @@ export async function runCreateSubscriptionCheckout(
   userId: string,
   data: { scope: PlanScope; clinicId?: string },
 ): Promise<{ ok: true; checkoutUrl: string } | { ok: false; error: string }> {
+  // Cobrança desligada → ninguém alcança o AbacatePay (defense-in-depth).
+  if (!BILLING_ENABLED) return { ok: false, error: "BILLING_DISABLED" };
+
   const { data: existing } = await (supabaseAdmin as any)
     .from("subscriptions")
     .select("status, provider")

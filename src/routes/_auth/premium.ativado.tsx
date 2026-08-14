@@ -1,9 +1,14 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { BILLING_ENABLED } from "@/lib/plan-limits";
 
 export const Route = createFileRoute("/_auth/premium/ativado")({
+  // Cobrança desligada → sem tela de ativação; volta ao dashboard.
+  beforeLoad: () => {
+    if (!BILLING_ENABLED) throw redirect({ to: "/dashboard" });
+  },
   validateSearch: (s: Record<string, unknown>): { scope?: string } => ({
     scope: typeof s.scope === "string" ? s.scope : undefined,
   }),

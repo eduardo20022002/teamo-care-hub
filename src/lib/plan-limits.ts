@@ -1,6 +1,19 @@
 // Constantes de plano (Freemium). Compartilhado por backend (gates) e frontend (UI).
 // Sem imports de servidor aqui — pode ser usado em qualquer lado.
 
+/**
+ * KILL-SWITCH DE MONETIZAÇÃO.
+ * false = cobrança DESLIGADA: todos os usuários têm acesso total (premium),
+ *         nenhuma superfície de cobrança aparece, checkout desativado.
+ * true  = cobrança LIGADA: freemium normal (gates + paywall + AbacatePay).
+ * Reativar cobrança = trocar para true + redeploy. Nada mais precisa mudar.
+ * Ver docs/monetizacao-desligada.md.
+ *
+ * Tipado como `boolean` (não literal) de propósito: mantém ambos os ramos dos
+ * gates type-reachable, então religar para `true` não gera "unreachable code".
+ */
+export const BILLING_ENABLED: boolean = false;
+
 /** Limites do plano gratuito do terapeuta. */
 export const THERAPIST_LIMITS = {
   /** Pacientes ativos criados pelo próprio terapeuta (não conta acesso recebido de pais). */
