@@ -19,12 +19,6 @@ function appBaseUrl(): string {
   return process.env.APP_URL ?? "https://teamotech.online";
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-}
-
 const submitInterestSchema = z.object({
   nome: z.string().trim().min(2, "Informe seu nome").max(120),
   email: z.string().trim().toLowerCase().email("E-mail inválido").max(200),
@@ -37,8 +31,10 @@ const submitInterestSchema = z.object({
 
 // ─── E-mail de boas-vindas (imediato) ─────────────────────────────────────────
 
-function welcomeHtml(nome: string, papel: "parent" | "therapist"): string {
-  const primeiroNome = escapeHtml(nome.split(" ")[0] ?? nome);
+// NÃO interpola o `nome` livre do formulário: como o e-mail vai para um endereço
+// ainda NÃO confirmado (posse não verificada), texto controlado pelo remetente no
+// corpo seria vetor de abuso/assédio via nosso domínio. Saudação neutra. (issue #5)
+function welcomeHtml(papel: "parent" | "therapist"): string {
   const linha = papel === "therapist"
     ? "Com o TEAmo você registra cada sessão uma vez só, acompanha a evolução dos seus pacientes e mantém as famílias conectadas ao processo — sem planilha à parte."
     : "Com o TEAmo você acompanha de perto cada passo, cada conquista e cada detalhe do cuidado de quem você ama, tudo em um só lugar.";
@@ -52,7 +48,7 @@ function welcomeHtml(nome: string, papel: "parent" | "therapist"): string {
           <span style="color:#4F46E5;">TEA</span><span style="color:#EC4899;">mo</span>
         </h1>
         <p style="margin:0 0 20px;font-size:13px;color:#6C757D;">Acompanhamento terapêutico para crianças com TEA</p>
-        <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">Oi, ${primeiroNome}!</p>
+        <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">Oi! 👋</p>
         <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#374151;">
           Que bom ter você por aqui. Seu acesso ao TEAmo está liberado — é só criar sua conta pelo link abaixo.
         </p>
@@ -73,7 +69,7 @@ function welcomeHtml(nome: string, papel: "parent" | "therapist"): string {
 }
 
 async function sendWelcomeEmail(params: {
-  to: string; nome: string; papel: "parent" | "therapist";
+  to: string; papel: "parent" | "therapist";
 }): Promise<{ ok: boolean; id?: string; error?: string }> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return { ok: false, error: "RESEND_API_KEY not configured" };
@@ -88,7 +84,7 @@ async function sendWelcomeEmail(params: {
         from: RESEND_FROM,
         to: [params.to],
         subject: "Seu acesso ao TEAmo",
-        html: welcomeHtml(params.nome, params.papel),
+        html: welcomeHtml(params.papel),
       }),
       signal: controller.signal,
     });
@@ -130,6 +126,18 @@ export const submitInterestServer = createServerFn({ method: "POST" })
       };
     }
 
+    // Rate limit também por e-mail-alvo: impede usar o formulário para disparar
+    // repetidamente e-mails a um endereço de terceiro (o limite por IP sozinho é
+    // contornável). Responde "ok" sem enviar, para não revelar se o e-mail existe.
+    if (!rateLimit(`interesse:email:${data.email}`, 2, 24 * 60 * 60_000).allowed) {
+      return { ok: true, jaTemConta: false };
+    }
+
+    // NOTA LGPD (issue #5): `campaign_capture_lead` grava consent_at, mas isto é
+    // consentimento de OPT-IN SIMPLES — a posse do e-mail não é verificada aqui.
+    // Double opt-in (confirmação por link antes de sequência de campanha) é o
+    // follow-up planejado; enquanto isso, o e-mail de boas-vindas não expõe texto
+    // livre do remetente e há rate limit por e-mail acima.
     const { data: captured, error } = await (supabaseAdmin as any).rpc("campaign_capture_lead", {
       p_email: data.email,
       p_name: data.nome,
@@ -151,7 +159,7 @@ export const submitInterestServer = createServerFn({ method: "POST" })
     // gatilho para spammar terceiros.
     if (!jaExistia) {
       const sent = await sendWelcomeEmail({
-        to: data.email, nome: data.nome, papel: data.papel,
+        to: data.email, papel: data.papel,
       });
       if (sent.ok && sent.id) {
         // Conta como o toque 1 do estágio lead: o follow-up automático continua
