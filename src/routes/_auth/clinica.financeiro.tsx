@@ -23,7 +23,9 @@ import {
   type AuthorizationStatus,
 } from "@/types/clinic-financial";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
-import { AlertTriangle, CreditCard, RefreshCw, ChevronRight, Plus, X, Search } from "lucide-react";
+import { AlertTriangle, CreditCard, RefreshCw, ChevronRight, Plus, X, Search, Download } from "lucide-react";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
+import { toCsv, downloadCsv } from "@/lib/csv";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_auth/clinica/financeiro")({
@@ -162,9 +164,7 @@ function NewAuthModal({ clinicId, onSuccess, onClose }: NewAuthModalProps) {
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <h2 className="text-base font-semibold text-gray-900">Nova autorização</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X size={18} />
-          </button>
+          <ModalCloseButton onClick={onClose} />
         </div>
         <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-4">
           <div className="flex flex-col gap-1 relative">
@@ -351,7 +351,7 @@ function CompleteRenewalModal({ clinicId, authorizationId, onSuccess, onClose }:
       <div className="bg-white rounded-xl w-full max-w-sm flex flex-col" style={{ border: "0.5px solid #E5E7EB" }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <h2 className="text-base font-semibold text-gray-900">Concluir renovação</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+          <ModalCloseButton onClick={onClose} />
         </div>
         <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-4">
           <div className="flex flex-col gap-1">
@@ -533,6 +533,23 @@ function ClinicFinanceiroPage() {
     return days <= 30 && a.status !== "encerrada";
   }).length;
 
+  // Exportação CSV (issue #9): reconciliação com convênio em planilha.
+  // Client-side, a partir dos dados já carregados (respeita o filtro atual).
+  const handleExportCsv = () => {
+    if (filtered.length === 0) { toast.info("Nada para exportar neste filtro."); return; }
+    const csv = toCsv(filtered, [
+      { key: "patient_name", header: "Paciente" },
+      { key: "insurance_plan", header: "Convênio" },
+      { key: "authorization_number", header: "Nº autorização" },
+      { key: "valid_until", header: "Válido até" },
+      { key: "sessions_authorized", header: "Sessões autorizadas" },
+      { key: "sessions_used", header: "Sessões usadas" },
+      { key: "sessions_remaining", header: "Sessões restantes" },
+      { key: "status", header: "Status" },
+    ]);
+    downloadCsv(`autorizacoes-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+  };
+
   if (clinicQuery.isLoading) return <LoadingSpinner label="Carregando..." />;
 
   return (
@@ -578,13 +595,23 @@ function ClinicFinanceiroPage() {
               )}
             </p>
           </div>
-          <button
-            onClick={() => (!isClinicPremium && allAuths.length >= limits.autorizacoes) ? openUpgrade("clinica-autorizacoes") : setShowNewModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors"
-          >
-            <Plus size={15} />
-            Nova autorização
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 text-sm font-medium transition-colors"
+            >
+              <Download size={15} />
+              Exportar CSV
+            </button>
+            <button
+              onClick={() => (!isClinicPremium && allAuths.length >= limits.autorizacoes) ? openUpgrade("clinica-autorizacoes") : setShowNewModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors"
+            >
+              <Plus size={15} />
+              Nova autorização
+            </button>
+          </div>
         </div>
 
         {/* Tabs de filtro */}

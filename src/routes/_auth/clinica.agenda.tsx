@@ -2,10 +2,11 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronLeft, ChevronRight, Plus, X, CheckCircle, AlertCircle, XCircle, UserMinus, Users2, Clock, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, CheckCircle, AlertCircle, XCircle, UserMinus, Users2, Clock, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { authHeaders } from "@/lib/auth-headers";
 import { useClinicPlan } from "@/services/subscription.service";
 import { useUpgrade } from "@/components/premium/PremiumGate";
@@ -539,9 +540,7 @@ function SessionPanel({
             {SESSION_TYPE_LABELS[session.session_type]} · {DAY_NAMES_FULL[new Date(session.session_date + "T00:00:00").getDay()]}
           </p>
         </div>
-        <button type="button" onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
-          <X size={16} />
-        </button>
+        <ModalCloseButton onClick={onClose} />
       </div>
 
       <div className="px-4 py-3 flex flex-col gap-2 text-sm">
@@ -652,9 +651,7 @@ function AbsenceModal({
           <h2 className="text-base font-bold text-gray-900">
             Registrar ausência{therapistName ? ` — ${therapistName}` : ""}
           </h2>
-          <button type="button" onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
-            <X size={16} />
-          </button>
+          <ModalCloseButton onClick={onClose} />
         </div>
 
         <form onSubmit={(e) => void handleSubmit(e)} className="px-5 py-4 flex flex-col gap-4">

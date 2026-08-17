@@ -2,10 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertCircle, Clock, Calendar, ChevronLeft, X, UserX } from "lucide-react";
+import { AlertCircle, Clock, Calendar, ChevronLeft, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { authHeaders } from "@/lib/auth-headers";
 import {
   listClinicReplacementsServer,
@@ -199,7 +200,7 @@ function AbsenceModal({
       <div className="bg-white rounded-xl w-full max-w-md flex flex-col" style={{ border: "0.5px solid #E5E7EB" }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <h2 className="text-base font-semibold text-gray-900">Registrar ausência de terapeuta</h2>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+          <ModalCloseButton onClick={onClose} />
         </div>
         <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-4">
           <div className="flex flex-col gap-1">
@@ -600,9 +601,7 @@ function ProposeSlotModal({
             <h2 className="text-base font-bold text-gray-900">Propor horário de reposição</h2>
             <p className="text-xs text-gray-500 mt-0.5">{replacement.patient_name}</p>
           </div>
-          <button type="button" onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
-            <X size={16} />
-          </button>
+          <ModalCloseButton onClick={onClose} />
         </div>
 
         <form onSubmit={(e) => void handleSubmit(e)} className="px-5 py-4 flex flex-col gap-4">
