@@ -40,7 +40,7 @@ type Variant = "parent" | "therapist" | "lead";
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
-function layout(bodyHtml: string, ctaLabel: string, ctaHref: string): string {
+function layout(bodyHtml: string, ctaLabel: string, ctaHref: string, unsubUrl: string): string {
   return `<!doctype html><html lang="pt-BR"><body style="margin:0;background:#F3F4F8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#212529;">
   <div style="max-width:520px;margin:0 auto;padding:32px 24px;">
     <div style="background:#fff;border:1px solid #DEE2E6;border-radius:14px;overflow:hidden;">
@@ -58,6 +58,11 @@ function layout(bodyHtml: string, ctaLabel: string, ctaHref: string): string {
         </div>
         <p style="margin:0;font-size:13px;color:#6C757D;">
           Qualquer dúvida, é só responder este e-mail — sou eu mesmo, Eduardo, quem lê.
+        </p>
+      </div>
+      <div style="padding:0 28px 20px;">
+        <p style="margin:0;font-size:11px;color:#ADB5BD;">
+          Não quer mais receber estes e-mails? <a href="${unsubUrl}" style="color:#ADB5BD;text-decoration:underline;">Descadastrar</a>
         </p>
       </div>
     </div>
@@ -247,7 +252,7 @@ function content(stage: Stage, idx: number, variant: Variant): Tpl | null {
 
 // ─── Envio ────────────────────────────────────────────────────────────────────
 
-async function sendEmail(to: string, subject: string, html: string) {
+async function sendEmail(to: string, subject: string, html: string, unsubUrl: string) {
   const controller = new AbortController();
   const tid = setTimeout(() => controller.abort(), 15_000);
   try {
@@ -257,7 +262,15 @@ async function sendEmail(to: string, subject: string, html: string) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
-      body: JSON.stringify({ from: RESEND_FROM, to: [to], subject, html }),
+      body: JSON.stringify({
+        from: RESEND_FROM,
+        to: [to],
+        subject,
+        html,
+        // Header padrão (RFC 8058): Gmail/Outlook mostram "Cancelar inscrição"
+        // no próprio cliente, sem precisar abrir o e-mail — reduz denúncia de spam.
+        headers: { "List-Unsubscribe": `<${unsubUrl}>` },
+      }),
       signal: controller.signal,
     });
     clearTimeout(tid);
@@ -313,7 +326,7 @@ Deno.serve(async (req) => {
     // 2. Quem está devendo toque.
     const { data: due, error: dueErr } = await supabase
       .from("campaign_lifecycle_due")
-      .select("email, stage, variant, next_touch_index, auto_send, lead_name")
+      .select("email, stage, variant, next_touch_index, auto_send, lead_name, unsub_token")
       .eq("campaign", campaign)
       .eq("is_due", true)
       .limit(MAX_PER_RUN);
@@ -323,7 +336,7 @@ Deno.serve(async (req) => {
 
     const rows = (due ?? []) as {
       email: string; stage: Stage; variant: Variant; next_touch_index: number;
-      auto_send: boolean; lead_name: string | null;
+      auto_send: boolean; lead_name: string | null; unsub_token: string;
     }[];
 
     for (const row of rows) {
@@ -349,7 +362,10 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const result = await sendEmail(row.email, tpl.subject, layout(tpl.body, tpl.cta, tpl.href));
+      const unsubUrl = `${APP_URL}/descadastro/${row.unsub_token}`;
+      const result = await sendEmail(
+        row.email, tpl.subject, layout(tpl.body, tpl.cta, tpl.href, unsubUrl), unsubUrl,
+      );
       if (!result.ok) {
         failed.push({ campaign, email: row.email, stage: row.stage, error: result.error });
         continue;

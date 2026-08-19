@@ -22,6 +22,7 @@ import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as FilaEsperaClinicSlugRouteImport } from './routes/fila-espera.$clinicSlug'
 import { Route as ConviteTokenRouteImport } from './routes/convite.$token'
+import { Route as DescadastroTokenRouteImport } from './routes/descadastro.$token'
 import { Route as ConviteProfissionalTokenRouteImport } from './routes/convite-profissional.$token'
 import { Route as ConfirmacaoClinicaTokenRouteImport } from './routes/confirmacao-clinica.$token'
 import { Route as CompartilhamentoTokenRouteImport } from './routes/compartilhamento.$token'
@@ -156,6 +157,11 @@ const FilaEsperaClinicSlugRoute = FilaEsperaClinicSlugRouteImport.update({
 const ConviteTokenRoute = ConviteTokenRouteImport.update({
   id: '/convite/$token',
   path: '/convite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DescadastroTokenRoute = DescadastroTokenRouteImport.update({
+  id: '/descadastro/$token',
+  path: '/descadastro/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConviteProfissionalTokenRoute =
@@ -580,6 +586,7 @@ export interface FileRoutesByFullPath {
   '/confirmacao-clinica/$token': typeof ConfirmacaoClinicaTokenRoute
   '/convite-profissional/$token': typeof ConviteProfissionalTokenRoute
   '/convite/$token': typeof ConviteTokenRoute
+  '/descadastro/$token': typeof DescadastroTokenRoute
   '/fila-espera/$clinicSlug': typeof FilaEsperaClinicSlugRouteWithChildren
   '/acompanhamentos/$accessId': typeof AuthAcompanhamentosAccessIdRoute
   '/agenda/$eventId': typeof AuthAgendaEventIdRoute
@@ -664,6 +671,7 @@ export interface FileRoutesByTo {
   '/confirmacao-clinica/$token': typeof ConfirmacaoClinicaTokenRoute
   '/convite-profissional/$token': typeof ConviteProfissionalTokenRoute
   '/convite/$token': typeof ConviteTokenRoute
+  '/descadastro/$token': typeof DescadastroTokenRoute
   '/fila-espera/$clinicSlug': typeof FilaEsperaClinicSlugRouteWithChildren
   '/acompanhamentos/$accessId': typeof AuthAcompanhamentosAccessIdRoute
   '/agenda/$eventId': typeof AuthAgendaEventIdRoute
@@ -751,6 +759,7 @@ export interface FileRoutesById {
   '/confirmacao-clinica/$token': typeof ConfirmacaoClinicaTokenRoute
   '/convite-profissional/$token': typeof ConviteProfissionalTokenRoute
   '/convite/$token': typeof ConviteTokenRoute
+  '/descadastro/$token': typeof DescadastroTokenRoute
   '/fila-espera/$clinicSlug': typeof FilaEsperaClinicSlugRouteWithChildren
   '/_auth/acompanhamentos_/$accessId': typeof AuthAcompanhamentosAccessIdRoute
   '/_auth/agenda_/$eventId': typeof AuthAgendaEventIdRoute
@@ -1073,6 +1082,7 @@ export interface RootRouteChildren {
   ConfirmacaoClinicaTokenRoute: typeof ConfirmacaoClinicaTokenRoute
   ConviteProfissionalTokenRoute: typeof ConviteProfissionalTokenRoute
   ConviteTokenRoute: typeof ConviteTokenRoute
+  DescadastroTokenRoute: typeof DescadastroTokenRoute
   FilaEsperaClinicSlugRoute: typeof FilaEsperaClinicSlugRouteWithChildren
   ConviteClinicaTokenAceitarRoute: typeof ConviteClinicaTokenAceitarRoute
   ApiPublicShareDocumentUrlRoute: typeof ApiPublicShareDocumentUrlRoute
@@ -1171,6 +1181,13 @@ declare module '@tanstack/react-router' {
       path: '/convite/$token'
       fullPath: '/convite/$token'
       preLoaderRoute: typeof ConviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/descadastro/$token': {
+      id: '/descadastro/$token'
+      path: '/descadastro/$token'
+      fullPath: '/descadastro/$token'
+      preLoaderRoute: typeof DescadastroTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/convite-profissional/$token': {
@@ -1904,6 +1921,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConfirmacaoClinicaTokenRoute: ConfirmacaoClinicaTokenRoute,
   ConviteProfissionalTokenRoute: ConviteProfissionalTokenRoute,
   ConviteTokenRoute: ConviteTokenRoute,
+  DescadastroTokenRoute: DescadastroTokenRoute,
   FilaEsperaClinicSlugRoute: FilaEsperaClinicSlugRouteWithChildren,
   ConviteClinicaTokenAceitarRoute: ConviteClinicaTokenAceitarRoute,
   ApiPublicShareDocumentUrlRoute: ApiPublicShareDocumentUrlRoute,
