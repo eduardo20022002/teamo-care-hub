@@ -4,9 +4,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, User, Phone, Mail, Calendar, ClipboardList,
   BarChart3, Clock, AlertTriangle, Loader2, CheckCircle2,
-  History, Send, Copy, X,
+  History, Send, Copy,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { toast } from "sonner";
 import { getQueueEntryServer, adjustQueueTierServer } from "@/lib/queue.functions";
 import { getMyClinicServer } from "@/lib/clinic.functions";
@@ -281,9 +282,7 @@ function AgendarAvaliacaoModal({
             <h2 className="text-base font-bold text-gray-900">Enviar Form 2 — Proposta de horário</h2>
             <p className="text-xs text-gray-500 mt-0.5">{childName}</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X size={18} />
-          </button>
+          <ModalCloseButton onClick={onClose} />
         </div>
 
         {!formUrl ? (

@@ -4,9 +4,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Users, UserPlus, Mail, Trash2, Loader2, Copy, CheckCircle2,
-  Clock, AlertCircle, X,
+  Clock, AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { useAuth } from "@/hooks/useAuth";
 import {
   getMyClinicServer, listClinicMembersServer, createClinicInviteServer,
@@ -91,13 +92,7 @@ function InviteModal({
       >
         <div className="flex items-center justify-between">
           <h3 className="text-base font-semibold text-gray-900">Convidar membro</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <X size={16} className="text-gray-500" />
-          </button>
+          <ModalCloseButton onClick={onClose} />
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
