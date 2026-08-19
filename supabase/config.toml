@@ -10,3 +10,8 @@ verify_jwt = false
 # é o header x-campaign-token (CAMPAIGN_CRON_TOKEN), validado dentro do handler.
 [functions.campaign-dispatch]
 verify_jwt = false
+
+# Público de propósito: só devolve agregados (sem PII), para uma rotina de
+# monitoramento externa checar sem precisar do CAMPAIGN_CRON_TOKEN.
+[functions.campaign-status]
+verify_jwt = false
