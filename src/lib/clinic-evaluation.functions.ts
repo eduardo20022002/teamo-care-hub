@@ -8,6 +8,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getClinicMembership } from "@/lib/clinic-auth.server";
 import { rateLimit, getClientIp } from "@/server/rate-limit";
 import {
   isClinicPremium,
@@ -32,13 +33,7 @@ export const createEvaluationReportServer = createServerFn({ method: "POST" })
     const userId = context.user.id;
 
     // Verificação explícita: usuário deve ser membro da clínica
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", data.clinicId)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const member = await getClinicMembership(data.clinicId, userId);
 
     if (!member) return { ok: false, error: "Sem permissão para esta clínica" };
 
@@ -106,13 +101,7 @@ export const updateEvaluationReportServer = createServerFn({ method: "POST" })
 
     if (!report) return { ok: false, error: "Relatório não encontrado" };
 
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", report.clinic_id)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const member = await getClinicMembership(report.clinic_id, userId);
 
     const isTherapist = report.therapist_user_id === userId;
     const isCoordinator = member?.role === "coordinator";
@@ -161,13 +150,7 @@ export const finalizeEvaluationReportServer = createServerFn({ method: "POST" })
     if (!report) return { ok: false, error: "Relatório não encontrado" };
 
     // Verificação explícita de permissão
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", report.clinic_id)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const member = await getClinicMembership(report.clinic_id, userId);
 
     const isTherapist = report.therapist_user_id === userId;
     const isCoordinator = member?.role === "coordinator";
@@ -203,13 +186,7 @@ export const getEvaluationReportServer = createServerFn({ method: "GET" })
     if (error || !report) return { ok: false, error: "Relatório não encontrado" };
 
     // Verificação explícita de permissão (LGPD — dupla verificação)
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", report.clinic_id)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const member = await getClinicMembership(report.clinic_id, userId);
 
     const isTherapist = report.therapist_user_id === userId;
     const isCoordinator = member?.role === "coordinator";
@@ -232,13 +209,7 @@ export const listEvaluationReportsServer = createServerFn({ method: "GET" })
     const userId = context.user.id;
 
     // Verificação explícita: deve ser membro da clínica
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", data.clinicId)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const member = await getClinicMembership(data.clinicId, userId);
 
     if (!member) return { ok: false, error: "Sem permissão" };
 
@@ -279,13 +250,7 @@ export const generateEvaluationPdfServer = createServerFn({ method: "GET" })
     if (!report) return { ok: false, error: "Relatório não encontrado" };
 
     // Verificação explícita de permissão (LGPD)
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", report.clinic_id)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const member = await getClinicMembership(report.clinic_id, userId);
 
     const isTherapist = report.therapist_user_id === userId;
     const isCoordinator = member?.role === "coordinator";
@@ -678,13 +643,7 @@ export const approvePatientProfileServer = createServerFn({ method: "POST" })
     if (!profile) return { ok: false, error: "Perfil não encontrado" };
 
     // Verificação explícita: apenas coordenador aprova (LGPD — dupla verificação)
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", profile.clinic_id)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const member = await getClinicMembership(profile.clinic_id, userId);
 
     if (member?.role !== "coordinator") return { ok: false, error: "Apenas coordenadores podem aprovar cadastros" };
 
