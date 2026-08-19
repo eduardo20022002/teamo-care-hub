@@ -6,6 +6,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getClinicMembership } from "@/lib/clinic-auth.server";
 
 import type {
   InsuranceAuthorization,
@@ -39,13 +40,7 @@ export const createInsuranceAuthorizationServer = createServerFn({ method: "POST
   .handler(async ({ data, context }): Promise<{ ok: true; authorizationId: string } | { ok: false; error: string }> => {
     const userId = context.userId;
 
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", data.clinicId)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const member = await getClinicMembership(data.clinicId, userId);
 
     if (member?.role !== "coordinator") {
       return { ok: false, error: "Apenas coordenadores podem cadastrar autorizações" };
@@ -92,13 +87,7 @@ export const listInsuranceAuthorizationsServer = createServerFn({ method: "GET" 
   .handler(async ({ data, context }): Promise<{ ok: true; authorizations: InsuranceAuthorization[] } | { ok: false; error: string }> => {
     const userId = context.userId;
 
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", data.clinicId)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const member = await getClinicMembership(data.clinicId, userId);
 
     if (member?.role !== "coordinator") {
       return { ok: false, error: "Acesso financeiro restrito a coordenadores" };
@@ -142,13 +131,7 @@ export const getAuthorizationDetailServer = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<{ ok: true; authorizations: InsuranceAuthorization[] } | { ok: false; error: string }> => {
     const userId = context.userId;
 
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", data.clinicId)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const member = await getClinicMembership(data.clinicId, userId);
 
     if (member?.role !== "coordinator") {
       return { ok: false, error: "Acesso financeiro restrito a coordenadores" };
@@ -178,13 +161,7 @@ export const startAuthorizationRenewalServer = createServerFn({ method: "POST" }
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
     const userId = context.userId;
 
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", data.clinicId)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const member = await getClinicMembership(data.clinicId, userId);
 
     if (member?.role !== "coordinator") {
       return { ok: false, error: "Apenas coordenadores podem iniciar renovações" };
@@ -216,13 +193,7 @@ export const completeAuthorizationRenewalServer = createServerFn({ method: "POST
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
     const userId = context.userId;
 
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", data.clinicId)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const member = await getClinicMembership(data.clinicId, userId);
 
     if (member?.role !== "coordinator") {
       return { ok: false, error: "Apenas coordenadores podem concluir renovações" };
@@ -263,13 +234,7 @@ export const createPaymentRecordServer = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ ok: boolean; error?: string }> => {
     const userId = context.userId;
 
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", data.clinicId)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const member = await getClinicMembership(data.clinicId, userId);
 
     if (member?.role !== "coordinator") {
       return { ok: false, error: "Apenas coordenadores podem registrar pagamentos" };
@@ -305,13 +270,7 @@ export const listPaymentRecordsServer = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<{ ok: true; records: ClinicPaymentRecord[] } | { ok: false; error: string }> => {
     const userId = context.userId;
 
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", data.clinicId)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const member = await getClinicMembership(data.clinicId, userId);
 
     if (member?.role !== "coordinator") {
       return { ok: false, error: "Acesso financeiro restrito a coordenadores" };
@@ -345,13 +304,7 @@ export const getAuthorizationAlertsServer = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<{ ok: true; alerts: AuthorizationAlert[] } | { ok: false; error: string }> => {
     const userId = context.userId;
 
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", data.clinicId)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const member = await getClinicMembership(data.clinicId, userId);
 
     if (member?.role !== "coordinator") {
       return { ok: false, error: "Acesso financeiro restrito a coordenadores" };
@@ -443,13 +396,7 @@ export const listClinicPatientsServer = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<{ ok: true; patients: { id: string; name: string }[] } | { ok: false; error: string }> => {
     const userId = context.userId;
 
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", data.clinicId)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const member = await getClinicMembership(data.clinicId, userId);
     if (!member) return { ok: false, error: "Acesso negado." };
 
     const { data: rows, error } = await (supabaseAdmin as any)

@@ -7,6 +7,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getClinicMembership } from "@/lib/clinic-auth.server";
 import { nameToSlug } from "@/lib/slugify";
 import { isClinicPremium, clinicGateError } from "@/lib/subscription.server";
 import type { Clinic, ClinicMember, ClinicInvite } from "@/types/clinic";
@@ -252,13 +253,7 @@ export const createClinicInviteServer = createServerFn({ method: "POST" })
     const { userId } = context as { userId: string };
 
     // Verificar permissão coordinator
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", data.clinicId)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .maybeSingle();
+    const member = await getClinicMembership(data.clinicId, userId);
 
     const { data: clinic } = await supabaseAdmin
       .from("clinics")

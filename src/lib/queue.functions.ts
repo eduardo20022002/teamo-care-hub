@@ -7,6 +7,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertClinicMember } from "@/lib/clinic-auth.server";
 import { rateLimit, getClientIp } from "@/server/rate-limit";
 import type {
   QueueEntry,
@@ -78,6 +79,11 @@ const submitQueueEntrySchema = z.object({
 export const getPublicClinicBySlugServer = createServerFn({ method: "GET" })
   .inputValidator((d) => z.object({ slug: z.string().min(1) }).parse(d))
   .handler(async ({ data }): Promise<{ id: string; name: string; slug: string } | null> => {
+    // Rate limiting por IP (Regra 6): rota pública, leitura leve → janela generosa.
+    const request = getRequest();
+    const ip = request ? getClientIp(request) : "unknown";
+    if (!rateLimit(`clinic-slug:${ip}`, 30, 60_000).allowed) return null;
+
     // Cast necessário: coluna slug adicionada via migration, tipos Supabase não regenerados
     const { data: clinic } = await (supabaseAdmin.from("clinics") as any)
       .select("id, name, slug")
@@ -260,7 +266,10 @@ export const listQueueEntriesServer = createServerFn({ method: "GET" })
       status:     z.enum(["aguardando","em_avaliacao","agendado","inativo"]).optional(),
     }).parse(d),
   )
-  .handler(async ({ data }): Promise<QueueEntry[]> => {
+  .handler(async ({ data, context }): Promise<QueueEntry[]> => {
+    // Isolamento de tenant: só membro ativo da clínica lê a fila (PII de menores).
+    await assertClinicMember(data.clinicId, (context as { userId: string }).userId);
+
     let query = supabaseAdmin
       .from("queue_entries")
       .select("*")
@@ -377,7 +386,9 @@ export const adjustQueueTierServer = createServerFn({ method: "POST" })
 export const getQueuePriorityConfigServer = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ clinicId: z.string().uuid() }).parse(d))
-  .handler(async ({ data }): Promise<QueuePriorityConfig> => {
+  .handler(async ({ data, context }): Promise<QueuePriorityConfig> => {
+    await assertClinicMember(data.clinicId, (context as { userId: string }).userId);
+
     const { data: config } = await supabaseAdmin
       .from("queue_priority_config")
       .select("*")

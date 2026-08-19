@@ -75,12 +75,30 @@ export function rateLimit(key: string, limit: number, windowMs: number): RateLim
 }
 
 /**
- * Extrai o IP do cliente respeitando proxies (Vercel envia x-forwarded-for).
+ * Extrai o IP do cliente de forma resistente a spoofing.
+ *
+ * O `x-forwarded-for` pode conter valores PREPENDED pelo próprio cliente antes
+ * de chegar no edge da Vercel — então `xff.split(",")[0]` (o primeiro item) é
+ * controlável pelo atacante, o que permitia burlar o rate limit variando o
+ * header a cada request. Preferimos headers que o edge da Vercel injeta e o
+ * cliente não consegue repassar:
+ *   1. `x-vercel-forwarded-for` — setado pelo edge da Vercel com o IP real.
+ *   2. `x-real-ip` — IP do peer, também injetado pela plataforma.
+ *   3. fallback: o ÚLTIMO hop de `x-forwarded-for` (o mais próximo do proxy
+ *      confiável), nunca o primeiro.
  */
 export function getClientIp(request: Request): string {
-  const xff = request.headers.get("x-forwarded-for");
-  if (xff) return xff.split(",")[0].trim();
+  const vercel = request.headers.get("x-vercel-forwarded-for");
+  if (vercel) {
+    const first = vercel.split(",")[0].trim();
+    if (first) return first;
+  }
   const real = request.headers.get("x-real-ip");
-  if (real) return real;
+  if (real && real.trim()) return real.trim();
+  const xff = request.headers.get("x-forwarded-for");
+  if (xff) {
+    const hops = xff.split(",").map((s) => s.trim()).filter(Boolean);
+    if (hops.length) return hops[hops.length - 1]; // último hop = proxy confiável
+  }
   return "unknown";
 }

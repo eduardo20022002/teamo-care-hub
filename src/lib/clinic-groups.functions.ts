@@ -6,6 +6,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getClinicMembership } from "@/lib/clinic-auth.server";
 
 import type {
   ClinicGroup,
@@ -153,13 +154,7 @@ export const createGroupServer = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ ok: true; groupId: string } | { ok: false; error: string }> => {
     const userId = context.user.id;
 
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", data.clinicId)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const member = await getClinicMembership(data.clinicId, userId);
 
     if (member?.role !== "coordinator") {
       return { ok: false, error: "Apenas coordenadores podem criar grupos" };
@@ -208,13 +203,7 @@ export const listGroupsServer = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<{ ok: true; groups: ClinicGroup[] } | { ok: false; error: string }> => {
     const userId = context.user.id;
 
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", data.clinicId)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const member = await getClinicMembership(data.clinicId, userId);
 
     if (!member) return { ok: false, error: "Acesso negado" };
 
@@ -292,13 +281,7 @@ export const getGroupDetailServer = createServerFn({ method: "GET" })
 
     if (error || !group) return { ok: false, error: "Grupo não encontrado" };
 
-    const { data: memberCheck } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", group.clinic_id)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const memberCheck = await getClinicMembership(group.clinic_id, userId);
 
     if (!memberCheck) return { ok: false, error: "Acesso negado" };
 
@@ -397,13 +380,7 @@ export const getSuggestedCandidatesServer = createServerFn({ method: "GET" })
 
     if (groupError || !group) return { ok: false, error: "Grupo não encontrado" };
 
-    const { data: memberCheck } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", group.clinic_id)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const memberCheck = await getClinicMembership(group.clinic_id, userId);
 
     if (!memberCheck) return { ok: false, error: "Acesso negado" };
 
@@ -532,13 +509,7 @@ export const addGroupMemberServer = createServerFn({ method: "POST" })
 
     if (groupError || !group) return { ok: false, error: "Grupo não encontrado" };
 
-    const { data: memberCheck } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", group.clinic_id)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const memberCheck = await getClinicMembership(group.clinic_id, userId);
 
     if (memberCheck?.role !== "coordinator") return { ok: false, error: "Apenas coordenadores podem adicionar membros" };
 
@@ -671,13 +642,7 @@ export const removeGroupMemberServer = createServerFn({ method: "POST" })
 
     if (!group) return { ok: false, error: "Grupo não encontrado" };
 
-    const { data: clinicMember } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", group.clinic_id)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const clinicMember = await getClinicMembership(group.clinic_id, userId);
 
     if (clinicMember?.role !== "coordinator") return { ok: false, error: "Apenas coordenadores podem remover membros" };
 
@@ -716,13 +681,7 @@ export const updateGroupStatusServer = createServerFn({ method: "POST" })
 
     if (!group) return { ok: false, error: "Grupo não encontrado" };
 
-    const { data: member } = await supabaseAdmin
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", group.clinic_id)
-      .eq("user_id", userId)
-      .not("joined_at", "is", null)
-      .single();
+    const member = await getClinicMembership(group.clinic_id, userId);
 
     if (member?.role !== "coordinator") return { ok: false, error: "Apenas coordenadores podem alterar status do grupo" };
 
